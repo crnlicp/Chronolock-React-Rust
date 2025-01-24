@@ -38,3 +38,4 @@ dist-ssr
 .env.production
 
 target
+canister_ids.json

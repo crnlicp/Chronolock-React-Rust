@@ -19,7 +19,7 @@ function App() {
     try {
       setLoading(true);
       setError(undefined);
-      const block = await backend.get_latest_ethereum_block();
+      const block = await backend.get_evm_block(420n);
       setBlock(block);
     } catch (err) {
       console.error(err);
@@ -52,7 +52,7 @@ function App() {
       </div>
       <h1 style={{ paddingLeft: 36 }}>React + EVM RPC + Rust</h1>
       <div className="card" style={{ opacity: loading ? 0.5 : 1 }}>
-        <button onClick={fetchBlock}>Get latest block</button>
+        <button onClick={fetchBlock}>Get Ethereum block</button>
         {!!block && (
           <pre className="json-view">
             <JsonView
