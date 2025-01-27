@@ -9,8 +9,8 @@ use ic_cdk::api::management_canister::{
         SignWithEcdsaArgument,
     },
     schnorr::{
-        schnorr_public_key, sign_with_schnorr, SchnorrKeyId, SchnorrPublicKeyArgument,
-        SignWithSchnorrArgument,
+        schnorr_public_key, sign_with_schnorr, SchnorrAlgorithm, SchnorrKeyId,
+        SchnorrPublicKeyArgument, SignWithSchnorrArgument,
     },
 };
 
@@ -125,10 +125,7 @@ fn key_id_ecdsa() -> EcdsaKeyId {
 
 fn key_id_schnorr() -> SchnorrKeyId {
     SchnorrKeyId {
-        algorithm: ic_cdk::api::management_canister::schnorr::SchnorrAlgorithm::Ed25519,
+        algorithm: SchnorrAlgorithm::Ed25519,
         name: "test_key_1".to_string(), // Use "key_1" for production
     }
 }
-
-// Export the interface for the smart contract.
-ic_cdk::export_candid!();
