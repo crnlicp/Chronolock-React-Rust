@@ -7,9 +7,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export default defineConfig({
-  root: 'src',
+  root: __dirname,
   build: {
-    outDir: '../dist',
+    outDir: 'dist/',
     emptyOutDir: true,
   },
   optimizeDeps: {
@@ -35,6 +35,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: 'setupTests.ts',
-    cache: { dir: '../node_modules/.vitest' },
+    globals: true,
+    cache: { dir: '../../node_modules/.vitest' },
   },
 });

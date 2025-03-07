@@ -1,32 +1,37 @@
-import { useState } from 'react';
-import './App.scss';
-import rustLogo from './assets/rust.svg';
-import reactLogo from './assets/react.svg';
-import ethLogo from './assets/eth.svg';
-import { backend } from './declarations/backend';
-import { Block } from './declarations/backend/backend.did';
-
-// JSON viewer component
-import { JsonView, allExpanded, defaultStyles } from 'react-json-view-lite';
-import 'react-json-view-lite/dist/index.css';
+import { ChangeEvent, useState } from 'react';
+import './styles/App.scss';
+import rustLogo from '../assets/rust.svg';
+import reactLogo from '../assets/react.svg';
+import ethLogo from '../assets/eth.svg';
+import { hello_world } from '../../declarations/hello_world';
 
 function App() {
   const [loading, setLoading] = useState(false);
-  const [block, setBlock] = useState<Block | undefined>();
   const [error, setError] = useState<string | undefined>();
+  const [name, setName] = useState<string>('');
+  const [response, setResponse] = useState<string>('');
 
-  const fetchBlock = async () => {
+  const fetchResponse = async () => {
     try {
       setLoading(true);
       setError(undefined);
-      const block = await backend.get_evm_block(420n);
-      setBlock(block);
+      const res = await hello_world.greet(name);
+      setResponse(res);
     } catch (err) {
       console.error(err);
       setError(String(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChangeText = (
+    event: ChangeEvent<HTMLInputElement> | undefined,
+  ): void => {
+    if (!event?.target.value) {
+      return;
+    }
+    setName(event.target.value);
   };
 
   return (
@@ -51,25 +56,16 @@ function App() {
         </a>
       </div>
       <h1 style={{ paddingLeft: 36 }}>React + EVM RPC + Rust</h1>
+      <input type="text" onChange={handleChangeText} value={name} />
       <div className="card" style={{ opacity: loading ? 0.5 : 1 }}>
-        <button onClick={fetchBlock}>Get Ethereum block</button>
-        {!!block && (
-          <pre className="json-view">
-            <JsonView
-              data={block}
-              shouldExpandNode={allExpanded}
-              style={{ ...defaultStyles, container: '' }}
-            />
-          </pre>
-        )}
+        <button onClick={fetchResponse}>Get Backend Response</button>
+
         {!!error && (
           <pre style={{ textAlign: 'left', color: 'grey' }}>{error}</pre>
         )}
-        {!!loading && !block && !error && <div className="loader" />}
+        {!!loading && !error && <div className="loader" />}
+        {!!response && <div>{response}</div>}
       </div>
-      <p className="read-the-docs">
-        Click on the React, Ethereum, and Rust logos to learn more
-      </p>
     </div>
   );
 }

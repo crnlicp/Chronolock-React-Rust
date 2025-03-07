@@ -1,25 +1,23 @@
 {
-  "name": "vite-react-motoko",
+  "name": "chronolock",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "setup": "npm i && npm run setup:evm_rpc && npm run setup:backend",
-    "setup:evm_rpc": "dfx deps pull && dfx deps init evm_rpc --argument '(record { nodesInSubnet = 28 })' && dfx deps deploy",
-    "setup:backend": "dfx canister create backend && dfx generate backend && dfx deploy",
+    "setup": "npm i && npm run setup:backend",
+    "setup:backend": "dfx deploy",
     "start": "run-p frontend backend",
-    "frontend": "vite --port 3000",
-    "backend": "mo-dev --generate --deploy -y",
-    "build": "tsc && vite build",
+    "frontend": "vite --config \"src/frontend/vite.config.ts\" --port 3000",
+    "backend": "./watch-and-deploy-all.sh",
+    "build": "tsc -p \"src/frontend/tsconfig.json\"  && vite build --config \"src/frontend/vite.config.ts\"",
     "test": "run-s test:backend test:frontend",
     "test:frontend": "vitest run",
-    "test:backend": "mo-test",
-    "format": "prettier --write \"src/**/*.{json,js,jsx,ts,tsx,css,scss}\" \"backend/**/*.mo\""
+    "test:backend": "cargo test",
+    "format": "prettier --write \"src/**/*.{json,js,jsx,ts,tsx,css,scss}\" \"src/backend/**/*.rs\""
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-json-view-lite": "^1.2.1"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@dfinity/agent": "^0.18.1",
@@ -33,14 +31,14 @@
     "cross-fetch": "^3.1.6",
     "dotenv": "^16.3.1",
     "jsdom": "^22.1.0",
-    "mo-dev": "^0.11.2",
+    "mo-dev": "^0.13.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.8.8",
     "prettier-plugin-motoko": "^0.5.3",
     "sass": "^1.63.6",
     "typescript": "^5.1.3",
-    "vite": "^4.3.9",
+    "vite": "^6.2.1",
     "vite-plugin-environment": "^1.1.3",
-    "vitest": "^0.32.2"
+    "vitest": "^3.0.8"
   }
 }

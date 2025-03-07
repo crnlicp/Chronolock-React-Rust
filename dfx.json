@@ -1,24 +1,18 @@
 {
   "canisters": {
-    "evm_rpc": {
-      "type": "pull",
-      "id": "7hfb6-caaaa-aaaar-qadga-cai"
-    },
-    "backend": {
-      "dependencies": ["evm_rpc"],
-      "candid": "backend/backend.did",
-      "package": "backend",
+    "hello_world": {
+      "candid": "src/backend/hello_world/hello_world.did",
+      "package": "hello_world",
       "type": "rust"
     },
     "frontend": {
-      "dependencies": ["backend"],
+      "dependencies": [
+        "hello_world"
+      ],
       "type": "assets",
-      "source": ["dist/"]
-    }
-  },
-  "defaults": {
-    "build": {
-      "packtool": "npm run --silent sources"
+      "source": [
+        "src/frontend/dist/"
+      ]
     }
   },
   "output_env_file": ".env",
