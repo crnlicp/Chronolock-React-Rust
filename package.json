@@ -11,7 +11,7 @@
     "backend": "./watch-and-deploy-all.sh",
     "build": "tsc -p \"src/frontend/tsconfig.json\"  && vite build --config \"src/frontend/vite.config.ts\"",
     "test": "run-s test:backend test:frontend",
-    "test:frontend": "vitest run",
+    "test:frontend": "vitest run --config \"src/frontend/vite.config.ts\"",
     "test:backend": "cargo test",
     "format": "prettier --write \"src/**/*.{json,js,jsx,ts,tsx,css,scss}\" \"src/backend/**/*.rs\""
   },
