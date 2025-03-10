@@ -54,3 +54,8 @@ When ready, run `dfx deploy --network ic` to deploy your application to the ICP 
 - If you get an error `The wasm of 7hfb6-caaaa-aaaar-qadga-cai in pulled cache ...` run `rm -rf ~/.cache/dfinity/pulled/7hfb6-caaaa-aaaar-qadga-cai`
 - Customize your project's code style by editing the `.prettierrc` file and then running `npm run format`.
 - Split your frontend and backend console output by running `npm run frontend` and `npm run backend` in separate terminals.
+
+
+## Extracting Candid
+
+You can use `candid-extractor target/wasm32-unknown-unknown/release/[package_id].wasm > src/backend/[package_id]/[package_id].did` command to extract candid file for a canister. 

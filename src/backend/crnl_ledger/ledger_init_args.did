@@ -1,0 +1,8 @@
+(
+  "Chronolock",                 
+  "CRNL",                       
+  100000000000000000000 : nat,  
+  31536000 : nat64,             
+  100000 : nat,                 
+  principal "esae5-ndk6w-6nu5r-mzcne-uq35z-iyybe-h4llb-scshy-lj6wt-ydu6b-cae"
+)

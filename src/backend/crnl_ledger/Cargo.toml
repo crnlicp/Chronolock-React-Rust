@@ -1,0 +1,17 @@
+[package]
+name = "crnl_ledger"  
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ic-cdk = "0.17.1"  
+ic-cdk-macros = "0.17.1"
+ic-stable-structures = "0.6.5"  
+serde = { version = "1.0", features = ["derive"] }
+candid = "0.10.10"  
+
+[dev-dependencies]
+pocket-ic = "7.0.0"

@@ -1,5 +1,6 @@
 [workspace]
 members = [
-    "src/backend/hello_world"
+    "src/backend/hello_world",
+    "src/backend/crnl_ledger"
 ]
 resolver = "2"

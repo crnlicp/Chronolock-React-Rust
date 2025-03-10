@@ -26,9 +26,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    allowedHosts:[
-      "3000-crnlicp-chronolockreact-24zvh6kkm0j.ws-eu118.gitpod.io"
-    ]
+    allowedHosts: [
+      '3000-crnlicp-chronolockreact-24zvh6kkm0j.ws-eu118.gitpod.io',
+    ],
   },
   plugins: [
     react(),
@@ -38,6 +38,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: 'setupTests.ts',
-    globals: true
+    globals: true,
   },
 });

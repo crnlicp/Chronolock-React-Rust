@@ -1,0 +1,40 @@
+type Account = record { owner : principal; subaccount : opt blob };
+type LedgerError = variant {
+  InvalidAccount;
+  TransferError;
+  InsufficientFee;
+  InsufficientAllowance;
+  InsufficientPoolFunds;
+  AlreadyRegistered;
+  InsufficientBalance;
+  Unauthorized;
+  FeeProcessingError;
+  InvalidReferral;
+  ArithmeticError;
+};
+type LogEntry = record { timestamp : nat64; details : text; event_type : text };
+type Result = variant { Ok : text; Err : LedgerError };
+type Result_1 = variant { Ok; Err : LedgerError };
+service : (text, text, nat, nat64, nat, principal) -> {
+  balance_of : (Account) -> (nat) query;
+  claim_referral : (text, Account) -> (Result);
+  community_pool_balance : () -> (nat) query;
+  create_media_chronolock : (Account) -> (Result);
+  create_text_chronolock : (Account) -> (Result);
+  get_logs : () -> (vec LogEntry) query;
+  get_logs_by_range : (nat64, nat64) -> (vec LogEntry) query;
+  get_referral_code : (Account) -> (opt text) query;
+  icrc1_allowance : (Account, Account) -> (nat) query;
+  icrc1_approve : (Account, Account, nat) -> (Result_1);
+  icrc1_decimals : () -> (nat8) query;
+  icrc1_fee : () -> (nat) query;
+  icrc1_name : () -> (text) query;
+  icrc1_name1 : () -> (text) query;
+  icrc1_symbol : () -> (text) query;
+  icrc1_total_supply : () -> (nat) query;
+  icrc1_transfer : (Account, Account, nat) -> (Result_1);
+  icrc1_transfer_from : (Account, Account, Account, nat) -> (Result_1);
+  register_user : (Account) -> (Result);
+  set_transfer_fee : (nat) -> (Result_1);
+  total_burned : () -> (nat) query;
+}
