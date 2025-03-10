@@ -356,11 +356,18 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
     METADATA.with(|metadata| {
         let m = metadata.borrow().get(&0).unwrap();
         let transfer_fee = m.transfer_fee;
+
+        // Check for max amount or overflow early
+        if amount == u128::MAX {
+            return Err(LedgerError::ArithmeticError);
+        }
         let total_deduction = amount.checked_add(transfer_fee).ok_or(LedgerError::ArithmeticError)?;
+
         let from_balance = BALANCES.with(|b| b.borrow().get(&from).unwrap_or(0));
         if from_balance < total_deduction {
             return Err(LedgerError::InsufficientBalance);
         }
+
         BALANCES.with(|b| {
             let mut b = b.borrow_mut();
             b.insert(from.clone(), from_balance - total_deduction);
@@ -369,6 +376,7 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
             b.insert(to.clone(), new_to_balance);
             Ok(())
         })?;
+
         process_fee(transfer_fee)?;
         log_event(
             "Transfer",

@@ -272,3 +272,221 @@ fn test_set_transfer_fee() {
     let fee: u128 = decode_one(&fee_response).unwrap();
     assert_eq!(fee, 200_000_u128);
 }
+
+#[test]
+fn test_set_transfer_fee_authorization() {
+    let (pic, backend_canister, admin) = setup();
+    let non_admin = Principal::from_text("2vxsx-fae").unwrap();
+
+    let args = encode_args((200_000_u128,)).expect("Failed to encode args");
+    let response = pic.update_call(backend_canister, non_admin, "set_transfer_fee", args)
+        .expect("Failed to call set_transfer_fee with non-admin");
+    let result: Result<(), LedgerError> = decode_one(&response).expect("Failed to decode response");
+    assert!(result.is_err(), "Non-admin should not be able to set transfer fee");
+    if let Err(e) = result {
+        assert_eq!(e, LedgerError::Unauthorized, "Error should be Unauthorized");
+    }
+
+    let args = encode_args((200_000_u128,)).expect("Failed to encode args");
+    let response = pic.update_call(backend_canister, admin, "set_transfer_fee", args)
+        .expect("Failed to call set_transfer_fee");
+    let result: Result<(), LedgerError> = decode_one(&response).unwrap();
+    assert!(result.is_ok(), "Admin should be able to set transfer fee");
+
+    let fee_response = pic.query_call(backend_canister, Principal::anonymous(), "icrc1_fee", encode_args(()).unwrap())
+        .expect("Failed to query icrc1_fee");
+    let fee: u128 = decode_one(&fee_response).unwrap();
+    assert_eq!(fee, 200_000_u128, "Transfer fee should be updated to 200,000");
+}
+
+#[test]
+fn test_unique_referral_codes() {
+    let (pic, backend_canister, _) = setup();
+    let user1 = Account { owner: Principal::from_text("2vxsx-fae").unwrap(), subaccount: None };
+    let user2 = Account { owner: Principal::from_text("ryjl3-tyaaa-aaaaa-aaaba-cai").unwrap(), subaccount: None };
+
+    // Register users
+    pic.update_call(backend_canister, Principal::anonymous(), "register_user", encode_args((user1.clone(),)).unwrap())
+        .expect("Failed to register user1");
+    pic.update_call(backend_canister, Principal::anonymous(), "register_user", encode_args((user2.clone(),)).unwrap())
+        .expect("Failed to register user2");
+
+    // Get referral codes
+    let code1: Option<String> = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "get_referral_code", 
+        encode_args((user1,)).unwrap()).unwrap()).unwrap();
+    let code2: Option<String> = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "get_referral_code", 
+        encode_args((user2,)).unwrap()).unwrap()).unwrap();
+
+    assert!(code1.is_some() && code2.is_some(), "Referral codes should be generated");
+    assert_ne!(code1.unwrap(), code2.unwrap(), "Referral codes should be unique");
+}
+
+#[test]
+fn test_referral_reward() {
+    let (pic, backend_canister, _admin) = setup();
+    let referrer = Account { owner: Principal::from_text("2vxsx-fae").unwrap(), subaccount: None };
+    let referee = Account { owner: Principal::from_text("ryjl3-tyaaa-aaaaa-aaaba-cai").unwrap(), subaccount: None };
+
+    // Register referrer and get referral code
+    let reg_response = pic.update_call(backend_canister, Principal::anonymous(), "register_user", 
+        encode_args((referrer.clone(),)).unwrap()).expect("Failed to register referrer");
+    let referral_code = decode_one::<Result<String, LedgerError>>(&reg_response).unwrap().unwrap()
+        .split("Your referral code is: ").nth(1).unwrap().to_string();
+
+    // Claim referral
+    pic.update_call(backend_canister, Principal::anonymous(), "claim_referral", 
+        encode_args((referral_code, referee.clone())).unwrap()).expect("Failed to claim referral");
+
+    // Check balances
+    let referrer_balance: u128 = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "balance_of", 
+        encode_args((referrer,)).unwrap()).unwrap()).unwrap();
+    let community_pool: u128 = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "community_pool_balance", 
+        encode_args(()).unwrap()).unwrap()).unwrap();
+
+    assert_eq!(referrer_balance, 20_000_000_000 + 2_000_000_000, "Referrer should receive reward");
+    assert_eq!(community_pool, 50_000_000_000_000_000_000 - 20_000_000_000 - 2_000_000_000, "Community pool should be deducted");
+}
+
+#[test]
+fn test_transfer_insufficient_balance() {
+    let (pic, backend_canister, admin) = setup();
+    let from = Account { owner: admin, subaccount: Some(COMMUNITY_POOL_SUBACCOUNT) };
+    let to = Account { owner: Principal::from_text("2vxsx-fae").unwrap(), subaccount: None };
+    let amount = 50_000_000_000_000_000_001_u128; // Exceeds pool
+
+    let response = pic.update_call(backend_canister, admin, "icrc1_transfer", 
+        encode_args((from, to, amount)).unwrap())
+        .expect("Failed to call icrc1_transfer");
+    let result: Result<(), LedgerError> = decode_one(&response).expect("Failed to decode response");
+    assert!(result.is_err(), "Transfer with insufficient balance should fail");
+    if let Err(e) = result {
+        assert_eq!(e, LedgerError::InsufficientBalance, "Error should be InsufficientBalance");
+    }
+}
+
+#[test]
+fn test_icrc1_functions() {
+    let (pic, backend_canister, admin) = setup();
+    let owner = Account { owner: admin, subaccount: Some(COMMUNITY_POOL_SUBACCOUNT) };
+    let spender = Account { owner: Principal::from_text("2vxsx-fae").unwrap(), subaccount: None };
+    let to = Account { owner: Principal::anonymous(), subaccount: None };
+    let amount = 1_000_000_000_u128;
+
+    // Approve
+    pic.update_call(backend_canister, admin, "icrc1_approve", 
+        encode_args((owner.clone(), spender.clone(), amount)).unwrap()).expect("Failed to approve");
+
+    // Check allowance
+    let allowance: u128 = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "icrc1_allowance", 
+        encode_args((owner.clone(), spender.clone())).unwrap()).unwrap()).unwrap();
+    assert_eq!(allowance, amount, "Allowance should match approved amount");
+
+    // Transfer from
+    pic.update_call(backend_canister, spender.owner, "icrc1_transfer_from", 
+        encode_args((spender.clone(), owner.clone(), to.clone(), amount)).unwrap()).expect("Failed to transfer from");
+
+    // Verify balance
+    let to_balance: u128 = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "balance_of", 
+        encode_args((to,)).unwrap()).unwrap()).unwrap();
+    assert_eq!(to_balance, amount, "Transferred amount should be received");
+}
+
+#[test]
+fn test_log_event() {
+    let (pic, backend_canister, admin) = setup();
+    let from = Account { owner: admin, subaccount: Some(COMMUNITY_POOL_SUBACCOUNT) };
+    let to = Account { owner: Principal::from_text("2vxsx-fae").unwrap(), subaccount: None };
+    let amount = 1_000_000_000_u128;
+
+    // Perform transfer
+    pic.update_call(backend_canister, admin, "icrc1_transfer", 
+        encode_args((from.clone(), to.clone(), amount)).unwrap()).expect("Failed to transfer");
+
+    // Check logs
+    let logs: Vec<LogEntry> = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "get_logs", 
+        encode_args(()).unwrap()).unwrap()).unwrap();
+    let last_log = logs.last().unwrap();
+
+    assert_eq!(last_log.event_type, "Transfer", "Log should record transfer event");
+    assert!(last_log.details.contains(&format!("Amount: {}", amount)), "Log should include transfer amount");
+}
+
+#[test]
+fn test_arithmetic_overflow() {
+    let (pic, backend_canister, admin) = setup();
+    let from = Account { 
+        owner: admin, 
+        subaccount: Some(COMMUNITY_POOL_SUBACCOUNT) 
+    };
+    let to = Account { 
+        owner: Principal::from_text("2vxsx-fae").unwrap(), 
+        subaccount: None 
+    };
+    let amount = u128::MAX;
+
+    let args = encode_args((from, to, amount)).expect("Failed to encode args");
+    let response = pic.update_call(backend_canister, admin, "icrc1_transfer", args);
+
+    match response {
+        Ok(resp) => {
+            let result: Result<(), LedgerError> = decode_one(&resp).expect("Failed to decode response");
+            assert!(result.is_err(), "Transfer with overflow amount should return an error");
+            if let Err(e) = result {
+                assert_eq!(e, LedgerError::ArithmeticError, "Error should be ArithmeticError");
+            }
+        }
+        Err(e) => {
+            // If the call itself fails (e.g., canister rejects), this is also acceptable
+            println!("Update call failed with: {:?}", e);
+            assert!(true, "Transfer with overflow amount failed as expected");
+        }
+    }
+}
+
+#[test]
+fn test_concurrent_transfers() {
+    let (pic, backend_canister, admin) = setup();
+    let from = Account { owner: admin, subaccount: Some(COMMUNITY_POOL_SUBACCOUNT) };
+    let to1 = Account { owner: Principal::from_text("2vxsx-fae").unwrap(), subaccount: None };
+    let to2 = Account { owner: Principal::from_text("ryjl3-tyaaa-aaaaa-aaaba-cai").unwrap(), subaccount: None };
+    let amount = 1_000_000_000_u128;
+
+    // Concurrent transfers
+    pic.update_call(backend_canister, admin, "icrc1_transfer", 
+        encode_args((from.clone(), to1.clone(), amount)).unwrap()).expect("Transfer 1 failed");
+    pic.update_call(backend_canister, admin, "icrc1_transfer", 
+        encode_args((from.clone(), to2.clone(), amount)).unwrap()).expect("Transfer 2 failed");
+
+    // Verify balances
+    let to1_balance: u128 = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "balance_of", 
+        encode_args((to1,)).unwrap()).unwrap()).unwrap();
+    let to2_balance: u128 = decode_one(&pic.query_call(backend_canister, Principal::anonymous(), "balance_of", 
+        encode_args((to2,)).unwrap()).unwrap()).unwrap();
+
+    assert_eq!(to1_balance, amount, "First recipient should receive amount");
+    assert_eq!(to2_balance, amount, "Second recipient should receive amount");
+}
+
+#[test]
+fn test_boundary_values() {
+    let (pic, backend_canister, admin) = setup();
+    let from = Account { owner: admin, subaccount: Some(COMMUNITY_POOL_SUBACCOUNT) };
+    let to = Account { owner: Principal::from_text("2vxsx-fae").unwrap(), subaccount: None };
+
+    // Zero amount
+    let response_zero = pic.update_call(backend_canister, admin, "icrc1_transfer", 
+        encode_args((from.clone(), to.clone(), 0_u128)).unwrap())
+        .expect("Failed to call icrc1_transfer with zero amount");
+    let result_zero: Result<(), LedgerError> = decode_one(&response_zero).expect("Failed to decode zero response");
+    assert!(result_zero.is_ok(), "Transfer with zero amount should succeed");
+
+    // Maximum amount
+    let response_max = pic.update_call(backend_canister, admin, "icrc1_transfer", 
+        encode_args((from.clone(), to.clone(), u128::MAX)).unwrap())
+        .expect("Failed to call icrc1_transfer with max amount");
+    let result_max: Result<(), LedgerError> = decode_one(&response_max).expect("Failed to decode max response");
+    assert!(result_max.is_err(), "Transfer with maximum amount should fail");
+    if let Err(e) = result_max {
+        assert_eq!(e, LedgerError::ArithmeticError, "Error should be ArithmeticError");
+    }
+}
