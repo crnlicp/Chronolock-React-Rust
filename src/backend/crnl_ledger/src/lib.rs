@@ -1,9 +1,9 @@
 use candid::CandidType;
 use candid::Principal;
+use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk_macros::{init, query, update};
 use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
 use ic_stable_structures::storable::Bound;
-use ic_cdk::api::management_canister::main::raw_rand;
 use ic_stable_structures::{DefaultMemoryImpl, StableBTreeMap, Storable};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -185,7 +185,7 @@ fn admin_principal() -> Principal {
 // Note: raw_rand returns a tuple; we destructure it to obtain a Vec<u8>.
 async fn generate_random_referral_code() -> String {
     let charset = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    let (random_bytes, ) = raw_rand().await.unwrap();
+    let (random_bytes,) = raw_rand().await.unwrap();
     random_bytes
         .iter()
         .take(7)
@@ -221,38 +221,53 @@ fn init(
     // Insert token metadata
     METADATA.with(|metadata| {
         let mut m = metadata.borrow_mut();
-        m.insert(0, Metadata {
-            name,
-            symbol,
-            decimals,
-            total_supply,
-            transfer_fee,
-            community_pool: community_pool_amount,
-            team_vesting_pool: team_vesting_pool_amount,
-            reserve: reserve_amount,
-            total_burned: 0,
-            vesting_start_time: current_time(),
-            vesting_duration,
-        });
+        m.insert(
+            0,
+            Metadata {
+                name,
+                symbol,
+                decimals,
+                total_supply,
+                transfer_fee,
+                community_pool: community_pool_amount,
+                team_vesting_pool: team_vesting_pool_amount,
+                reserve: reserve_amount,
+                total_burned: 0,
+                vesting_start_time: current_time(),
+                vesting_duration,
+            },
+        );
     });
 
     // Create pool accounts as subaccounts under the admin account
-    let community_account = Account { owner: admin.clone(), subaccount: Some(COMMUNITY_POOL_SUBACCOUNT) };
-    let team_account = Account { owner: admin.clone(), subaccount: Some(TEAM_VESTING_POOL_SUBACCOUNT) };
-    let reserve_account = Account { owner: admin.clone(), subaccount: Some(RESERVE_POOL_SUBACCOUNT) };
+    let community_account = Account {
+        owner: admin.clone(),
+        subaccount: Some(COMMUNITY_POOL_SUBACCOUNT),
+    };
+    let team_account = Account {
+        owner: admin.clone(),
+        subaccount: Some(TEAM_VESTING_POOL_SUBACCOUNT),
+    };
+    let reserve_account = Account {
+        owner: admin.clone(),
+        subaccount: Some(RESERVE_POOL_SUBACCOUNT),
+    };
 
     // Initialize the balances for each pool account
     BALANCES.with(|balances| {
-       let mut b = balances.borrow_mut();
-       b.insert(community_account, community_pool_amount);
-       b.insert(team_account, team_vesting_pool_amount);
-       b.insert(reserve_account, reserve_amount);
+        let mut b = balances.borrow_mut();
+        b.insert(community_account, community_pool_amount);
+        b.insert(team_account, team_vesting_pool_amount);
+        b.insert(reserve_account, reserve_amount);
     });
 
-    log_event("Init", format!(
-        "Canister initialized with total supply: {}, transfer fee: {}, admin: {}",
-        total_supply, transfer_fee, admin
-    ));
+    log_event(
+        "Init",
+        format!(
+            "Canister initialized with total supply: {}, transfer fee: {}, admin: {}",
+            total_supply, transfer_fee, admin
+        ),
+    );
 }
 
 // -------------------------
@@ -272,7 +287,9 @@ async fn register_user(user: Account) -> Result<String, LedgerError> {
             return Err(LedgerError::InsufficientPoolFunds);
         }
         // Deduct from community pool
-        let new_community_pool = m.community_pool.checked_sub(welcome_amount)
+        let new_community_pool = m
+            .community_pool
+            .checked_sub(welcome_amount)
             .ok_or(LedgerError::ArithmeticError)?;
         // Update balance for the new user
         BALANCES.with(|b| b.borrow_mut().insert(user.clone(), welcome_amount));
@@ -304,7 +321,10 @@ async fn register_user(user: Account) -> Result<String, LedgerError> {
             "ReferralRegistered",
             format!("User: {}, Referral_Code: {}", user.owner, referral_code),
         );
-        return Ok(format!("User registered with 200 {}. Your referral code is: {}", symbol, referral_code));
+        return Ok(format!(
+            "User registered with 200 {}. Your referral code is: {}",
+            symbol, referral_code
+        ));
     }
     let symbol = METADATA.with(|metadata| metadata.borrow().get(&0).unwrap().symbol.clone());
     Ok(format!("User registered with 200 {}", symbol))
@@ -331,14 +351,22 @@ fn claim_referral(referral_code: String, referee: Account) -> Result<String, Led
         if m.community_pool < reward {
             return Err(LedgerError::InsufficientPoolFunds);
         }
-        m.community_pool = m.community_pool.checked_sub(reward).ok_or(LedgerError::ArithmeticError)?;
+        m.community_pool = m
+            .community_pool
+            .checked_sub(reward)
+            .ok_or(LedgerError::ArithmeticError)?;
         let referrer_balance = BALANCES.with(|b| b.borrow().get(&referrer).unwrap_or(0));
-        let new_balance = referrer_balance.checked_add(reward).ok_or(LedgerError::ArithmeticError)?;
+        let new_balance = referrer_balance
+            .checked_add(reward)
+            .ok_or(LedgerError::ArithmeticError)?;
         BALANCES.with(|b| b.borrow_mut().insert(referrer.clone(), new_balance));
         metadata_ref.insert(0, m.clone());
         log_event(
             "ReferralClaimed",
-            format!("Referrer: {}, Referee: {}, Reward: {}", referrer.owner, referee.owner, reward),
+            format!(
+                "Referrer: {}, Referee: {}, Reward: {}",
+                referrer.owner, referee.owner, reward
+            ),
         );
         // Mark that this referee has claimed their referral reward.
         CLAIMED_REFERRALS.with(|cr| {
@@ -347,8 +375,6 @@ fn claim_referral(referral_code: String, referee: Account) -> Result<String, Led
         Ok(format!("Referral reward of 20 {} credited", m.symbol))
     })
 }
-
-
 
 // -------------------------
 // Existing Ledger Functions
@@ -370,7 +396,9 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
             return Err(LedgerError::InsufficientFee);
         }
 
-        let amount_after_fee = amount.checked_sub(transfer_fee).ok_or(LedgerError::ArithmeticError)?;
+        let amount_after_fee = amount
+            .checked_sub(transfer_fee)
+            .ok_or(LedgerError::ArithmeticError)?;
 
         let from_balance = BALANCES.with(|b| b.borrow().get(&from).unwrap_or(0));
         if from_balance < amount {
@@ -383,7 +411,9 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
             b.insert(from.clone(), from_balance - amount);
             let to_balance = b.get(&to).unwrap_or(0);
             // Credit recipient with amount minus fee
-            let new_to_balance = to_balance.checked_add(amount_after_fee).ok_or(LedgerError::ArithmeticError)?;
+            let new_to_balance = to_balance
+                .checked_add(amount_after_fee)
+                .ok_or(LedgerError::ArithmeticError)?;
             b.insert(to.clone(), new_to_balance);
             Ok(())
         })?;
@@ -392,12 +422,8 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
         log_event(
             "Transfer",
             format!(
-                "From: {}, To: {}, Amount: {}, Fee: {}, Received: {}", 
-                from.owner, 
-                to.owner, 
-                amount, 
-                transfer_fee, 
-                amount_after_fee
+                "From: {}, To: {}, Amount: {}, Fee: {}, Received: {}",
+                from.owner, to.owner, amount, transfer_fee, amount_after_fee
             ),
         );
         Ok(())
@@ -411,19 +437,31 @@ fn icrc1_approve(owner: Account, spender: Account, amount: u128) -> Result<(), L
         return Err(LedgerError::Unauthorized);
     }
     ALLOWANCES.with(|allowances| {
-        allowances
-            .borrow_mut()
-            .insert(AllowanceKey { owner: owner.clone(), spender: spender.clone() }, amount);
+        allowances.borrow_mut().insert(
+            AllowanceKey {
+                owner: owner.clone(),
+                spender: spender.clone(),
+            },
+            amount,
+        );
     });
     log_event(
         "Approval",
-        format!("Owner: {}, Spender: {}, Amount: {}", owner.owner, spender.owner, amount),
+        format!(
+            "Owner: {}, Spender: {}, Amount: {}",
+            owner.owner, spender.owner, amount
+        ),
     );
     Ok(())
 }
 
 #[update]
-fn icrc1_transfer_from(spender: Account, from: Account, to: Account, amount: u128) -> Result<(), LedgerError> {
+fn icrc1_transfer_from(
+    spender: Account,
+    from: Account,
+    to: Account,
+    amount: u128,
+) -> Result<(), LedgerError> {
     METADATA.with(|metadata| {
         let m = metadata.borrow().get(&0).unwrap();
         let transfer_fee = m.transfer_fee;
@@ -433,9 +471,14 @@ fn icrc1_transfer_from(spender: Account, from: Account, to: Account, amount: u12
             return Err(LedgerError::InsufficientFee);
         }
 
-        let amount_after_fee = amount.checked_sub(transfer_fee).ok_or(LedgerError::ArithmeticError)?;
+        let amount_after_fee = amount
+            .checked_sub(transfer_fee)
+            .ok_or(LedgerError::ArithmeticError)?;
 
-        let allowance_key = AllowanceKey { owner: from.clone(), spender: spender.clone() };
+        let allowance_key = AllowanceKey {
+            owner: from.clone(),
+            spender: spender.clone(),
+        };
         let allowance = ALLOWANCES.with(|a| a.borrow().get(&allowance_key).unwrap_or(0));
         if allowance < amount {
             return Err(LedgerError::InsufficientAllowance);
@@ -453,7 +496,9 @@ fn icrc1_transfer_from(spender: Account, from: Account, to: Account, amount: u12
             b.insert(from.clone(), from_balance - amount);
             let to_balance = b.get(&to).unwrap_or(0);
             // Credit recipient with amount minus fee
-            let new_to_balance = to_balance.checked_add(amount_after_fee).ok_or(LedgerError::ArithmeticError)?;
+            let new_to_balance = to_balance
+                .checked_add(amount_after_fee)
+                .ok_or(LedgerError::ArithmeticError)?;
             b.insert(to.clone(), new_to_balance);
             Ok(())
         })?;
@@ -478,7 +523,10 @@ fn create_media_chronolock(caller: Account) -> Result<String, LedgerError> {
         if balance < creation_fee {
             return Err(LedgerError::InsufficientBalance);
         }
-        BALANCES.with(|b| b.borrow_mut().insert(caller.clone(), balance - creation_fee));
+        BALANCES.with(|b| {
+            b.borrow_mut()
+                .insert(caller.clone(), balance - creation_fee)
+        });
         process_fee(creation_fee)?;
         log_event(
             "MediaChronoLockCreated",
@@ -490,10 +538,7 @@ fn create_media_chronolock(caller: Account) -> Result<String, LedgerError> {
 
 #[update]
 fn create_text_chronolock(caller: Account) -> Result<String, LedgerError> {
-    log_event(
-        "TextChronoLockCreated",
-        format!("Caller: {}", caller.owner),
-    );
+    log_event("TextChronoLockCreated", format!("Caller: {}", caller.owner));
     Ok("Text ChronoLock created for free".to_string())
 }
 
@@ -527,7 +572,7 @@ async fn convert_dapp_funds_to_cycles() -> Result<(), LedgerError> {
     /*
      *   TODO: Implement Convert to cycle after token launch
      */
-     
+
     log_event(
         "DappFundsConverted",
         format!("Converted {} tokens to cycles", dapp_amount),
@@ -640,22 +685,36 @@ fn process_fee(fee: u128) -> Result<(), LedgerError> {
         let pool_amount = fee * 10 / 100;
         let dapp_amount = fee * 70 / 100;
 
-        m.total_supply = m.total_supply.checked_sub(burn_amount).ok_or(LedgerError::ArithmeticError)?;
-        m.total_burned = m.total_burned.checked_add(burn_amount).ok_or(LedgerError::ArithmeticError)?;
-        m.community_pool = m.community_pool.checked_add(pool_amount).ok_or(LedgerError::ArithmeticError)?;
+        m.total_supply = m
+            .total_supply
+            .checked_sub(burn_amount)
+            .ok_or(LedgerError::ArithmeticError)?;
+        m.total_burned = m
+            .total_burned
+            .checked_add(burn_amount)
+            .ok_or(LedgerError::ArithmeticError)?;
+        m.community_pool = m
+            .community_pool
+            .checked_add(pool_amount)
+            .ok_or(LedgerError::ArithmeticError)?;
         metadata.borrow_mut().insert(0, m);
 
         // Accumulate dapp_amount
         DAPP_FUNDS.with(|df| {
             let current_funds = df.borrow().get(&0).unwrap_or(0);
-            let new_funds = current_funds.checked_add(dapp_amount).ok_or(LedgerError::ArithmeticError)?;
+            let new_funds = current_funds
+                .checked_add(dapp_amount)
+                .ok_or(LedgerError::ArithmeticError)?;
             df.borrow_mut().insert(0, new_funds);
             Ok(())
         })?;
 
         log_event(
             "FeeProcessed",
-            format!("Fee: {}, Burned: {}, Pool: {}, DApp: {}", fee, burn_amount, pool_amount, dapp_amount),
+            format!(
+                "Fee: {}, Burned: {}, Pool: {}, DApp: {}",
+                fee, burn_amount, pool_amount, dapp_amount
+            ),
         );
         Ok(())
     })
@@ -665,11 +724,14 @@ fn log_event(event_type: &str, details: String) {
     LOGS.with(|logs| {
         let mut logs = logs.borrow_mut();
         let timestamp = current_time();
-        logs.insert(timestamp, LogEntry {
+        logs.insert(
             timestamp,
-            event_type: event_type.to_string(),
-            details,
-        });
+            LogEntry {
+                timestamp,
+                event_type: event_type.to_string(),
+                details,
+            },
+        );
         if logs.len() > 10_000 {
             if let Some((first_key, _)) = logs.first_key_value() {
                 logs.remove(&first_key);
