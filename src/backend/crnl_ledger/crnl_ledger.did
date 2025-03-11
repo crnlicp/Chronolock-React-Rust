@@ -19,8 +19,10 @@ service : (text, text, nat, nat64, nat, principal) -> {
   balance_of : (Account) -> (nat) query;
   claim_referral : (text, Account) -> (Result);
   community_pool_balance : () -> (nat) query;
+  convert_dapp_funds_to_cycles : () -> (Result_1);
   create_media_chronolock : (Account) -> (Result);
   create_text_chronolock : (Account) -> (Result);
+  get_dapp_funds : () -> (nat) query;
   get_logs : () -> (vec LogEntry) query;
   get_logs_by_range : (nat64, nat64) -> (vec LogEntry) query;
   get_referral_code : (Account) -> (opt text) query;
@@ -34,6 +36,8 @@ service : (text, text, nat, nat64, nat, principal) -> {
   icrc1_transfer : (Account, Account, nat) -> (Result_1);
   icrc1_transfer_from : (Account, Account, Account, nat) -> (Result_1);
   register_user : (Account) -> (Result);
+  reserve_pool_balance : () -> (nat) query;
   set_transfer_fee : (nat) -> (Result_1);
+  team_pool_balance : () -> (nat) query;
   total_burned : () -> (nat) query;
 }

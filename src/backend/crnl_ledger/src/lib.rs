@@ -131,6 +131,9 @@ thread_local! {
     static BALANCES: RefCell<StableBTreeMap<Account, u128, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(1))))
     );
+    static DAPP_FUNDS: RefCell<StableBTreeMap<u8, u128, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(8))))
+    );
     static ALLOWANCES: RefCell<StableBTreeMap<AllowanceKey, u128, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(2))))
     );
@@ -361,18 +364,26 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
         if amount == u128::MAX {
             return Err(LedgerError::ArithmeticError);
         }
-        let total_deduction = amount.checked_add(transfer_fee).ok_or(LedgerError::ArithmeticError)?;
+
+        // Ensure amount is sufficient to cover the fee
+        if amount < transfer_fee {
+            return Err(LedgerError::InsufficientFee);
+        }
+
+        let amount_after_fee = amount.checked_sub(transfer_fee).ok_or(LedgerError::ArithmeticError)?;
 
         let from_balance = BALANCES.with(|b| b.borrow().get(&from).unwrap_or(0));
-        if from_balance < total_deduction {
+        if from_balance < amount {
             return Err(LedgerError::InsufficientBalance);
         }
 
         BALANCES.with(|b| {
             let mut b = b.borrow_mut();
-            b.insert(from.clone(), from_balance - total_deduction);
+            // Deduct only the full amount (including fee) from sender
+            b.insert(from.clone(), from_balance - amount);
             let to_balance = b.get(&to).unwrap_or(0);
-            let new_to_balance = to_balance.checked_add(amount).ok_or(LedgerError::ArithmeticError)?;
+            // Credit recipient with amount minus fee
+            let new_to_balance = to_balance.checked_add(amount_after_fee).ok_or(LedgerError::ArithmeticError)?;
             b.insert(to.clone(), new_to_balance);
             Ok(())
         })?;
@@ -380,7 +391,14 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
         process_fee(transfer_fee)?;
         log_event(
             "Transfer",
-            format!("From: {}, To: {}, Amount: {}, Fee: {}", from.owner, to.owner, amount, transfer_fee),
+            format!(
+                "From: {}, To: {}, Amount: {}, Fee: {}, Received: {}", 
+                from.owner, 
+                to.owner, 
+                amount, 
+                transfer_fee, 
+                amount_after_fee
+            ),
         );
         Ok(())
     })
@@ -409,7 +427,13 @@ fn icrc1_transfer_from(spender: Account, from: Account, to: Account, amount: u12
     METADATA.with(|metadata| {
         let m = metadata.borrow().get(&0).unwrap();
         let transfer_fee = m.transfer_fee;
-        let total_deduction = amount.checked_add(transfer_fee).ok_or(LedgerError::ArithmeticError)?;
+
+        // Ensure amount is sufficient to cover the fee
+        if amount < transfer_fee {
+            return Err(LedgerError::InsufficientFee);
+        }
+
+        let amount_after_fee = amount.checked_sub(transfer_fee).ok_or(LedgerError::ArithmeticError)?;
 
         let allowance_key = AllowanceKey { owner: from.clone(), spender: spender.clone() };
         let allowance = ALLOWANCES.with(|a| a.borrow().get(&allowance_key).unwrap_or(0));
@@ -418,16 +442,18 @@ fn icrc1_transfer_from(spender: Account, from: Account, to: Account, amount: u12
         }
 
         let from_balance = BALANCES.with(|b| b.borrow().get(&from).unwrap_or(0));
-        if from_balance < total_deduction {
+        if from_balance < amount {
             return Err(LedgerError::InsufficientBalance);
         }
 
         ALLOWANCES.with(|a| a.borrow_mut().insert(allowance_key, allowance - amount));
         BALANCES.with(|b| {
             let mut b = b.borrow_mut();
-            b.insert(from.clone(), from_balance - total_deduction);
+            // Deduct only the full amount (including fee) from owner
+            b.insert(from.clone(), from_balance - amount);
             let to_balance = b.get(&to).unwrap_or(0);
-            let new_to_balance = to_balance.checked_add(amount).ok_or(LedgerError::ArithmeticError)?;
+            // Credit recipient with amount minus fee
+            let new_to_balance = to_balance.checked_add(amount_after_fee).ok_or(LedgerError::ArithmeticError)?;
             b.insert(to.clone(), new_to_balance);
             Ok(())
         })?;
@@ -435,8 +461,8 @@ fn icrc1_transfer_from(spender: Account, from: Account, to: Account, amount: u12
         log_event(
             "TransferFrom",
             format!(
-                "Spender: {}, From: {}, To: {}, Amount: {}, Fee: {}",
-                spender.owner, from.owner, to.owner, amount, transfer_fee
+                "Spender: {}, From: {}, To: {}, Amount: {}, Fee: {}, Received: {}",
+                spender.owner, from.owner, to.owner, amount, transfer_fee, amount_after_fee
             ),
         );
         Ok(())
@@ -483,6 +509,29 @@ fn set_transfer_fee(new_fee: u128) -> Result<(), LedgerError> {
         metadata.borrow_mut().insert(0, m);
     });
     log_event("SetTransferFee", format!("New fee: {}", new_fee));
+    Ok(())
+}
+
+#[update]
+async fn convert_dapp_funds_to_cycles() -> Result<(), LedgerError> {
+    let caller = caller();
+    if !is_admin(caller) {
+        return Err(LedgerError::Unauthorized);
+    }
+
+    let dapp_amount = DAPP_FUNDS.with(|df| df.borrow().get(&0).unwrap_or(0));
+    if dapp_amount == 0 {
+        return Ok(());
+    }
+
+    /*
+     *   TODO: Implement Convert to cycle after token launch
+     */
+     
+    log_event(
+        "DappFundsConverted",
+        format!("Converted {} tokens to cycles", dapp_amount),
+    );
     Ok(())
 }
 
@@ -533,8 +582,23 @@ fn community_pool_balance() -> u128 {
 }
 
 #[query]
+fn team_pool_balance() -> u128 {
+    METADATA.with(|m| m.borrow().get(&0).unwrap().team_vesting_pool)
+}
+
+#[query]
+fn reserve_pool_balance() -> u128 {
+    METADATA.with(|m| m.borrow().get(&0).unwrap().reserve)
+}
+
+#[query]
 fn total_burned() -> u128 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().total_burned)
+}
+
+#[query]
+fn get_dapp_funds() -> u128 {
+    DAPP_FUNDS.with(|df| df.borrow().get(&0).unwrap_or(0))
 }
 
 #[query]
@@ -580,6 +644,14 @@ fn process_fee(fee: u128) -> Result<(), LedgerError> {
         m.total_burned = m.total_burned.checked_add(burn_amount).ok_or(LedgerError::ArithmeticError)?;
         m.community_pool = m.community_pool.checked_add(pool_amount).ok_or(LedgerError::ArithmeticError)?;
         metadata.borrow_mut().insert(0, m);
+
+        // Accumulate dapp_amount
+        DAPP_FUNDS.with(|df| {
+            let current_funds = df.borrow().get(&0).unwrap_or(0);
+            let new_funds = current_funds.checked_add(dapp_amount).ok_or(LedgerError::ArithmeticError)?;
+            df.borrow_mut().insert(0, new_funds);
+            Ok(())
+        })?;
 
         log_event(
             "FeeProcessed",
