@@ -36,6 +36,7 @@ dist-ssr
 .env.development
 .env.test
 .env.production
+.seedphrase
 
 target
 canister_ids.json

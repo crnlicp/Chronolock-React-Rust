@@ -102,7 +102,7 @@ impl Storable for AllowanceKey {
 }
 
 // Error types for better handling
-#[derive(CandidType, Deserialize, Clone)]
+#[derive(Debug, CandidType, Deserialize, Clone)]
 enum LedgerError {
     InsufficientBalance,
     InsufficientFee,
@@ -140,7 +140,6 @@ thread_local! {
     static LOGS: RefCell<StableBTreeMap<u64, LogEntry, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(3))))
     );
-    // Stable maps for referral system:
     // Mapping from Account to referral code (String)
     static REFERRAL_BY_ACCOUNT: RefCell<StableBTreeMap<Account, String, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(4))))
@@ -150,7 +149,9 @@ thread_local! {
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(5))))
     );
     // Admin principal storage
-    static ADMIN: RefCell<Principal> = RefCell::new(Principal::anonymous());
+    static ADMIN_STORAGE: RefCell<StableBTreeMap<u8, Principal, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(9))))
+    );
     // Mapping from referee Account to a bool indicating that the referral reward has been claimed.
     static CLAIMED_REFERRALS: RefCell<StableBTreeMap<Account, bool, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(7))))
@@ -175,14 +176,18 @@ fn caller() -> Principal {
     ic_cdk::caller()
 }
 
-// Updated admin principal getter to use the stored value
 fn admin_principal() -> Principal {
-    ADMIN.with(|a| a.borrow().clone())
+    ADMIN_STORAGE.with(|a| a.borrow().get(&0).unwrap_or(Principal::anonymous()))
+}
+
+fn is_admin(caller: Principal) -> bool {
+    caller == admin_principal()
 }
 
 // Generates a random 7-character referral code using uppercase and lowercase letters.
 // This function calls the management canister’s raw randomness API asynchronously.
 // Note: raw_rand returns a tuple; we destructure it to obtain a Vec<u8>.
+
 async fn generate_random_referral_code() -> String {
     let charset = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     let (random_bytes,) = raw_rand().await.unwrap();
@@ -210,7 +215,7 @@ fn init(
     admin: Principal,
 ) {
     // Store the provided admin principal
-    ADMIN.with(|a| *a.borrow_mut() = admin.clone());
+    ADMIN_STORAGE.with(|a| a.borrow_mut().insert(0, admin.clone()));
 
     let decimals = 8;
     // Calculate pool amounts (50% community, 20% team, 30% reserve)
@@ -271,7 +276,7 @@ fn init(
 }
 
 // -------------------------
-// Updated Functions with Referral System
+// Updat Functions
 // -------------------------
 
 #[update]
@@ -297,9 +302,26 @@ async fn register_user(user: Account) -> Result<String, LedgerError> {
         let mut updated_metadata = m.clone();
         updated_metadata.community_pool = new_community_pool;
         metadata_ref.insert(0, updated_metadata);
+
+        // Format subaccount for referral logging
+        let subaccount_str = match user.subaccount {
+            Some(sub) => {
+                let trimmed: Vec<u8> = sub.iter().copied().rev().skip_while(|&x| x == 0).collect::<Vec<u8>>().into_iter().rev().collect();
+                if trimmed.is_empty() {
+                    "[0]".to_string() // Handle all-zero case
+                } else {
+                    format!("len: {}, value: {:?}", sub.len(), trimmed)
+                }
+            }
+            None => "None".to_string(),
+        };
+
         log_event(
             "UserRegistered",
-            format!("User: {}, Amount: {}", user.owner, welcome_amount),
+            format!(
+                "Account: {}, Subaccount: {}, Amount: {}",
+                user.owner, subaccount_str, welcome_amount
+            ),
         );
         Ok(m)
     })?;
@@ -317,9 +339,24 @@ async fn register_user(user: Account) -> Result<String, LedgerError> {
             abr.borrow_mut().insert(referral_code.clone(), user.clone());
         });
         let symbol = METADATA.with(|metadata| metadata.borrow().get(&0).unwrap().symbol.clone());
+        // Format subaccount for referral logging
+        let subaccount_str = match user.subaccount {
+            Some(sub) => {
+                let trimmed: Vec<u8> = sub.iter().copied().rev().skip_while(|&x| x == 0).collect::<Vec<u8>>().into_iter().rev().collect();
+                if trimmed.is_empty() {
+                    "[0]".to_string() // Handle all-zero case
+                } else {
+                    format!("len: {}, value: {:?}", sub.len(), trimmed)
+                }
+            }
+            None => "None".to_string(),
+        };
         log_event(
             "ReferralRegistered",
-            format!("User: {}, Referral_Code: {}", user.owner, referral_code),
+            format!(
+                "User: {}, Subaccount: {}, Referral_Code: {}",
+                user.owner, subaccount_str, referral_code
+            ),
         );
         return Ok(format!(
             "User registered with 200 {}. Your referral code is: {}",
@@ -375,10 +412,6 @@ fn claim_referral(referral_code: String, referee: Account) -> Result<String, Led
         Ok(format!("Referral reward of 20 {} credited", m.symbol))
     })
 }
-
-// -------------------------
-// Existing Ledger Functions
-// -------------------------
 
 #[update]
 fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), LedgerError> {
@@ -580,64 +613,259 @@ async fn convert_dapp_funds_to_cycles() -> Result<(), LedgerError> {
     Ok(())
 }
 
+#[update]
+async fn add_dummy_data(
+    num_users: u32,
+    transfer_amount: u128,
+    approve_amount: u128,
+) -> Result<String, LedgerError> {
+    // Check if the caller is an admin
+    let caller = caller();
+    if !is_admin(caller) {
+        return Err(LedgerError::Unauthorized);
+    }
+
+    // Step 1: Create dummy users with referrals
+    let mut users = Vec::new();
+    let mut previous_user: Option<Account> = None;
+    let run_timestamp = current_time(); // Get timestamp at the start of this run
+
+    for i in 0..num_users {
+        // Create a valid principal using the caller principal with unique subaccount
+        let mut subaccount = [0u8; 32];
+        subaccount[0..8].copy_from_slice(&run_timestamp.to_le_bytes()); // First 8 bytes: timestamp
+        subaccount[8..12].copy_from_slice(&i.to_le_bytes());
+
+        let dummy_account = Account {
+            owner: caller,
+            subaccount: Some(subaccount),
+        };
+
+        let register_result = register_user(dummy_account.clone()).await; // Clone here for the register call
+        match register_result {
+            Ok(message) => {
+                users.push(dummy_account.clone()); // Clone here to store in vector
+                log_event(
+                    "DummyUserRegistered",
+                    format!("User: {}, Message: {}", dummy_account.owner, message),
+                );
+
+                // If there's a previous user, claim them as a referral for this user
+                if let Some(prev) = previous_user.clone() {
+                    let referral_code = get_referral_code(prev.clone()).unwrap_or_default();
+                    if !referral_code.is_empty() {
+                        let claim_result =
+                            claim_referral(referral_code.clone(), dummy_account.clone());
+                        match claim_result {
+                            Ok(claim_message) => {
+                                log_event(
+                                    "DummyReferralClaimed",
+                                    format!(
+                                        "Referrer: {}, Referee: {}, Message: {}",
+                                        prev.owner, dummy_account.owner, claim_message
+                                    ),
+                                );
+                            }
+                            Err(e) => {
+                                log_event(
+                                    "DummyReferralClaimFailed",
+                                    format!(
+                                        "Referrer: {}, Referee: {}, Error: {:?}",
+                                        prev.owner, dummy_account.owner, e
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+                // Set current user as previous for next iteration
+                previous_user = Some(dummy_account.clone());
+            }
+            Err(e) => {
+                log_event(
+                    "DummyUserRegistrationFailed",
+                    format!("User: {}, Error: {:?}", dummy_account.owner, e),
+                );
+                return Err(e);
+            }
+        }
+    }
+
+    // Step 2: Perform dummy approvals
+    for i in 0..users.len() {
+        for j in 0..users.len() {
+            if i != j {
+                // Avoid self-approvals
+                let owner = users[i].clone(); // Clone from vector
+                let spender = users[j].clone(); // Clone from vector
+
+                let approve_result = icrc1_approve(owner.clone(), spender.clone(), approve_amount);
+                match approve_result {
+                    Ok(_) => {
+                        log_event(
+                            "DummyApproval",
+                            format!(
+                                "Owner: {}, Spender: {}, Amount: {}",
+                                owner.owner, spender.owner, approve_amount
+                            ),
+                        );
+                    }
+                    Err(e) => {
+                        log_event(
+                            "DummyApprovalFailed",
+                            format!(
+                                "Owner: {}, Spender: {}, Amount: {}, Error: {:?}",
+                                owner.owner, spender.owner, approve_amount, e
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Step 3: Perform dummy transfer-from operations
+    for i in 0..users.len() {
+        for j in 0..users.len() {
+            if i != j {
+                // Avoid self-transfers
+                let spender = users[i].clone(); // Clone from vector
+                let from = users[j].clone(); // Clone from vector
+                let to = users[(i + j) % users.len()].clone(); // Clone from vector
+
+                let transfer_from_result =
+                    icrc1_transfer_from(spender.clone(), from.clone(), to.clone(), transfer_amount);
+                match transfer_from_result {
+                    Ok(_) => {
+                        log_event(
+                            "DummyTransferFrom",
+                            format!(
+                                "Spender: {}, From: {}, To: {}, Amount: {}",
+                                spender.owner, from.owner, to.owner, transfer_amount
+                            ),
+                        );
+                    }
+                    Err(e) => {
+                        log_event(
+                            "DummyTransferFromFailed",
+                            format!(
+                                "Spender: {}, From: {}, To: {}, Amount: {}, Error: {:?}",
+                                spender.owner, from.owner, to.owner, transfer_amount, e
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Step 4: Perform dummy direct transfers
+    for i in 0..users.len() {
+        for j in 0..users.len() {
+            if i != j {
+                // Avoid self-transfers
+                let from = users[i].clone(); // Clone from vector
+                let to = users[j].clone(); // Clone from vector
+
+                let transfer_result = icrc1_transfer(from.clone(), to.clone(), transfer_amount);
+                match transfer_result {
+                    Ok(_) => {
+                        log_event(
+                            "DummyTransfer",
+                            format!(
+                                "From: {}, To: {}, Amount: {}",
+                                from.owner, to.owner, transfer_amount
+                            ),
+                        );
+                    }
+                    Err(e) => {
+                        log_event(
+                            "DummyTransferFailed",
+                            format!(
+                                "From: {}, To: {}, Amount: {}, Error: {:?}",
+                                from.owner, to.owner, transfer_amount, e
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Return success message
+    Ok(format!(
+        "Added {} dummy users, performed approvals of {} tokens, transfer-from operations of {} tokens, and direct transfers of {} tokens each.",
+        num_users, approve_amount, transfer_amount, transfer_amount
+    ))
+}
+
+// -------------------------
+// Query Functions
+// -------------------------
+
+#[query]
+fn get_admin() -> Principal {
+    admin_principal()
+}
+
 #[query]
 fn get_referral_code(user: Account) -> Option<String> {
     REFERRAL_BY_ACCOUNT.with(|rba| rba.borrow().get(&user).clone())
 }
 
 #[query]
-fn icrc1_allowance(owner: Account, spender: Account) -> u128 {
+fn get_icrc1_allowance(owner: Account, spender: Account) -> u128 {
     let key = AllowanceKey { owner, spender };
     ALLOWANCES.with(|a| a.borrow().get(&key).unwrap_or(0))
 }
 
 #[query]
-fn icrc1_name() -> String {
+fn get_icrc1_name() -> String {
     METADATA.with(|m| m.borrow().get(&0).unwrap().name.clone())
 }
 
 #[query]
-fn icrc1_symbol() -> String {
+fn get_icrc1_symbol() -> String {
     METADATA.with(|m| m.borrow().get(&0).unwrap().symbol.clone())
 }
 
 #[query]
-fn icrc1_decimals() -> u8 {
+fn get_icrc1_decimals() -> u8 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().decimals)
 }
 
 #[query]
-fn icrc1_total_supply() -> u128 {
+fn get_icrc1_total_supply() -> u128 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().total_supply)
 }
 
 #[query]
-fn icrc1_fee() -> u128 {
+fn get_icrc1_fee() -> u128 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().transfer_fee)
 }
 
 #[query]
-fn balance_of(account: Account) -> u128 {
+fn get_balance_of(account: Account) -> u128 {
     BALANCES.with(|b| b.borrow().get(&account).unwrap_or(0))
 }
 
 #[query]
-fn community_pool_balance() -> u128 {
+fn get_community_pool_balance() -> u128 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().community_pool)
 }
 
 #[query]
-fn team_pool_balance() -> u128 {
+fn get_team_pool_balance() -> u128 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().team_vesting_pool)
 }
 
 #[query]
-fn reserve_pool_balance() -> u128 {
+fn get_reserve_pool_balance() -> u128 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().reserve)
 }
 
 #[query]
-fn total_burned() -> u128 {
+fn get_total_burned() -> u128 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().total_burned)
 }
 
@@ -664,14 +892,6 @@ fn get_logs_by_range(start_time: u64, end_time: u64) -> Vec<LogEntry> {
             .map(|(_, entry)| entry.clone())
             .collect()
     })
-}
-
-// -------------------------
-// Helper: Check Admin
-// -------------------------
-
-fn is_admin(caller: Principal) -> bool {
-    caller == admin_principal()
 }
 
 // -------------------------
