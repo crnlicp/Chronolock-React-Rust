@@ -67,7 +67,7 @@ fn test_icrc1_name() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_name",
+            "get_icrc1_name",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_name");
@@ -82,7 +82,7 @@ fn test_icrc1_symbol() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_symbol",
+            "get_icrc1_symbol",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_symbol");
@@ -97,7 +97,7 @@ fn test_icrc1_decimals() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_decimals",
+            "get_icrc1_decimals",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_decimals");
@@ -112,10 +112,10 @@ fn test_icrc1_total_supply() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_total_supply",
+            "get_icrc1_total_supply",
             encode_args(()).unwrap(),
         )
-        .expect("Failed to query icrc1_total_supply");
+        .expect("Failed to query get_icrc1_total_supply");
     let result: u128 = decode_one(&response).unwrap();
     assert_eq!(result, 100_000_000_000_000_000_000_u128);
 }
@@ -127,7 +127,7 @@ fn test_icrc1_fee() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_fee",
+            "get_icrc1_fee",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_fee");
@@ -159,7 +159,7 @@ fn test_balance_of() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((admin_account,)).unwrap(),
         )
         .unwrap(),
@@ -169,7 +169,7 @@ fn test_balance_of() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((community_account,)).unwrap(),
         )
         .unwrap(),
@@ -179,7 +179,7 @@ fn test_balance_of() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((team_account,)).unwrap(),
         )
         .unwrap(),
@@ -189,7 +189,7 @@ fn test_balance_of() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((reserve_account,)).unwrap(),
         )
         .unwrap(),
@@ -255,7 +255,7 @@ fn test_icrc1_allowance() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_allowance",
+            "get_icrc1_allowance",
             args,
         )
         .expect("Failed to query icrc1_allowance");
@@ -344,7 +344,7 @@ fn test_icrc1_transfer() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((from.clone(),)).unwrap(),
         )
         .unwrap(),
@@ -366,7 +366,7 @@ fn test_icrc1_transfer() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((to,)).unwrap(),
         )
         .unwrap(),
@@ -401,7 +401,7 @@ fn test_icrc1_approve_and_transfer_from() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((owner.clone(),)).unwrap(),
         )
         .unwrap(),
@@ -434,7 +434,7 @@ fn test_icrc1_approve_and_transfer_from() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((to,)).unwrap(),
         )
         .unwrap(),
@@ -460,7 +460,7 @@ fn test_create_media_chronolock() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             caller_balance_args.clone(),
         )
         .unwrap(),
@@ -482,7 +482,7 @@ fn test_create_media_chronolock() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             caller_balance_args,
         )
         .unwrap(),
@@ -521,7 +521,7 @@ fn test_set_transfer_fee() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_fee",
+            "get_icrc1_fee",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_fee");
@@ -558,7 +558,7 @@ fn test_set_transfer_fee_authorization() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_fee",
+            "get_icrc1_fee",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_fee");
@@ -673,7 +673,7 @@ fn test_referral_reward() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((referrer,)).unwrap(),
         )
         .unwrap(),
@@ -683,7 +683,7 @@ fn test_referral_reward() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "community_pool_balance",
+            "get_community_pool_balance",
             encode_args(()).unwrap(),
         )
         .unwrap(),
@@ -769,7 +769,7 @@ fn test_icrc1_functions() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_allowance",
+            "get_icrc1_allowance",
             encode_args((owner.clone(), spender.clone())).unwrap(),
         )
         .unwrap(),
@@ -791,7 +791,7 @@ fn test_icrc1_functions() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((to,)).unwrap(),
         )
         .unwrap(),
@@ -928,7 +928,7 @@ fn test_concurrent_transfers() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((to1,)).unwrap(),
         )
         .unwrap(),
@@ -938,7 +938,7 @@ fn test_concurrent_transfers() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((to2,)).unwrap(),
         )
         .unwrap(),
@@ -1035,7 +1035,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_total_supply",
+            "get_icrc1_total_supply",
             encode_args(()).unwrap(),
         )
         .unwrap(),
@@ -1046,7 +1046,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "total_burned",
+            "get_total_burned",
             encode_args(()).unwrap(),
         )
         .unwrap(),
@@ -1057,7 +1057,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "community_pool_balance",
+            "get_community_pool_balance",
             encode_args(()).unwrap(),
         )
         .unwrap(),
@@ -1079,7 +1079,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((from.clone(),)).unwrap(),
         )
         .unwrap(),
@@ -1110,7 +1110,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "icrc1_total_supply",
+            "get_icrc1_total_supply",
             encode_args(()).unwrap(),
         )
         .unwrap(),
@@ -1121,7 +1121,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "total_burned",
+            "get_total_burned",
             encode_args(()).unwrap(),
         )
         .unwrap(),
@@ -1132,7 +1132,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "community_pool_balance",
+            "get_community_pool_balance",
             encode_args(()).unwrap(),
         )
         .unwrap(),
@@ -1154,7 +1154,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((from.clone(),)).unwrap(),
         )
         .unwrap(),
@@ -1165,7 +1165,7 @@ fn test_process_fee() {
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "balance_of",
+            "get_balance_of",
             encode_args((to.clone(),)).unwrap(),
         )
         .unwrap(),
