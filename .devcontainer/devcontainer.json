@@ -1,5 +1,5 @@
 {
-    "name": "EVM RPC Rust",
+    "name": "Chrnolock",
     "image": "ghcr.io/dfinity/icp-dev-env:5",
     "forwardPorts": [
         4943,

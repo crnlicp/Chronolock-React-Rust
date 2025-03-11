@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "setup": "npm i && npm run setup:backend",
-    "setup:backend": "dfx deploy",
+    "setup:backend": "./setup-backend.sh",
     "start": "run-p frontend backend",
     "frontend": "vite --config \"src/frontend/vite.config.ts\" --port 3000",
     "backend": "./watch-and-deploy-all.sh",
