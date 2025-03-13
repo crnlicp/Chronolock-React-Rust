@@ -1,4 +1,9 @@
 type Account = record { owner : principal; subaccount : opt blob };
+type ApproveArgs = record {
+  from_subaccount : opt blob;
+  amount : nat;
+  spender : Account;
+};
 type LedgerError = variant {
   InvalidAccount;
   TransferError;
@@ -15,6 +20,18 @@ type LedgerError = variant {
 type LogEntry = record { timestamp : nat64; details : text; event_type : text };
 type Result = variant { Ok : text; Err : LedgerError };
 type Result_1 = variant { Ok; Err : LedgerError };
+type Result_2 = variant { Ok : nat; Err : LedgerError };
+type TransferArgs = record {
+  to : Account;
+  from_subaccount : opt blob;
+  amount : nat;
+};
+type TransferFromArgs = record {
+  to : Account;
+  from : Account;
+  amount : nat;
+  spender : Account;
+};
 service : (text, text, nat, nat64, nat, principal) -> {
   add_dummy_data : (nat32, nat, nat) -> (Result);
   claim_referral : (text, Account) -> (Result);
@@ -22,24 +39,27 @@ service : (text, text, nat, nat64, nat, principal) -> {
   create_media_chronolock : (Account) -> (Result);
   create_text_chronolock : (Account) -> (Result);
   get_admin : () -> (principal) query;
-  get_balance_of : (Account) -> (nat) query;
   get_community_pool_balance : () -> (nat) query;
   get_dapp_funds : () -> (nat) query;
-  get_icrc1_allowance : (Account, Account) -> (nat) query;
-  get_icrc1_decimals : () -> (nat8) query;
-  get_icrc1_fee : () -> (nat) query;
-  get_icrc1_name : () -> (text) query;
-  get_icrc1_symbol : () -> (text) query;
-  get_icrc1_total_supply : () -> (nat) query;
+  get_fee_distribution : () -> (nat, nat, nat) query;
   get_logs : () -> (vec LogEntry) query;
   get_logs_by_range : (nat64, nat64) -> (vec LogEntry) query;
   get_referral_code : (Account) -> (opt text) query;
   get_reserve_pool_balance : () -> (nat) query;
   get_team_pool_balance : () -> (nat) query;
   get_total_burned : () -> (nat) query;
-  icrc1_approve : (Account, Account, nat) -> (Result_1);
-  icrc1_transfer : (Account, Account, nat) -> (Result_1);
-  icrc1_transfer_from : (Account, Account, Account, nat) -> (Result_1);
+  icrc1_allowance : (Account, Account) -> (nat) query;
+  icrc1_approve : (ApproveArgs) -> (Result_2);
+  icrc1_balance_of : (Account) -> (nat) query;
+  icrc1_decimals : () -> (nat8) query;
+  icrc1_fee : () -> (nat) query;
+  icrc1_metadata : () -> (vec record { text; text }) query;
+  icrc1_name : () -> (text) query;
+  icrc1_supported_standards : () -> (vec text) query;
+  icrc1_symbol : () -> (text) query;
+  icrc1_total_supply : () -> (nat) query;
+  icrc1_transfer : (TransferArgs) -> (Result_2);
+  icrc1_transfer_from : (TransferFromArgs) -> (Result_2);
   register_user : (Account) -> (Result);
   set_transfer_fee : (nat) -> (Result_1);
 }

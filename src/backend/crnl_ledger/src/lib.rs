@@ -1,10 +1,10 @@
-use candid::CandidType;
-use candid::Principal;
+use candid::{CandidType, Nat, Principal};
 use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk_macros::{init, query, update};
 use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
 use ic_stable_structures::storable::Bound;
 use ic_stable_structures::{DefaultMemoryImpl, StableBTreeMap, Storable};
+use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -31,6 +31,31 @@ impl Storable for Account {
         candid::decode_one(&bytes).unwrap()
     }
     const BOUND: Bound = Bound::Unbounded;
+}
+
+// TransferArgs for ICRC-1 compliance
+#[derive(CandidType, Serialize, Deserialize)]
+struct TransferArgs {
+    from_subaccount: Option<[u8; 32]>,
+    to: Account,
+    amount: Nat,
+}
+
+// ApproveArgs for ICRC-2 compliance
+#[derive(CandidType, Serialize, Deserialize)]
+struct ApproveArgs {
+    from_subaccount: Option<[u8; 32]>,
+    spender: Account,
+    amount: Nat,
+}
+
+// TransferFromArgs for ICRC-2 compliance
+#[derive(CandidType, Serialize, Deserialize)]
+struct TransferFromArgs {
+    spender: Account,
+    from: Account,
+    to: Account,
+    amount: Nat,
 }
 
 // Metadata struct for token information
@@ -90,11 +115,9 @@ impl Storable for AllowanceKey {
     fn to_bytes(&self) -> Cow<[u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
-
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
         candid::decode_one(&bytes).unwrap()
     }
-
     const BOUND: Bound = Bound::Bounded {
         max_size: 200, // Two Accounts, each up to 100 bytes
         is_fixed_size: false,
@@ -140,19 +163,15 @@ thread_local! {
     static LOGS: RefCell<StableBTreeMap<u64, LogEntry, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(3))))
     );
-    // Mapping from Account to referral code (String)
     static REFERRAL_BY_ACCOUNT: RefCell<StableBTreeMap<Account, String, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(4))))
     );
-    // Mapping from referral code (String) to Account
     static ACCOUNT_BY_REFERRAL: RefCell<StableBTreeMap<String, Account, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(5))))
     );
-    // Admin principal storage
     static ADMIN_STORAGE: RefCell<StableBTreeMap<u8, Principal, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(9))))
     );
-    // Mapping from referee Account to a bool indicating that the referral reward has been claimed.
     static CLAIMED_REFERRALS: RefCell<StableBTreeMap<Account, bool, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(7))))
     );
@@ -167,7 +186,6 @@ const RESERVE_POOL_SUBACCOUNT: [u8; 32] = [3u8; 32];
 // Helper Functions
 // -------------------------
 
-// Get current time in seconds
 fn current_time() -> u64 {
     ic_cdk::api::time() / 1_000_000_000
 }
@@ -184,10 +202,6 @@ fn is_admin(caller: Principal) -> bool {
     caller == admin_principal()
 }
 
-// Generates a random 7-character referral code using uppercase and lowercase letters.
-// This function calls the management canister’s raw randomness API asynchronously.
-// Note: raw_rand returns a tuple; we destructure it to obtain a Vec<u8>.
-
 async fn generate_random_referral_code() -> String {
     let charset = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     let (random_bytes,) = raw_rand().await.unwrap();
@@ -201,8 +215,13 @@ async fn generate_random_referral_code() -> String {
         .collect()
 }
 
+// Convert Nat to u128 safely
+fn nat_to_u128(n: Nat) -> Result<u128, LedgerError> {
+    n.0.to_u128().ok_or(LedgerError::ArithmeticError)
+}
+
 // -------------------------
-// Updated Initialization
+// Initialization
 // -------------------------
 
 #[init]
@@ -214,16 +233,13 @@ fn init(
     transfer_fee: u128,
     admin: Principal,
 ) {
-    // Store the provided admin principal
     ADMIN_STORAGE.with(|a| a.borrow_mut().insert(0, admin.clone()));
 
     let decimals = 8;
-    // Calculate pool amounts (50% community, 20% team, 30% reserve)
     let community_pool_amount = total_supply * 50 / 100;
     let team_vesting_pool_amount = total_supply * 20 / 100;
     let reserve_amount = total_supply * 30 / 100;
 
-    // Insert token metadata
     METADATA.with(|metadata| {
         let mut m = metadata.borrow_mut();
         m.insert(
@@ -244,7 +260,6 @@ fn init(
         );
     });
 
-    // Create pool accounts as subaccounts under the admin account
     let community_account = Account {
         owner: admin.clone(),
         subaccount: Some(COMMUNITY_POOL_SUBACCOUNT),
@@ -258,7 +273,6 @@ fn init(
         subaccount: Some(RESERVE_POOL_SUBACCOUNT),
     };
 
-    // Initialize the balances for each pool account
     BALANCES.with(|balances| {
         let mut b = balances.borrow_mut();
         b.insert(community_account, community_pool_amount);
@@ -276,7 +290,7 @@ fn init(
 }
 
 // -------------------------
-// Updat Functions
+// Update Functions
 // -------------------------
 
 #[update]
@@ -291,24 +305,28 @@ async fn register_user(user: Account) -> Result<String, LedgerError> {
         if m.community_pool < welcome_amount {
             return Err(LedgerError::InsufficientPoolFunds);
         }
-        // Deduct from community pool
         let new_community_pool = m
             .community_pool
             .checked_sub(welcome_amount)
             .ok_or(LedgerError::ArithmeticError)?;
-        // Update balance for the new user
         BALANCES.with(|b| b.borrow_mut().insert(user.clone(), welcome_amount));
-        // Update metadata with new community pool value
         let mut updated_metadata = m.clone();
         updated_metadata.community_pool = new_community_pool;
         metadata_ref.insert(0, updated_metadata);
 
-        // Format subaccount for referral logging
         let subaccount_str = match user.subaccount {
             Some(sub) => {
-                let trimmed: Vec<u8> = sub.iter().copied().rev().skip_while(|&x| x == 0).collect::<Vec<u8>>().into_iter().rev().collect();
+                let trimmed: Vec<u8> = sub
+                    .iter()
+                    .copied()
+                    .rev()
+                    .skip_while(|&x| x == 0)
+                    .collect::<Vec<u8>>()
+                    .into_iter()
+                    .rev()
+                    .collect();
                 if trimmed.is_empty() {
-                    "[0]".to_string() // Handle all-zero case
+                    "[0]".to_string()
                 } else {
                     format!("len: {}, value: {:?}", sub.len(), trimmed)
                 }
@@ -325,10 +343,9 @@ async fn register_user(user: Account) -> Result<String, LedgerError> {
         );
         Ok(m)
     })?;
-    // Generate a referral code for this new user if not already assigned.
+
     if !REFERRAL_BY_ACCOUNT.with(|rba| rba.borrow().contains_key(&user)) {
         let mut referral_code = generate_random_referral_code().await;
-        // Ensure uniqueness in case of a rare collision.
         while ACCOUNT_BY_REFERRAL.with(|abr| abr.borrow().contains_key(&referral_code)) {
             referral_code = generate_random_referral_code().await;
         }
@@ -339,12 +356,19 @@ async fn register_user(user: Account) -> Result<String, LedgerError> {
             abr.borrow_mut().insert(referral_code.clone(), user.clone());
         });
         let symbol = METADATA.with(|metadata| metadata.borrow().get(&0).unwrap().symbol.clone());
-        // Format subaccount for referral logging
         let subaccount_str = match user.subaccount {
             Some(sub) => {
-                let trimmed: Vec<u8> = sub.iter().copied().rev().skip_while(|&x| x == 0).collect::<Vec<u8>>().into_iter().rev().collect();
+                let trimmed: Vec<u8> = sub
+                    .iter()
+                    .copied()
+                    .rev()
+                    .skip_while(|&x| x == 0)
+                    .collect::<Vec<u8>>()
+                    .into_iter()
+                    .rev()
+                    .collect();
                 if trimmed.is_empty() {
-                    "[0]".to_string() // Handle all-zero case
+                    "[0]".to_string()
                 } else {
                     format!("len: {}, value: {:?}", sub.len(), trimmed)
                 }
@@ -369,14 +393,12 @@ async fn register_user(user: Account) -> Result<String, LedgerError> {
 
 #[update]
 fn claim_referral(referral_code: String, referee: Account) -> Result<String, LedgerError> {
-    // Look up the referrer by referral code
     let referrer_opt = ACCOUNT_BY_REFERRAL.with(|abr| abr.borrow().get(&referral_code).clone());
     let referrer = match referrer_opt {
         None => return Err(LedgerError::InvalidReferral),
         Some(acc) => acc,
     };
 
-    // Check if the referee has already claimed a referral reward.
     if CLAIMED_REFERRALS.with(|cr| cr.borrow().contains_key(&referee)) {
         return Err(LedgerError::InvalidReferral);
     }
@@ -405,7 +427,6 @@ fn claim_referral(referral_code: String, referee: Account) -> Result<String, Led
                 referrer.owner, referee.owner, reward
             ),
         );
-        // Mark that this referee has claimed their referral reward.
         CLAIMED_REFERRALS.with(|cr| {
             cr.borrow_mut().insert(referee.clone(), true);
         });
@@ -414,17 +435,22 @@ fn claim_referral(referral_code: String, referee: Account) -> Result<String, Led
 }
 
 #[update]
-fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), LedgerError> {
+fn icrc1_transfer(args: TransferArgs) -> Result<Nat, LedgerError> {
+    let caller = caller();
+    let from = Account {
+        owner: caller,
+        subaccount: args.from_subaccount,
+    };
+    let amount = nat_to_u128(args.amount.clone())?;
+
     METADATA.with(|metadata| {
         let m = metadata.borrow().get(&0).unwrap();
         let transfer_fee = m.transfer_fee;
 
-        // Check for max amount or overflow early
         if amount == u128::MAX {
             return Err(LedgerError::ArithmeticError);
         }
 
-        // Ensure amount is sufficient to cover the fee
         if amount < transfer_fee {
             return Err(LedgerError::InsufficientFee);
         }
@@ -440,14 +466,12 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
 
         BALANCES.with(|b| {
             let mut b = b.borrow_mut();
-            // Deduct only the full amount (including fee) from sender
             b.insert(from.clone(), from_balance - amount);
-            let to_balance = b.get(&to).unwrap_or(0);
-            // Credit recipient with amount minus fee
+            let to_balance = b.get(&args.to).unwrap_or(0);
             let new_to_balance = to_balance
                 .checked_add(amount_after_fee)
                 .ok_or(LedgerError::ArithmeticError)?;
-            b.insert(to.clone(), new_to_balance);
+            b.insert(args.to.clone(), new_to_balance);
             Ok(())
         })?;
 
@@ -456,24 +480,32 @@ fn icrc1_transfer(from: Account, to: Account, amount: u128) -> Result<(), Ledger
             "Transfer",
             format!(
                 "From: {}, To: {}, Amount: {}, Fee: {}, Received: {}",
-                from.owner, to.owner, amount, transfer_fee, amount_after_fee
+                from.owner, args.to.owner, amount, transfer_fee, amount_after_fee
             ),
         );
-        Ok(())
+        Ok(args.amount)
     })
 }
 
 #[update]
-fn icrc1_approve(owner: Account, spender: Account, amount: u128) -> Result<(), LedgerError> {
+fn icrc1_approve(args: ApproveArgs) -> Result<Nat, LedgerError> {
     let caller = caller();
+    let owner = Account {
+        owner: caller,
+        subaccount: args.from_subaccount,
+    };
+    let amount = nat_to_u128(args.amount.clone())?;
+
+    // Since caller is the owner principal, this check may be redundant but kept for safety
     if caller != owner.owner {
         return Err(LedgerError::Unauthorized);
     }
+
     ALLOWANCES.with(|allowances| {
         allowances.borrow_mut().insert(
             AllowanceKey {
                 owner: owner.clone(),
-                spender: spender.clone(),
+                spender: args.spender.clone(),
             },
             amount,
         );
@@ -481,25 +513,21 @@ fn icrc1_approve(owner: Account, spender: Account, amount: u128) -> Result<(), L
     log_event(
         "Approval",
         format!(
-            "Owner: {}, Spender: {}, Amount: {}",
-            owner.owner, spender.owner, amount
+            "Owner: {}, Subaccount: {:?}, Spender: {}, Amount: {}",
+            owner.owner, owner.subaccount, args.spender.owner, amount
         ),
     );
-    Ok(())
+    Ok(args.amount)
 }
 
 #[update]
-fn icrc1_transfer_from(
-    spender: Account,
-    from: Account,
-    to: Account,
-    amount: u128,
-) -> Result<(), LedgerError> {
+fn icrc1_transfer_from(args: TransferFromArgs) -> Result<Nat, LedgerError> {
+    let amount = nat_to_u128(args.amount.clone())?;
+
     METADATA.with(|metadata| {
         let m = metadata.borrow().get(&0).unwrap();
         let transfer_fee = m.transfer_fee;
 
-        // Ensure amount is sufficient to cover the fee
         if amount < transfer_fee {
             return Err(LedgerError::InsufficientFee);
         }
@@ -509,15 +537,15 @@ fn icrc1_transfer_from(
             .ok_or(LedgerError::ArithmeticError)?;
 
         let allowance_key = AllowanceKey {
-            owner: from.clone(),
-            spender: spender.clone(),
+            owner: args.from.clone(),
+            spender: args.spender.clone(),
         };
         let allowance = ALLOWANCES.with(|a| a.borrow().get(&allowance_key).unwrap_or(0));
         if allowance < amount {
             return Err(LedgerError::InsufficientAllowance);
         }
 
-        let from_balance = BALANCES.with(|b| b.borrow().get(&from).unwrap_or(0));
+        let from_balance = BALANCES.with(|b| b.borrow().get(&args.from).unwrap_or(0));
         if from_balance < amount {
             return Err(LedgerError::InsufficientBalance);
         }
@@ -525,14 +553,12 @@ fn icrc1_transfer_from(
         ALLOWANCES.with(|a| a.borrow_mut().insert(allowance_key, allowance - amount));
         BALANCES.with(|b| {
             let mut b = b.borrow_mut();
-            // Deduct only the full amount (including fee) from owner
-            b.insert(from.clone(), from_balance - amount);
-            let to_balance = b.get(&to).unwrap_or(0);
-            // Credit recipient with amount minus fee
+            b.insert(args.from.clone(), from_balance - amount);
+            let to_balance = b.get(&args.to).unwrap_or(0);
             let new_to_balance = to_balance
                 .checked_add(amount_after_fee)
                 .ok_or(LedgerError::ArithmeticError)?;
-            b.insert(to.clone(), new_to_balance);
+            b.insert(args.to.clone(), new_to_balance);
             Ok(())
         })?;
         process_fee(transfer_fee)?;
@@ -540,10 +566,15 @@ fn icrc1_transfer_from(
             "TransferFrom",
             format!(
                 "Spender: {}, From: {}, To: {}, Amount: {}, Fee: {}, Received: {}",
-                spender.owner, from.owner, to.owner, amount, transfer_fee, amount_after_fee
+                args.spender.owner,
+                args.from.owner,
+                args.to.owner,
+                amount,
+                transfer_fee,
+                amount_after_fee
             ),
         );
-        Ok(())
+        Ok(args.amount)
     })
 }
 
@@ -602,10 +633,7 @@ async fn convert_dapp_funds_to_cycles() -> Result<(), LedgerError> {
         return Ok(());
     }
 
-    /*
-     *   TODO: Implement Convert to cycle after token launch
-     */
-
+    // TODO: Implement conversion to cycles after token launch
     log_event(
         "DappFundsConverted",
         format!("Converted {} tokens to cycles", dapp_amount),
@@ -619,21 +647,18 @@ async fn add_dummy_data(
     transfer_amount: u128,
     approve_amount: u128,
 ) -> Result<String, LedgerError> {
-    // Check if the caller is an admin
     let caller = caller();
     if !is_admin(caller) {
         return Err(LedgerError::Unauthorized);
     }
 
-    // Step 1: Create dummy users with referrals
     let mut users = Vec::new();
     let mut previous_user: Option<Account> = None;
-    let run_timestamp = current_time(); // Get timestamp at the start of this run
+    let run_timestamp = current_time();
 
     for i in 0..num_users {
-        // Create a valid principal using the caller principal with unique subaccount
         let mut subaccount = [0u8; 32];
-        subaccount[0..8].copy_from_slice(&run_timestamp.to_le_bytes()); // First 8 bytes: timestamp
+        subaccount[0..8].copy_from_slice(&run_timestamp.to_le_bytes());
         subaccount[8..12].copy_from_slice(&i.to_le_bytes());
 
         let dummy_account = Account {
@@ -641,16 +666,15 @@ async fn add_dummy_data(
             subaccount: Some(subaccount),
         };
 
-        let register_result = register_user(dummy_account.clone()).await; // Clone here for the register call
+        let register_result = register_user(dummy_account.clone()).await;
         match register_result {
             Ok(message) => {
-                users.push(dummy_account.clone()); // Clone here to store in vector
+                users.push(dummy_account.clone());
                 log_event(
                     "DummyUserRegistered",
                     format!("User: {}, Message: {}", dummy_account.owner, message),
                 );
 
-                // If there's a previous user, claim them as a referral for this user
                 if let Some(prev) = previous_user.clone() {
                     let referral_code = get_referral_code(prev.clone()).unwrap_or_default();
                     if !referral_code.is_empty() {
@@ -678,7 +702,6 @@ async fn add_dummy_data(
                         }
                     }
                 }
-                // Set current user as previous for next iteration
                 previous_user = Some(dummy_account.clone());
             }
             Err(e) => {
@@ -691,15 +714,17 @@ async fn add_dummy_data(
         }
     }
 
-    // Step 2: Perform dummy approvals
     for i in 0..users.len() {
         for j in 0..users.len() {
             if i != j {
-                // Avoid self-approvals
-                let owner = users[i].clone(); // Clone from vector
-                let spender = users[j].clone(); // Clone from vector
+                let owner = users[i].clone();
+                let spender = users[j].clone();
 
-                let approve_result = icrc1_approve(owner.clone(), spender.clone(), approve_amount);
+                let approve_result = icrc1_approve(ApproveArgs {
+                    from_subaccount: owner.subaccount,
+                    spender: spender.clone(),
+                    amount: Nat::from(approve_amount),
+                });
                 match approve_result {
                     Ok(_) => {
                         log_event(
@@ -724,17 +749,19 @@ async fn add_dummy_data(
         }
     }
 
-    // Step 3: Perform dummy transfer-from operations
     for i in 0..users.len() {
         for j in 0..users.len() {
             if i != j {
-                // Avoid self-transfers
-                let spender = users[i].clone(); // Clone from vector
-                let from = users[j].clone(); // Clone from vector
-                let to = users[(i + j) % users.len()].clone(); // Clone from vector
+                let spender = users[i].clone();
+                let from = users[j].clone();
+                let to = users[(i + j) % users.len()].clone();
 
-                let transfer_from_result =
-                    icrc1_transfer_from(spender.clone(), from.clone(), to.clone(), transfer_amount);
+                let transfer_from_result = icrc1_transfer_from(TransferFromArgs {
+                    spender: spender.clone(),
+                    from: from.clone(),
+                    to: to.clone(),
+                    amount: Nat::from(transfer_amount),
+                });
                 match transfer_from_result {
                     Ok(_) => {
                         log_event(
@@ -759,15 +786,17 @@ async fn add_dummy_data(
         }
     }
 
-    // Step 4: Perform dummy direct transfers
     for i in 0..users.len() {
         for j in 0..users.len() {
             if i != j {
-                // Avoid self-transfers
-                let from = users[i].clone(); // Clone from vector
-                let to = users[j].clone(); // Clone from vector
+                let from = users[i].clone();
+                let to = users[j].clone();
 
-                let transfer_result = icrc1_transfer(from.clone(), to.clone(), transfer_amount);
+                let transfer_result = icrc1_transfer(TransferArgs {
+                    from_subaccount: from.subaccount,
+                    to: to.clone(),
+                    amount: Nat::from(transfer_amount),
+                });
                 match transfer_result {
                     Ok(_) => {
                         log_event(
@@ -792,7 +821,6 @@ async fn add_dummy_data(
         }
     }
 
-    // Return success message
     Ok(format!(
         "Added {} dummy users, performed approvals of {} tokens, transfer-from operations of {} tokens, and direct transfers of {} tokens each.",
         num_users, approve_amount, transfer_amount, transfer_amount
@@ -814,64 +842,99 @@ fn get_referral_code(user: Account) -> Option<String> {
 }
 
 #[query]
-fn get_icrc1_allowance(owner: Account, spender: Account) -> u128 {
-    let key = AllowanceKey { owner, spender };
-    ALLOWANCES.with(|a| a.borrow().get(&key).unwrap_or(0))
+fn icrc1_supported_standards() -> Vec<String> {
+    vec!["ICRC-1".to_string(), "ICRC-2".to_string()]
 }
 
 #[query]
-fn get_icrc1_name() -> String {
+fn icrc1_metadata() -> Vec<(String, String)> {
+    METADATA.with(|m| {
+        let meta = m.borrow().get(&0).unwrap();
+        vec![
+            ("icrc1:name".to_string(), meta.name.clone()),
+            ("icrc1:symbol".to_string(), meta.symbol.clone()),
+            ("icrc1:decimals".to_string(), meta.decimals.to_string()),
+            (
+                "icrc1:logo".to_string(),
+                "https://your-logo-url.com/token.png".to_string(),
+            ), // Update this URL
+        ]
+    })
+}
+
+#[query]
+fn icrc1_allowance(owner: Account, spender: Account) -> Nat {
+    let key = AllowanceKey { owner, spender };
+    Nat::from(ALLOWANCES.with(|a| a.borrow().get(&key).unwrap_or(0)))
+}
+
+#[query]
+fn icrc1_name() -> String {
     METADATA.with(|m| m.borrow().get(&0).unwrap().name.clone())
 }
 
 #[query]
-fn get_icrc1_symbol() -> String {
+fn icrc1_symbol() -> String {
     METADATA.with(|m| m.borrow().get(&0).unwrap().symbol.clone())
 }
 
 #[query]
-fn get_icrc1_decimals() -> u8 {
+fn icrc1_decimals() -> u8 {
     METADATA.with(|m| m.borrow().get(&0).unwrap().decimals)
 }
 
 #[query]
-fn get_icrc1_total_supply() -> u128 {
-    METADATA.with(|m| m.borrow().get(&0).unwrap().total_supply)
+fn icrc1_total_supply() -> Nat {
+    Nat::from(METADATA.with(|m| m.borrow().get(&0).unwrap().total_supply))
 }
 
 #[query]
-fn get_icrc1_fee() -> u128 {
-    METADATA.with(|m| m.borrow().get(&0).unwrap().transfer_fee)
+fn icrc1_fee() -> Nat {
+    Nat::from(METADATA.with(|m| m.borrow().get(&0).unwrap().transfer_fee))
 }
 
 #[query]
-fn get_balance_of(account: Account) -> u128 {
-    BALANCES.with(|b| b.borrow().get(&account).unwrap_or(0))
+fn icrc1_balance_of(account: Account) -> Nat {
+    Nat::from(BALANCES.with(|b| b.borrow().get(&account).unwrap_or(0)))
 }
 
 #[query]
-fn get_community_pool_balance() -> u128 {
-    METADATA.with(|m| m.borrow().get(&0).unwrap().community_pool)
+fn get_community_pool_balance() -> Nat {
+    Nat::from(METADATA.with(|m| m.borrow().get(&0).unwrap().community_pool))
 }
 
 #[query]
-fn get_team_pool_balance() -> u128 {
-    METADATA.with(|m| m.borrow().get(&0).unwrap().team_vesting_pool)
+fn get_team_pool_balance() -> Nat {
+    Nat::from(METADATA.with(|m| m.borrow().get(&0).unwrap().team_vesting_pool))
 }
 
 #[query]
-fn get_reserve_pool_balance() -> u128 {
-    METADATA.with(|m| m.borrow().get(&0).unwrap().reserve)
+fn get_reserve_pool_balance() -> Nat {
+    Nat::from(METADATA.with(|m| m.borrow().get(&0).unwrap().reserve))
 }
 
 #[query]
-fn get_total_burned() -> u128 {
-    METADATA.with(|m| m.borrow().get(&0).unwrap().total_burned)
+fn get_total_burned() -> Nat {
+    Nat::from(METADATA.with(|m| m.borrow().get(&0).unwrap().total_burned))
 }
 
 #[query]
-fn get_dapp_funds() -> u128 {
-    DAPP_FUNDS.with(|df| df.borrow().get(&0).unwrap_or(0))
+fn get_dapp_funds() -> Nat {
+    Nat::from(DAPP_FUNDS.with(|df| df.borrow().get(&0).unwrap_or(0)))
+}
+
+#[query]
+fn get_fee_distribution() -> (Nat, Nat, Nat) {
+    // (burn, pool, dapp)
+    METADATA.with(|m| {
+        let meta = m.borrow().get(&0).unwrap();
+        let fee = meta.transfer_fee;
+        (
+            Nat::from(fee * 20 / 100),
+            Nat::from(fee * 10 / 100),
+            Nat::from(fee * 70 / 100),
+        )
+    })
 }
 
 #[query]
@@ -919,7 +982,6 @@ fn process_fee(fee: u128) -> Result<(), LedgerError> {
             .ok_or(LedgerError::ArithmeticError)?;
         metadata.borrow_mut().insert(0, m);
 
-        // Accumulate dapp_amount
         DAPP_FUNDS.with(|df| {
             let current_funds = df.borrow().get(&0).unwrap_or(0);
             let new_funds = current_funds

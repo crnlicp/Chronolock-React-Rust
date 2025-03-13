@@ -1,4 +1,4 @@
-use candid::{decode_one, encode_args, CandidType, Principal};
+use candid::{decode_one, encode_args, CandidType, Nat, Principal};
 use pocket_ic::PocketIc;
 use std::fs;
 
@@ -12,6 +12,28 @@ const BACKEND_WASM: &str = "../../../target/wasm32-unknown-unknown/release/crnl_
 struct Account {
     owner: Principal,
     subaccount: Option<[u8; 32]>,
+}
+
+#[derive(CandidType, serde::Deserialize, Clone, Debug)]
+struct TransferArgs {
+    from_subaccount: Option<[u8; 32]>,
+    to: Account,
+    amount: Nat,
+}
+
+#[derive(CandidType, serde::Deserialize, Clone, Debug)]
+struct ApproveArgs {
+    from_subaccount: Option<[u8; 32]>,
+    spender: Account,
+    amount: Nat,
+}
+
+#[derive(CandidType, serde::Deserialize, Clone, Debug)]
+struct TransferFromArgs {
+    spender: Account,
+    from: Account,
+    to: Account,
+    amount: Nat,
 }
 
 #[derive(CandidType, serde::Deserialize, Clone, Debug, PartialEq)]
@@ -67,7 +89,7 @@ fn test_icrc1_name() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_name",
+            "icrc1_name",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_name");
@@ -82,7 +104,7 @@ fn test_icrc1_symbol() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_symbol",
+            "icrc1_symbol",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_symbol");
@@ -97,7 +119,7 @@ fn test_icrc1_decimals() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_decimals",
+            "icrc1_decimals",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_decimals");
@@ -112,12 +134,12 @@ fn test_icrc1_total_supply() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_total_supply",
+            "icrc1_total_supply",
             encode_args(()).unwrap(),
         )
-        .expect("Failed to query get_icrc1_total_supply");
-    let result: u128 = decode_one(&response).unwrap();
-    assert_eq!(result, 100_000_000_000_000_000_000_u128);
+        .expect("Failed to query icrc1_total_supply");
+    let result: Nat = decode_one(&response).unwrap();
+    assert_eq!(result, Nat::from(100_000_000_000_000_000_000_u128));
 }
 
 #[test]
@@ -127,12 +149,12 @@ fn test_icrc1_fee() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_fee",
+            "icrc1_fee",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_fee");
-    let result: u128 = decode_one(&response).unwrap();
-    assert_eq!(result, 100_000_u128);
+    let result: Nat = decode_one(&response).unwrap();
+    assert_eq!(result, Nat::from(100_000_u128));
 }
 
 #[test]
@@ -155,41 +177,41 @@ fn test_balance_of() {
         subaccount: Some(RESERVE_POOL_SUBACCOUNT),
     };
 
-    let admin_balance: u128 = decode_one(
+    let admin_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((admin_account,)).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
-    let community_balance: u128 = decode_one(
+    let community_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((community_account,)).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
-    let team_balance: u128 = decode_one(
+    let team_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((team_account,)).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
-    let reserve_balance: u128 = decode_one(
+    let reserve_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((reserve_account,)).unwrap(),
         )
         .unwrap(),
@@ -203,7 +225,7 @@ fn test_balance_of() {
 
     assert_eq!(
         admin_balance + community_balance + team_balance + reserve_balance,
-        100_000_000_000_000_000_000_u128
+        Nat::from(100_000_000_000_000_000_000_u128)
     );
 }
 
@@ -255,12 +277,12 @@ fn test_icrc1_allowance() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_allowance",
+            "icrc1_allowance",
             args,
         )
         .expect("Failed to query icrc1_allowance");
-    let result: u128 = decode_one(&response).unwrap();
-    assert_eq!(result, 0_u128);
+    let result: Nat = decode_one(&response).unwrap();
+    assert_eq!(result, Nat::from(0_u128));
 }
 
 // Update Tests
@@ -337,14 +359,14 @@ fn test_icrc1_transfer() {
         owner: Principal::from_text("2vxsx-fae").unwrap(),
         subaccount: None,
     };
-    let amount = 1_000_000_000_u128; // 10 CRNL
+    let amount = Nat::from(1_000_000_000_u128); // 10 CRNL
     let transfer_fee = 100_000_u128; // 0.001 CRNL from init
 
-    let from_balance: u128 = decode_one(
+    let from_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((from.clone(),)).unwrap(),
         )
         .unwrap(),
@@ -352,21 +374,26 @@ fn test_icrc1_transfer() {
     .unwrap();
     println!("Transfer from balance before: {}", from_balance);
 
-    let args = encode_args((from.clone(), to.clone(), amount)).expect("Failed to encode args");
+    let args = encode_args((TransferArgs {
+        from_subaccount: from.subaccount,
+        to: to.clone(),
+        amount: amount.clone(),
+    },))
+    .expect("Failed to encode args");
     let response = pic
         .update_call(backend_canister, admin, "icrc1_transfer", args)
         .expect("Failed to call icrc1_transfer");
-    let result: Result<(), LedgerError> = decode_one(&response).unwrap();
+    let result: Result<Nat, LedgerError> = decode_one(&response).unwrap();
     if let Err(e) = &result {
         println!("Transfer failed with: {:?}", e);
     }
     assert!(result.is_ok());
 
-    let to_balance: u128 = decode_one(
+    let to_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((to,)).unwrap(),
         )
         .unwrap(),
@@ -374,7 +401,7 @@ fn test_icrc1_transfer() {
     .unwrap();
     assert_eq!(
         to_balance,
-        amount - transfer_fee,
+        amount - Nat::from(transfer_fee),
         "Recipient should receive amount minus fee"
     );
 }
@@ -394,14 +421,14 @@ fn test_icrc1_approve_and_transfer_from() {
         owner: Principal::anonymous(),
         subaccount: None,
     };
-    let amount = 1_000_000_000_u128; // 10 CRNL
-    let transfer_fee = 100_000_u128; // 0.001 CRNL
+    let amount = Nat::from(1_000_000_000_u128); // 10 CRNL
+    let transfer_fee = Nat::from(100_000_u128); // 0.001 CRNL
 
-    let owner_balance: u128 = decode_one(
+    let owner_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((owner.clone(),)).unwrap(),
         )
         .unwrap(),
@@ -409,16 +436,25 @@ fn test_icrc1_approve_and_transfer_from() {
     .unwrap();
     println!("Owner balance before approve: {}", owner_balance);
 
-    let approve_args =
-        encode_args((owner.clone(), spender.clone(), amount)).expect("Failed to encode args");
+    let approve_args = encode_args(((ApproveArgs {
+        from_subaccount: owner.subaccount,
+        spender: spender.clone(),
+        amount: amount.clone(),
+    }),))
+    .expect("Failed to encode args");
     let approve_response = pic
         .update_call(backend_canister, admin, "icrc1_approve", approve_args)
         .expect("Failed to call icrc1_approve");
-    let approve_result: Result<(), LedgerError> = decode_one(&approve_response).unwrap();
+    let approve_result: Result<Nat, LedgerError> = decode_one(&approve_response).unwrap();
     assert!(approve_result.is_ok());
 
-    let transfer_args = encode_args((spender.clone(), owner.clone(), to.clone(), amount))
-        .expect("Failed to encode args");
+    let transfer_args = encode_args((TransferFromArgs {
+        spender: spender.clone(),
+        from: owner.clone(),
+        to: to.clone(),
+        amount: amount.clone(),
+    },))
+    .expect("Failed to encode args");
     let transfer_response = pic
         .update_call(
             backend_canister,
@@ -427,14 +463,14 @@ fn test_icrc1_approve_and_transfer_from() {
             transfer_args,
         )
         .expect("Failed to call icrc1_transfer_from");
-    let transfer_result: Result<(), LedgerError> = decode_one(&transfer_response).unwrap();
+    let transfer_result: Result<Nat, LedgerError> = decode_one(&transfer_response).unwrap();
     assert!(transfer_result.is_ok());
 
-    let to_balance: u128 = decode_one(
+    let to_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((to,)).unwrap(),
         )
         .unwrap(),
@@ -456,11 +492,11 @@ fn test_create_media_chronolock() {
     };
 
     let caller_balance_args = encode_args((caller.clone(),)).expect("Failed to encode args");
-    let caller_balance: u128 = decode_one(
+    let caller_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             caller_balance_args.clone(),
         )
         .unwrap(),
@@ -478,18 +514,18 @@ fn test_create_media_chronolock() {
     }
     assert_eq!(result.unwrap(), "Media ChronoLock created for 20 CRNL");
 
-    let post_balance: u128 = decode_one(
+    let post_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             caller_balance_args,
         )
         .unwrap(),
     )
     .unwrap();
     println!("Caller balance after chronolock: {}", post_balance);
-    assert_eq!(post_balance, caller_balance - 2_000_000_000_u128);
+    assert_eq!(post_balance, caller_balance - Nat::from(2_000_000_000_u128));
 }
 
 #[test]
@@ -521,12 +557,12 @@ fn test_set_transfer_fee() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_fee",
+            "icrc1_fee",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_fee");
-    let fee: u128 = decode_one(&fee_response).unwrap();
-    assert_eq!(fee, 200_000_u128);
+    let fee: Nat = decode_one(&fee_response).unwrap();
+    assert_eq!(fee, Nat::from(200_000_u128));
 }
 
 #[test]
@@ -558,13 +594,14 @@ fn test_set_transfer_fee_authorization() {
         .query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_fee",
+            "icrc1_fee",
             encode_args(()).unwrap(),
         )
         .expect("Failed to query icrc1_fee");
-    let fee: u128 = decode_one(&fee_response).unwrap();
+    let fee: Nat = decode_one(&fee_response).unwrap();
     assert_eq!(
-        fee, 200_000_u128,
+        fee,
+        Nat::from(200_000_u128),
         "Transfer fee should be updated to 200,000"
     );
 }
@@ -581,7 +618,6 @@ fn test_unique_referral_codes() {
         subaccount: None,
     };
 
-    // Register users
     pic.update_call(
         backend_canister,
         Principal::anonymous(),
@@ -597,7 +633,6 @@ fn test_unique_referral_codes() {
     )
     .expect("Failed to register user2");
 
-    // Get referral codes
     let code1: Option<String> = decode_one(
         &pic.query_call(
             backend_canister,
@@ -642,7 +677,6 @@ fn test_referral_reward() {
         subaccount: None,
     };
 
-    // Register referrer and get referral code
     let reg_response = pic
         .update_call(
             backend_canister,
@@ -659,7 +693,6 @@ fn test_referral_reward() {
         .unwrap()
         .to_string();
 
-    // Claim referral
     pic.update_call(
         backend_canister,
         Principal::anonymous(),
@@ -668,18 +701,17 @@ fn test_referral_reward() {
     )
     .expect("Failed to claim referral");
 
-    // Check balances
-    let referrer_balance: u128 = decode_one(
+    let referrer_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((referrer,)).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
-    let community_pool: u128 = decode_one(
+    let community_pool: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
@@ -692,12 +724,12 @@ fn test_referral_reward() {
 
     assert_eq!(
         referrer_balance,
-        20_000_000_000 + 2_000_000_000,
+        Nat::from(20_000_000_000_u128 + 2_000_000_000_u128),
         "Referrer should receive reward"
     );
     assert_eq!(
         community_pool,
-        50_000_000_000_000_000_000 - 20_000_000_000 - 2_000_000_000,
+        Nat::from(50_000_000_000_000_000_000_u128 - 20_000_000_000_u128 - 2_000_000_000_u128),
         "Community pool should be deducted"
     );
 }
@@ -713,17 +745,23 @@ fn test_transfer_insufficient_balance() {
         owner: Principal::from_text("2vxsx-fae").unwrap(),
         subaccount: None,
     };
-    let amount = 50_000_000_000_000_000_001_u128; // Exceeds pool
+    let amount = Nat::from(50_000_000_000_000_000_001_u128); // Exceeds pool
 
     let response = pic
         .update_call(
             backend_canister,
             admin,
             "icrc1_transfer",
-            encode_args((from, to, amount)).unwrap(),
+            encode_args(((TransferArgs {
+                from_subaccount: from.subaccount,
+                to,
+                amount,
+            }),))
+            .unwrap(),
         )
         .expect("Failed to call icrc1_transfer");
-    let result: Result<(), LedgerError> = decode_one(&response).expect("Failed to decode response");
+    let result: Result<Nat, LedgerError> =
+        decode_one(&response).expect("Failed to decode response");
     assert!(
         result.is_err(),
         "Transfer with insufficient balance should fail"
@@ -742,7 +780,7 @@ fn test_icrc1_functions() {
     let (pic, backend_canister, admin) = setup();
     let owner = Account {
         owner: admin,
-        subaccount: Some(COMMUNITY_POOL_SUBACCOUNT),
+        subaccount: Some(COMMUNITY_POOL_SUBACCOUNT), // Match transfer source
     };
     let spender = Account {
         owner: Principal::from_text("2vxsx-fae").unwrap(),
@@ -752,24 +790,27 @@ fn test_icrc1_functions() {
         owner: Principal::anonymous(),
         subaccount: None,
     };
-    let amount = 1_000_000_000_u128;
-    let transfer_fee = 100_000_u128;
+    let amount = Nat::from(1_000_000_000_u128);
+    let transfer_fee = Nat::from(100_000_u128);
 
-    // Approve
     pic.update_call(
         backend_canister,
         admin,
         "icrc1_approve",
-        encode_args((owner.clone(), spender.clone(), amount)).unwrap(),
+        encode_args(((ApproveArgs {
+            from_subaccount: owner.subaccount,
+            spender: spender.clone(),
+            amount: amount.clone(),
+        }),))
+        .unwrap(),
     )
     .expect("Failed to approve");
 
-    // Check allowance
-    let allowance: u128 = decode_one(
+    let allowance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_allowance",
+            "icrc1_allowance",
             encode_args((owner.clone(), spender.clone())).unwrap(),
         )
         .unwrap(),
@@ -777,21 +818,25 @@ fn test_icrc1_functions() {
     .unwrap();
     assert_eq!(allowance, amount, "Allowance should match approved amount");
 
-    // Transfer from
     pic.update_call(
         backend_canister,
         spender.owner,
         "icrc1_transfer_from",
-        encode_args((spender.clone(), owner.clone(), to.clone(), amount)).unwrap(),
+        encode_args((TransferFromArgs {
+            spender: spender.clone(),
+            from: owner.clone(),
+            to: to.clone(),
+            amount: amount.clone(),
+        },))
+        .unwrap(),
     )
     .expect("Failed to transfer from");
 
-    // Verify balance
-    let to_balance: u128 = decode_one(
+    let to_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((to,)).unwrap(),
         )
         .unwrap(),
@@ -815,18 +860,21 @@ fn test_log_event() {
         owner: Principal::from_text("2vxsx-fae").unwrap(),
         subaccount: None,
     };
-    let amount = 1_000_000_000_u128;
+    let amount = Nat::from(1_000_000_000_u128);
 
-    // Perform transfer
     pic.update_call(
         backend_canister,
         admin,
         "icrc1_transfer",
-        encode_args((from.clone(), to.clone(), amount)).unwrap(),
+        encode_args(((TransferArgs {
+            from_subaccount: from.subaccount,
+            to: to.clone(),
+            amount: amount.clone(),
+        }),))
+        .unwrap(),
     )
     .expect("Failed to transfer");
 
-    // Check logs
     let logs: Vec<LogEntry> = decode_one(
         &pic.query_call(
             backend_canister,
@@ -844,8 +892,9 @@ fn test_log_event() {
         "Log should record transfer event"
     );
     assert!(
-        last_log.details.contains(&format!("Amount: {}", amount)),
-        "Log should include transfer amount"
+        last_log.details.contains("Amount: 1000000000"), // Match exact string
+        "Log should include transfer amount, got: {}",
+        last_log.details
     );
 }
 
@@ -860,14 +909,19 @@ fn test_arithmetic_overflow() {
         owner: Principal::from_text("2vxsx-fae").unwrap(),
         subaccount: None,
     };
-    let amount = u128::MAX;
+    let amount = Nat::from(u128::MAX);
 
-    let args = encode_args((from, to, amount)).expect("Failed to encode args");
+    let args = encode_args(((TransferArgs {
+        from_subaccount: from.subaccount,
+        to,
+        amount,
+    }),))
+    .expect("Failed to encode args");
     let response = pic.update_call(backend_canister, admin, "icrc1_transfer", args);
 
     match response {
         Ok(resp) => {
-            let result: Result<(), LedgerError> =
+            let result: Result<Nat, LedgerError> =
                 decode_one(&resp).expect("Failed to decode response");
             assert!(
                 result.is_err(),
@@ -882,7 +936,6 @@ fn test_arithmetic_overflow() {
             }
         }
         Err(e) => {
-            // If the call itself fails (e.g., canister rejects), this is also acceptable
             println!("Update call failed with: {:?}", e);
             assert!(true, "Transfer with overflow amount failed as expected");
         }
@@ -904,41 +957,49 @@ fn test_concurrent_transfers() {
         owner: Principal::from_text("ryjl3-tyaaa-aaaaa-aaaba-cai").unwrap(),
         subaccount: None,
     };
-    let amount = 1_000_000_000_u128;
-    let transfer_fee = 100_000_u128;
+    let amount = Nat::from(1_000_000_000_u128);
+    let transfer_fee = Nat::from(100_000_u128);
 
-    // Concurrent transfers
     pic.update_call(
         backend_canister,
         admin,
         "icrc1_transfer",
-        encode_args((from.clone(), to1.clone(), amount)).unwrap(),
+        encode_args(((TransferArgs {
+            from_subaccount: from.subaccount,
+            to: to1.clone(),
+            amount: amount.clone(), // Clone here to avoid move in first transfer
+        }),))
+        .unwrap(),
     )
     .expect("Transfer 1 failed");
     pic.update_call(
         backend_canister,
         admin,
         "icrc1_transfer",
-        encode_args((from.clone(), to2.clone(), amount)).unwrap(),
+        encode_args(((TransferArgs {
+            from_subaccount: from.subaccount,
+            to: to2.clone(),
+            amount: amount.clone(), // Clone here to avoid move in second transfer
+        }),))
+        .unwrap(),
     )
     .expect("Transfer 2 failed");
 
-    // Verify balances
-    let to1_balance: u128 = decode_one(
+    let to1_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((to1,)).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
-    let to2_balance: u128 = decode_one(
+    let to2_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((to2,)).unwrap(),
         )
         .unwrap(),
@@ -947,7 +1008,7 @@ fn test_concurrent_transfers() {
 
     assert_eq!(
         to1_balance,
-        amount - transfer_fee,
+        amount.clone() - transfer_fee.clone(), // Clone here to avoid move
         "First recipient should receive amount minus fee"
     );
     assert_eq!(
@@ -969,16 +1030,20 @@ fn test_boundary_values() {
         subaccount: None,
     };
 
-    // Zero amount
     let response_zero = pic
         .update_call(
             backend_canister,
             admin,
             "icrc1_transfer",
-            encode_args((from.clone(), to.clone(), 0_u128)).unwrap(),
+            encode_args(((TransferArgs {
+                from_subaccount: from.subaccount,
+                to: to.clone(),
+                amount: Nat::from(0_u128),
+            }),))
+            .unwrap(),
         )
         .expect("Failed to call icrc1_transfer with zero amount");
-    let result_zero: Result<(), LedgerError> =
+    let result_zero: Result<Nat, LedgerError> =
         decode_one(&response_zero).expect("Failed to decode zero response");
     assert!(
         result_zero.is_err(),
@@ -992,16 +1057,20 @@ fn test_boundary_values() {
         );
     }
 
-    // Maximum amount
     let response_max = pic
         .update_call(
             backend_canister,
             admin,
             "icrc1_transfer",
-            encode_args((from.clone(), to.clone(), u128::MAX)).unwrap(),
+            encode_args(((TransferArgs {
+                from_subaccount: from.subaccount,
+                to: to.clone(),
+                amount: Nat::from(u128::MAX),
+            }),))
+            .unwrap(),
         )
         .expect("Failed to call icrc1_transfer with max amount");
-    let result_max: Result<(), LedgerError> =
+    let result_max: Result<Nat, LedgerError> =
         decode_one(&response_max).expect("Failed to decode max response");
     assert!(
         result_max.is_err(),
@@ -1027,22 +1096,21 @@ fn test_process_fee() {
         owner: Principal::from_text("2vxsx-fae").unwrap(),
         subaccount: None,
     };
-    let amount = 1_000_000_000_u128; // 10 CRNL
-    let transfer_fee = 100_000_u128; // 0.001 CRNL
+    let amount = Nat::from(1_000_000_000_u128); // 10 CRNL
+    let transfer_fee = Nat::from(100_000_u128); // 0.001 CRNL
 
-    // Get initial state
-    let initial_total_supply: u128 = decode_one(
+    let initial_total_supply: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_total_supply",
+            "icrc1_total_supply",
             encode_args(()).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
 
-    let initial_total_burned: u128 = decode_one(
+    let initial_total_burned: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
@@ -1053,7 +1121,7 @@ fn test_process_fee() {
     )
     .unwrap();
 
-    let initial_community_pool: u128 = decode_one(
+    let initial_community_pool: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
@@ -1064,7 +1132,7 @@ fn test_process_fee() {
     )
     .unwrap();
 
-    let initial_dapp_funds: u128 = decode_one(
+    let initial_dapp_funds: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
@@ -1075,49 +1143,51 @@ fn test_process_fee() {
     )
     .unwrap();
 
-    let initial_from_balance: u128 = decode_one(
+    let initial_from_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((from.clone(),)).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
 
-    // Perform transfer
-    let transfer_result: Result<(), LedgerError> = decode_one(
+    let transfer_result: Result<Nat, LedgerError> = decode_one(
         &pic.update_call(
             backend_canister,
             admin,
             "icrc1_transfer",
-            encode_args((from.clone(), to.clone(), amount)).unwrap(),
+            encode_args(((TransferArgs {
+                from_subaccount: from.subaccount,
+                to: to.clone(),
+                amount: amount.clone(),
+            }),))
+            .unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
     assert!(transfer_result.is_ok(), "Transfer should succeed");
 
-    // Calculate expected fee distribution
-    let burn_amount = transfer_fee * 20 / 100; // 20% burned
-    let pool_amount = transfer_fee * 10 / 100; // 10% to community pool
-    let dapp_amount = transfer_fee * 70 / 100; // 70% to dapp funds
-    let amount_after_fee = amount - transfer_fee;
+    let burn_amount = Nat::from(transfer_fee.clone() * Nat::from(20_u128) / Nat::from(100_u128));
+    let pool_amount = Nat::from(transfer_fee.clone() * Nat::from(10_u128) / Nat::from(100_u128));
+    let dapp_amount = Nat::from(transfer_fee.clone() * Nat::from(70_u128) / Nat::from(100_u128));
+    let amount_after_fee = amount.clone() - transfer_fee.clone();
 
-    // Get post-transfer state
-    let final_total_supply: u128 = decode_one(
+    let final_total_supply: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_icrc1_total_supply",
+            "icrc1_total_supply",
             encode_args(()).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
 
-    let final_total_burned: u128 = decode_one(
+    let final_total_burned: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
@@ -1128,7 +1198,7 @@ fn test_process_fee() {
     )
     .unwrap();
 
-    let final_community_pool: u128 = decode_one(
+    let final_community_pool: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
@@ -1139,7 +1209,7 @@ fn test_process_fee() {
     )
     .unwrap();
 
-    let final_dapp_funds: u128 = decode_one(
+    let final_dapp_funds: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
@@ -1150,32 +1220,31 @@ fn test_process_fee() {
     )
     .unwrap();
 
-    let final_from_balance: u128 = decode_one(
+    let final_from_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((from.clone(),)).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
 
-    let final_to_balance: u128 = decode_one(
+    let final_to_balance: Nat = decode_one(
         &pic.query_call(
             backend_canister,
             Principal::anonymous(),
-            "get_balance_of",
+            "icrc1_balance_of",
             encode_args((to.clone(),)).unwrap(),
         )
         .unwrap(),
     )
     .unwrap();
 
-    // Verify fee processing
     assert_eq!(
         final_total_supply,
-        initial_total_supply - burn_amount,
+        initial_total_supply - burn_amount.clone(),
         "Total supply should decrease by burn amount"
     );
     assert_eq!(
@@ -1185,7 +1254,7 @@ fn test_process_fee() {
     );
     assert_eq!(
         final_community_pool,
-        initial_community_pool + pool_amount,
+        initial_community_pool + pool_amount.clone(),
         "Community pool should increase by pool amount"
     );
     assert_eq!(
@@ -1201,5 +1270,260 @@ fn test_process_fee() {
     assert_eq!(
         final_to_balance, amount_after_fee,
         "Recipient balance should equal amount minus fee"
+    );
+}
+
+#[test]
+fn test_icrc1_and_icrc2_compliance() {
+    let (pic, backend_canister, admin) = setup();
+    let user = Account {
+        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        subaccount: None,
+    };
+    let spender = Account {
+        owner: Principal::from_text("ryjl3-tyaaa-aaaaa-aaaba-cai").unwrap(),
+        subaccount: None,
+    };
+
+    // ICRC-1 Compliance Checks
+    let supported_standards: Vec<String> = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_supported_standards",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        supported_standards.contains(&"ICRC-1".to_string()),
+        "Canister must support ICRC-1"
+    );
+    assert!(
+        supported_standards.contains(&"ICRC-2".to_string()),
+        "Canister must support ICRC-2"
+    );
+
+    let name: String = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_name",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(name, "Chronolock", "ICRC-1 name must match");
+
+    let symbol: String = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_symbol",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(symbol, "CRNL", "ICRC-1 symbol must match");
+
+    let decimals: u8 = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_decimals",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(decimals, 8, "ICRC-1 decimals must match");
+
+    let total_supply: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_total_supply",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        total_supply,
+        Nat::from(100_000_000_000_000_000_000_u128),
+        "ICRC-1 total supply must match"
+    );
+
+    let fee: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_fee",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(fee, Nat::from(100_000_u128), "ICRC-1 fee must match");
+
+    // Register a user to give them some tokens
+    pic.update_call(
+        backend_canister,
+        Principal::anonymous(),
+        "register_user",
+        encode_args((user.clone(),)).unwrap(),
+    )
+    .expect("Failed to register user");
+
+    let user_balance: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_balance_of",
+            encode_args((user.clone(),)).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        user_balance,
+        Nat::from(20_000_000_000_u128),
+        "ICRC-1 balance_of should reflect registration"
+    );
+
+    let transfer_amount = Nat::from(1_000_000_000_u128);
+    let transfer_fee = Nat::from(100_000_u128);
+    let transfer_result: Result<Nat, LedgerError> = decode_one(
+        &pic.update_call(
+            backend_canister,
+            user.owner,
+            "icrc1_transfer",
+            encode_args((TransferArgs {
+                from_subaccount: user.subaccount,
+                to: spender.clone(),
+                amount: transfer_amount.clone(),
+            },))
+            .unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(transfer_result.is_ok(), "ICRC-1 transfer should succeed");
+
+    let spender_balance: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_balance_of",
+            encode_args((spender.clone(),)).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        spender_balance,
+        transfer_amount - transfer_fee,
+        "ICRC-1 transfer should deduct fee"
+    );
+
+    // ICRC-2 Compliance Checks
+    let approve_amount = Nat::from(1_000_000_000_u128);
+    let approve_result: Result<Nat, LedgerError> = decode_one(
+        &pic.update_call(
+            backend_canister,
+            user.owner,
+            "icrc1_approve",
+            encode_args((ApproveArgs {
+                from_subaccount: spender.subaccount,
+                spender: spender.clone(),
+                amount: approve_amount.clone(),
+            },))
+            .unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(approve_result.is_ok(), "ICRC-2 approve should succeed");
+
+    let allowance: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_allowance",
+            encode_args((user.clone(), spender.clone())).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        allowance, approve_amount,
+        "ICRC-2 allowance should reflect approval"
+    );
+
+    let transfer_from_amount = Nat::from(500_000_000_u128);
+    let transfer_from_result: Result<Nat, LedgerError> = decode_one(
+        &pic.update_call(
+            backend_canister,
+            spender.owner,
+            "icrc1_transfer_from",
+            encode_args((TransferFromArgs {
+                spender: spender.clone(),
+                from: user.clone(),
+                to: Account {
+                    owner: admin,
+                    subaccount: None,
+                },
+                amount: transfer_from_amount.clone(),
+            },))
+            .unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        transfer_from_result.is_ok(),
+        "ICRC-2 transfer_from should succeed"
+    );
+
+    let updated_allowance: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_allowance",
+            encode_args((user.clone(), spender.clone())).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        updated_allowance,
+        approve_amount - transfer_from_amount,
+        "ICRC-2 allowance should decrease after transfer_from"
+    );
+
+    let metadata: Vec<(String, String)> = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_metadata",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        metadata
+            .iter()
+            .any(|(k, v)| k == "icrc1:name" && v == "Chronolock"),
+        "Metadata should include name"
+    );
+    assert!(
+        metadata
+            .iter()
+            .any(|(k, v)| k == "icrc1:symbol" && v == "CRNL"),
+        "Metadata should include symbol"
     );
 }
