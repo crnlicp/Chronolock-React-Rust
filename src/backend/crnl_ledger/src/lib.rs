@@ -6,6 +6,7 @@ use ic_stable_structures::storable::Bound;
 use ic_stable_structures::{DefaultMemoryImpl, StableBTreeMap, Storable};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::cell::RefCell;
 
@@ -124,6 +125,31 @@ impl Storable for AllowanceKey {
     };
 }
 
+#[derive(CandidType, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct TransactionEvent {
+    tx_id: [u8; 32],          // Unique transaction ID
+    timestamp: u64,           // Time of the event
+    event_type: String,       // "Transfer", "TransferFrom", "Approval"
+    from: Account,            // Source account
+    to: Option<Account>,      // Destination account (None for approvals)
+    spender: Option<Account>, // Spender account (for approvals/transfer_from)
+    amount: Nat,              // Amount transferred or approved
+    fee: Option<Nat>,         // Transaction fee, if applicable
+}
+
+impl Storable for TransactionEvent {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(candid::encode_one(self).unwrap())
+    }
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        candid::decode_one(&bytes).unwrap()
+    }
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 1024, // Adjust based on max size of serialized data
+        is_fixed_size: false,
+    };
+}
+
 // Error types for better handling
 #[derive(Debug, CandidType, Deserialize, Clone)]
 enum LedgerError {
@@ -148,19 +174,16 @@ thread_local! {
     static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(
         MemoryManager::init(DefaultMemoryImpl::default())
     );
-    static METADATA: RefCell<StableBTreeMap<u8, Metadata, Memory>> = RefCell::new(
+    static ADMIN_STORAGE: RefCell<StableBTreeMap<u8, Principal, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(0))))
     );
-    static BALANCES: RefCell<StableBTreeMap<Account, u128, Memory>> = RefCell::new(
+    static METADATA: RefCell<StableBTreeMap<u8, Metadata, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(1))))
     );
-    static DAPP_FUNDS: RefCell<StableBTreeMap<u8, u128, Memory>> = RefCell::new(
-        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(8))))
-    );
-    static ALLOWANCES: RefCell<StableBTreeMap<AllowanceKey, u128, Memory>> = RefCell::new(
+    static BALANCES: RefCell<StableBTreeMap<Account, u128, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(2))))
     );
-    static LOGS: RefCell<StableBTreeMap<u64, LogEntry, Memory>> = RefCell::new(
+    static ALLOWANCES: RefCell<StableBTreeMap<AllowanceKey, u128, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(3))))
     );
     static REFERRAL_BY_ACCOUNT: RefCell<StableBTreeMap<Account, String, Memory>> = RefCell::new(
@@ -169,11 +192,17 @@ thread_local! {
     static ACCOUNT_BY_REFERRAL: RefCell<StableBTreeMap<String, Account, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(5))))
     );
-    static ADMIN_STORAGE: RefCell<StableBTreeMap<u8, Principal, Memory>> = RefCell::new(
-        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(9))))
-    );
     static CLAIMED_REFERRALS: RefCell<StableBTreeMap<Account, bool, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(6))))
+    );
+    static DAPP_FUNDS: RefCell<StableBTreeMap<u8, u128, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(7))))
+    );
+    static LOGS: RefCell<StableBTreeMap<u64, LogEntry, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(8))))
+    );
+    static TRANSACTIONS: RefCell<StableBTreeMap<[u8; 32], TransactionEvent, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(10))))
     );
 }
 
@@ -218,6 +247,12 @@ async fn generate_random_referral_code() -> String {
 // Convert Nat to u128 safely
 fn nat_to_u128(n: Nat) -> Result<u128, LedgerError> {
     n.0.to_u128().ok_or(LedgerError::ArithmeticError)
+}
+
+fn generate_tx_id() -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(ic_cdk::api::time().to_le_bytes());
+    hasher.finalize().into()
 }
 
 // -------------------------
@@ -476,13 +511,24 @@ fn icrc1_transfer(args: TransferArgs) -> Result<Nat, LedgerError> {
         })?;
 
         process_fee(transfer_fee)?;
-        log_event(
-            "Transfer",
-            format!(
-                "From: {}, To: {}, Amount: {}, Fee: {}, Received: {}",
-                from.owner, args.to.owner, amount, transfer_fee, amount_after_fee
-            ),
-        );
+
+        let tx_id = generate_tx_id();
+        TRANSACTIONS.with(|txs| {
+            txs.borrow_mut().insert(
+                tx_id,
+                TransactionEvent {
+                    tx_id,
+                    timestamp: current_time(),
+                    event_type: "Transfer".to_string(),
+                    from: from.clone(),
+                    to: Some(args.to.clone()),
+                    spender: None,
+                    amount: args.amount.clone(),
+                    fee: Some(Nat::from(transfer_fee)),
+                },
+            );
+        });
+
         Ok(args.amount)
     })
 }
@@ -510,13 +556,24 @@ fn icrc1_approve(args: ApproveArgs) -> Result<Nat, LedgerError> {
             amount,
         );
     });
-    log_event(
-        "Approval",
-        format!(
-            "Owner: {}, Subaccount: {:?}, Spender: {}, Amount: {}",
-            owner.owner, owner.subaccount, args.spender.owner, amount
-        ),
-    );
+
+    let tx_id = generate_tx_id();
+    TRANSACTIONS.with(|txs| {
+        txs.borrow_mut().insert(
+            tx_id,
+            TransactionEvent {
+                tx_id,
+                timestamp: current_time(),
+                event_type: "Approval".to_string(),
+                from: owner.clone(),
+                to: None,
+                spender: Some(args.spender.clone()),
+                amount: args.amount.clone(),
+                fee: None,
+            },
+        );
+    });
+
     Ok(args.amount)
 }
 
@@ -527,6 +584,10 @@ fn icrc1_transfer_from(args: TransferFromArgs) -> Result<Nat, LedgerError> {
     METADATA.with(|metadata| {
         let m = metadata.borrow().get(&0).unwrap();
         let transfer_fee = m.transfer_fee;
+
+        if amount == u128::MAX {
+            return Err(LedgerError::ArithmeticError);
+        }
 
         if amount < transfer_fee {
             return Err(LedgerError::InsufficientFee);
@@ -561,19 +622,26 @@ fn icrc1_transfer_from(args: TransferFromArgs) -> Result<Nat, LedgerError> {
             b.insert(args.to.clone(), new_to_balance);
             Ok(())
         })?;
+
         process_fee(transfer_fee)?;
-        log_event(
-            "TransferFrom",
-            format!(
-                "Spender: {}, From: {}, To: {}, Amount: {}, Fee: {}, Received: {}",
-                args.spender.owner,
-                args.from.owner,
-                args.to.owner,
-                amount,
-                transfer_fee,
-                amount_after_fee
-            ),
-        );
+
+        let tx_id = generate_tx_id();
+        TRANSACTIONS.with(|txs| {
+            txs.borrow_mut().insert(
+                tx_id,
+                TransactionEvent {
+                    tx_id,
+                    timestamp: current_time(),
+                    event_type: "TransferFrom".to_string(),
+                    from: args.from.clone(),
+                    to: Some(args.to.clone()),
+                    spender: Some(args.spender.clone()),
+                    amount: args.amount.clone(),
+                    fee: Some(Nat::from(transfer_fee)),
+                },
+            );
+        });
+
         Ok(args.amount)
     })
 }
@@ -957,6 +1025,52 @@ fn get_logs_by_range(start_time: u64, end_time: u64) -> Vec<LogEntry> {
     })
 }
 
+#[query]
+fn get_transactions_by_principal(
+    principal: Principal,
+    start_tx_id: [u8; 32],
+    limit: u64,
+) -> Vec<TransactionEvent> {
+    TRANSACTIONS.with(|txs| {
+        let txs = txs.borrow();
+        let mut result = Vec::new();
+        let mut count = 0;
+
+        // Iterate starting from start_tx_id
+        for (_, event) in txs.range(start_tx_id..) {
+            if count >= limit {
+                break;
+            }
+            let matches = event.from.owner == principal
+                || event.to.as_ref().map_or(false, |to| to.owner == principal)
+                || event
+                    .spender
+                    .as_ref()
+                    .map_or(false, |spender| spender.owner == principal);
+            if matches {
+                result.push(event.clone());
+                count += 1;
+            }
+        }
+        result
+    })
+}
+
+#[query]
+fn get_transaction_by_id(tx_id: [u8; 32]) -> Option<TransactionEvent> {
+    TRANSACTIONS.with(|txs| txs.borrow().get(&tx_id).clone())
+}
+
+#[query]
+fn get_transactions(start: [u8; 32], end: [u8; 32]) -> Vec<TransactionEvent> {
+    TRANSACTIONS.with(|txs| {
+        txs.borrow()
+            .range(start..=end)
+            .map(|(_, event)| event.clone())
+            .collect()
+    })
+}
+
 // -------------------------
 // Centralized Fee Processing & Logging
 // -------------------------
@@ -991,13 +1105,6 @@ fn process_fee(fee: u128) -> Result<(), LedgerError> {
             Ok(())
         })?;
 
-        log_event(
-            "FeeProcessed",
-            format!(
-                "Fee: {}, Burned: {}, Pool: {}, DApp: {}",
-                fee, burn_amount, pool_amount, dapp_amount
-            ),
-        );
         Ok(())
     })
 }

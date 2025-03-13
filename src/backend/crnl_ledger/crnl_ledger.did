@@ -21,6 +21,16 @@ type LogEntry = record { timestamp : nat64; details : text; event_type : text };
 type Result = variant { Ok : text; Err : LedgerError };
 type Result_1 = variant { Ok; Err : LedgerError };
 type Result_2 = variant { Ok : nat; Err : LedgerError };
+type TransactionEvent = record {
+  to : opt Account;
+  fee : opt nat;
+  tx_id : blob;
+  from : Account;
+  timestamp : nat64;
+  amount : nat;
+  spender : opt Account;
+  event_type : text;
+};
 type TransferArgs = record {
   to : Account;
   from_subaccount : opt blob;
@@ -48,6 +58,11 @@ service : (text, text, nat, nat64, nat, principal) -> {
   get_reserve_pool_balance : () -> (nat) query;
   get_team_pool_balance : () -> (nat) query;
   get_total_burned : () -> (nat) query;
+  get_transaction_by_id : (blob) -> (opt TransactionEvent) query;
+  get_transactions : (blob, blob) -> (vec TransactionEvent) query;
+  get_transactions_by_principal : (principal, blob, nat64) -> (
+      vec TransactionEvent,
+    ) query;
   icrc1_allowance : (Account, Account) -> (nat) query;
   icrc1_approve : (ApproveArgs) -> (Result_2);
   icrc1_balance_of : (Account) -> (nat) query;

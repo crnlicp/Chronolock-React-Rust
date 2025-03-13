@@ -36,6 +36,18 @@ struct TransferFromArgs {
     amount: Nat,
 }
 
+#[derive(CandidType, serde::Deserialize, Clone)]
+struct TransactionEvent {
+    tx_id: [u8; 32],
+    timestamp: u64,
+    event_type: String,
+    from: Account,
+    to: Option<Account>,
+    spender: Option<Account>,
+    amount: Nat,
+    fee: Option<Nat>,
+}
+
 #[derive(CandidType, serde::Deserialize, Clone, Debug, PartialEq)]
 struct LogEntry {
     timestamp: u64,
@@ -850,55 +862,6 @@ fn test_icrc1_functions() {
 }
 
 #[test]
-fn test_log_event() {
-    let (pic, backend_canister, admin) = setup();
-    let from = Account {
-        owner: admin,
-        subaccount: Some(COMMUNITY_POOL_SUBACCOUNT),
-    };
-    let to = Account {
-        owner: Principal::from_text("2vxsx-fae").unwrap(),
-        subaccount: None,
-    };
-    let amount = Nat::from(1_000_000_000_u128);
-
-    pic.update_call(
-        backend_canister,
-        admin,
-        "icrc1_transfer",
-        encode_args(((TransferArgs {
-            from_subaccount: from.subaccount,
-            to: to.clone(),
-            amount: amount.clone(),
-        }),))
-        .unwrap(),
-    )
-    .expect("Failed to transfer");
-
-    let logs: Vec<LogEntry> = decode_one(
-        &pic.query_call(
-            backend_canister,
-            Principal::anonymous(),
-            "get_logs",
-            encode_args(()).unwrap(),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    let last_log = logs.last().unwrap();
-
-    assert_eq!(
-        last_log.event_type, "Transfer",
-        "Log should record transfer event"
-    );
-    assert!(
-        last_log.details.contains("Amount: 1000000000"), // Match exact string
-        "Log should include transfer amount, got: {}",
-        last_log.details
-    );
-}
-
-#[test]
 fn test_arithmetic_overflow() {
     let (pic, backend_canister, admin) = setup();
     let from = Account {
@@ -1525,5 +1488,76 @@ fn test_icrc1_and_icrc2_compliance() {
             .iter()
             .any(|(k, v)| k == "icrc1:symbol" && v == "CRNL"),
         "Metadata should include symbol"
+    );
+}
+
+#[test]
+fn test_transaction_recording() {
+    let (pic, backend_canister, admin) = setup();
+
+    let from = Account {
+        owner: admin,
+        subaccount: Some(COMMUNITY_POOL_SUBACCOUNT),
+    };
+
+    let to = Account {
+        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        subaccount: None,
+    };
+
+    // Perform a transfer
+    let transfer_args = TransferArgs {
+        from_subaccount: from.subaccount,
+        to: to.clone(),
+        amount: Nat::from(1_000_000_000_u128), // 10 CRNL
+    };
+
+    let transfer_response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "icrc1_transfer",
+            encode_args((transfer_args,)).unwrap(),
+        )
+        .expect("Failed to call icrc1_transfer");
+
+    let transfer_result: Result<Nat, LedgerError> = decode_one(&transfer_response).unwrap();
+    assert!(transfer_result.is_ok());
+
+    let start_tx_id: [u8; 32] = [0; 32];
+    let limit: u64 = 10;
+
+    let query_args = encode_args((from.owner, start_tx_id, limit))
+        .expect("Failed to encode args for transaction query");
+
+    let response = pic
+        .query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "get_transactions_by_principal",
+            query_args,
+        )
+        .expect("Failed to query transactions");
+
+    let transactions: Vec<TransactionEvent> =
+        decode_one(&response).expect("Failed to decode transactions");
+
+    assert!(
+        !transactions.is_empty(),
+        "Transaction history should not be empty"
+    );
+
+    let tx = &transactions[0];
+    assert_eq!(tx.event_type, "Transfer");
+    assert_eq!(tx.from.owner, admin);
+    assert_eq!(
+        tx.to.as_ref().unwrap().owner,
+        Principal::from_text("2vxsx-fae").unwrap()
+    );
+    assert_eq!(tx.amount, Nat::from(1_000_000_000_u128));
+    assert_eq!(
+        tx.tx_id.len(),
+        32,
+        "tx_id should be a SHA-256 hash of 32 bytes"
     );
 }
