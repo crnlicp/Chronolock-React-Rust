@@ -49,6 +49,7 @@ struct ApproveArgs {
     from_subaccount: Option<[u8; 32]>,
     spender: Account,
     amount: Nat,
+    expires_at: Option<u64>,
 }
 
 // TransferFromArgs for ICRC-2 compliance
@@ -185,24 +186,27 @@ thread_local! {
     static ALLOWANCES: RefCell<StableBTreeMap<AllowanceKey, u128, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(3))))
     );
-    static REFERRAL_BY_ACCOUNT: RefCell<StableBTreeMap<Account, String, Memory>> = RefCell::new(
+    static ALLOWANCE_EXPIRATIONS: RefCell<StableBTreeMap<AllowanceKey, u64, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(4))))
     );
-    static ACCOUNT_BY_REFERRAL: RefCell<StableBTreeMap<String, Account, Memory>> = RefCell::new(
+    static REFERRAL_BY_ACCOUNT: RefCell<StableBTreeMap<Account, String, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(5))))
     );
-    static CLAIMED_REFERRALS: RefCell<StableBTreeMap<Account, bool, Memory>> = RefCell::new(
+    static ACCOUNT_BY_REFERRAL: RefCell<StableBTreeMap<String, Account, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(6))))
+    );
+    static CLAIMED_REFERRALS: RefCell<StableBTreeMap<Account, bool, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(7))))
     );
     static LOGS: RefCell<StableBTreeMap<u64, LogEntry, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(8))))
     );
     static TRANSACTIONS: RefCell<StableBTreeMap<[u8; 32], TransactionEvent, Memory>> = RefCell::new(
-        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(10))))
+        StableBTreeMap::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(9))))
     );
     // Use a 64-bit counter for log keys to avoid overflow.
     static LOG_COUNTER: RefCell<StableCell<u64, Memory>> = RefCell::new(
-        StableCell::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(11))), 0)
+        StableCell::init(MEMORY_MANAGER.with(|mm| mm.borrow().get(MemoryId::new(10))), 0)
             .expect("Failed to initialize LOG_COUNTER")
     );
 }
@@ -457,13 +461,9 @@ fn claim_referral(referral_code: String, referee: Account) -> Result<String, Led
         Some(acc) => acc,
     };
 
-    if ACCOUNT_BY_REFERRAL.with(|abr| abr.borrow().contains_key(&referral_code))
-        && !CLAIMED_REFERRALS.with(|cr| cr.borrow().contains_key(&referee))
+    if !ACCOUNT_BY_REFERRAL.with(|abr| abr.borrow().contains_key(&referral_code))
+        || CLAIMED_REFERRALS.with(|cr| cr.borrow().contains_key(&referee))
     {
-        return Err(LedgerError::InvalidReferral);
-    }
-
-    if CLAIMED_REFERRALS.with(|cr| cr.borrow().contains_key(&referee)) {
         return Err(LedgerError::InvalidReferral);
     }
 
@@ -587,6 +587,19 @@ fn icrc1_approve(args: ApproveArgs) -> Result<Nat, LedgerError> {
         return Err(LedgerError::Unauthorized);
     }
 
+    if let Some(expires_at) = args.expires_at {
+        // Store expires_at in a separate StableBTreeMap
+        ALLOWANCE_EXPIRATIONS.with(|expirations| {
+            expirations.borrow_mut().insert(
+                AllowanceKey {
+                    owner: owner.clone(),
+                    spender: args.spender.clone(),
+                },
+                expires_at,
+            );
+        });
+    }
+
     ALLOWANCES.with(|allowances| {
         allowances.borrow_mut().insert(
             AllowanceKey {
@@ -651,6 +664,15 @@ async fn icrc1_transfer_from(
         owner: args.from.clone(),
         spender: args.spender.clone(),
     };
+
+    if let Some(expires_at) =
+        ALLOWANCE_EXPIRATIONS.with(|expirations| expirations.borrow().get(&allowance_key))
+    {
+        if current_time() > expires_at {
+            return Err(LedgerError::InsufficientAllowance);
+        }
+    }
+
     let allowance = ALLOWANCES.with(|a| a.borrow().get(&allowance_key).unwrap_or(0));
     if allowance < amount {
         return Err(LedgerError::InsufficientAllowance);
@@ -1090,6 +1112,7 @@ fn icrc1_metadata() -> Vec<(String, String)> {
         ("icrc1:name".to_string(), meta.name),
         ("icrc1:symbol".to_string(), meta.symbol),
         ("icrc1:decimals".to_string(), meta.decimals.to_string()),
+        ("icrc1:fee".to_string(), meta.transfer_fee.to_string()),
         (
             "icrc1:logo".to_string(),
             "https://your-logo-url.com/token.png".to_string(),
