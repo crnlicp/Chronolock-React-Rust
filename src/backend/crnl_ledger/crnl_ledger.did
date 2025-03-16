@@ -14,6 +14,7 @@ type LedgerError = variant {
   InsufficientBalance;
   Unauthorized;
   FeeProcessingError;
+  VestingLocked;
   InvalidReferral;
   ArithmeticError;
 };
@@ -21,6 +22,7 @@ type LogEntry = record { timestamp : nat64; details : text; event_type : text };
 type Result = variant { Ok : text; Err : LedgerError };
 type Result_1 = variant { Ok; Err : LedgerError };
 type Result_2 = variant { Ok : nat; Err : LedgerError };
+type Result_3 = variant { Ok : vec Account; Err : LedgerError };
 type TransactionEvent = record {
   to : opt Account;
   fee : opt nat;
@@ -43,11 +45,11 @@ type TransferFromArgs = record {
   spender : Account;
 };
 service : (text, text, nat, nat64, nat, principal) -> {
-  add_dummy_data : (nat32, nat, nat) -> (Result);
   claim_referral : (text, Account) -> (Result);
   convert_dapp_funds_to_cycles : () -> (Result_1);
   create_media_chronolock : (Account) -> (Result);
   create_text_chronolock : (Account) -> (Result);
+  generate_dummy_data : (nat32, nat, nat) -> (Result);
   get_admin : () -> (principal) query;
   get_community_pool_balance : () -> (nat) query;
   get_dapp_funds : () -> (nat) query;
@@ -73,8 +75,11 @@ service : (text, text, nat, nat64, nat, principal) -> {
   icrc1_supported_standards : () -> (vec text) query;
   icrc1_symbol : () -> (text) query;
   icrc1_total_supply : () -> (nat) query;
-  icrc1_transfer : (TransferArgs) -> (Result_2);
-  icrc1_transfer_from : (TransferFromArgs) -> (Result_2);
-  register_user : (Account) -> (Result);
+  icrc1_transfer : (TransferArgs, opt blob) -> (Result_2);
+  icrc1_transfer_from : (TransferFromArgs, opt blob) -> (Result_2);
+  perform_dummy_approvals : (vec Account, nat) -> (Result_1);
+  perform_dummy_claim_referral : (vec Account) -> (Result_1);
+  register_dummy_users : (nat32, opt blob) -> (Result_3);
+  register_user : (Account, opt blob) -> (Result);
   set_transfer_fee : (nat) -> (Result_1);
 }

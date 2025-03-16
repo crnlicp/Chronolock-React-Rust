@@ -1,0 +1,13 @@
+dfx canister call crnl_ledger perform_dummy_transfers '(
+  vec {
+      record {
+        owner = principal "2vxsx-fae";
+        subaccount = opt blob "\21\09\d4\67\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00";
+      };
+      record {
+        owner = principal "2vxsx-fae";
+        subaccount = opt blob "\21\09\d4\67\00\00\00\00\01\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00";
+      };
+    },
+    100000: nat 
+)'

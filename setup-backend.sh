@@ -1,5 +1,6 @@
 #!/bin/bash
 
+dfx stop && dfx start --clean --background &&
 bash manage_identities.sh &&
 bash generate_ledger_init_args.sh &&
 cargo install candid-extractor &&

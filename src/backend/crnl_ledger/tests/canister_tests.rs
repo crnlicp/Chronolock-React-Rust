@@ -500,7 +500,7 @@ fn test_create_media_chronolock() {
     let (pic, backend_canister, admin) = setup();
     let caller = Account {
         owner: admin,
-        subaccount: Some(COMMUNITY_POOL_SUBACCOUNT),
+        subaccount: Some(RESERVE_POOL_SUBACCOUNT),
     };
 
     let caller_balance_args = encode_args((caller.clone(),)).expect("Failed to encode args");
@@ -1053,7 +1053,7 @@ fn test_process_fee() {
     let (pic, backend_canister, admin) = setup();
     let from = Account {
         owner: admin,
-        subaccount: Some(COMMUNITY_POOL_SUBACCOUNT),
+        subaccount: Some(RESERVE_POOL_SUBACCOUNT),
     };
     let to = Account {
         owner: Principal::from_text("2vxsx-fae").unwrap(),
