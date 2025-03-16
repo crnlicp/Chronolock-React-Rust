@@ -22,7 +22,6 @@ type LogEntry = record { timestamp : nat64; details : text; event_type : text };
 type Result = variant { Ok : text; Err : LedgerError };
 type Result_1 = variant { Ok; Err : LedgerError };
 type Result_2 = variant { Ok : nat; Err : LedgerError };
-type Result_3 = variant { Ok : vec Account; Err : LedgerError };
 type TransactionEvent = record {
   to : opt Account;
   fee : opt nat;
@@ -49,7 +48,6 @@ service : (text, text, nat, nat64, nat, principal) -> {
   convert_dapp_funds_to_cycles : () -> (Result_1);
   create_media_chronolock : (Account) -> (Result);
   create_text_chronolock : (Account) -> (Result);
-  generate_dummy_data : (nat32, nat, nat) -> (Result);
   get_admin : () -> (principal) query;
   get_community_pool_balance : () -> (nat) query;
   get_dapp_funds : () -> (nat) query;
@@ -77,9 +75,6 @@ service : (text, text, nat, nat64, nat, principal) -> {
   icrc1_total_supply : () -> (nat) query;
   icrc1_transfer : (TransferArgs, opt blob) -> (Result_2);
   icrc1_transfer_from : (TransferFromArgs, opt blob) -> (Result_2);
-  perform_dummy_approvals : (vec Account, nat) -> (Result_1);
-  perform_dummy_claim_referral : (vec Account) -> (Result_1);
-  register_dummy_users : (nat32, opt blob) -> (Result_3);
   register_user : (Account, opt blob) -> (Result);
   set_transfer_fee : (nat) -> (Result_1);
 }
