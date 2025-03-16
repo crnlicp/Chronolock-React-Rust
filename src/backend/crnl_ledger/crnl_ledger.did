@@ -2,6 +2,7 @@ type Account = record { owner : principal; subaccount : opt blob };
 type ApproveArgs = record {
   from_subaccount : opt blob;
   amount : nat;
+  expires_at : opt nat64;
   spender : Account;
 };
 type LedgerError = variant {
