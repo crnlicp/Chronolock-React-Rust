@@ -933,15 +933,15 @@ async fn generate_dummy_data(
         bytes
     }
 
+    ic_cdk::println!("Step 1: Starting new users registration");
+    log_event(
+        "RegisterUsersStarted",
+        format!("Registering {} users", num_users),
+    );
     // Step 1: Register users
     let users = {
         let mut users = Vec::new();
         let run_timestamp = current_time();
-        ic_cdk::println!("Step 1: Starting new users registration");
-        log_event(
-            "RegisterUsersStarted",
-            format!("Registering {} users", num_users),
-        );
 
         for i in 0..num_users {
             let mut subaccount = [0u8; 32];
@@ -963,13 +963,13 @@ async fn generate_dummy_data(
                 Err(e) => return Err(e),
             }
         }
-        ic_cdk::println!("Registering new users completed");
-        log_event(
-            "RegisterUsersCompleted",
-            format!("Registered {} users", users.len()),
-        );
         users
     };
+    ic_cdk::println!("Registering new users completed");
+    log_event(
+        "RegisterUsersCompleted",
+        format!("Registered {} users", users.len()),
+    );
 
     // Step 2: Referral claims
     if let Err(e) = perform_dummy_claim_referral(users.clone()) {
