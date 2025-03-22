@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "src/backend/hello_world",
-    "src/backend/crnl_ledger"
+    "src/backend/crnl_ledger",
+    "src/backend/chronolock",
 ]
 resolver = "2"
