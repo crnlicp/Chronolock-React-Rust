@@ -1,0 +1,45 @@
+type ChronoError = variant {
+  MetadataTooLarge;
+  InvalidInput : text;
+  TokenNotFound;
+  Unauthorized;
+  InternalError : text;
+  TimeLocked;
+};
+type HttpRequest = record {
+  url : text;
+  method : text;
+  body : blob;
+  headers : vec record { text; text };
+};
+type HttpResponse = record {
+  body : blob;
+  headers : vec record { text; text };
+  status_code : nat16;
+};
+type LogEntry = record { id : text; timestamp : nat64; activity : text };
+type Result = variant { Ok; Err : ChronoError };
+type Result_1 = variant { Ok : text; Err : ChronoError };
+type Result_2 = variant { Ok : vec LogEntry; Err : ChronoError };
+type Result_3 = variant { Ok : blob; Err : ChronoError };
+service : (principal, opt principal) -> {
+  burn_chronolock : (text) -> (Result);
+  create_chronolock : (text, nat64) -> (Result_1);
+  get_logs_paginated : (nat64, nat64) -> (Result_2) query;
+  get_media : (text) -> (Result_3) query;
+  get_time_decryption_key : (text, blob) -> (Result_1);
+  get_user_time_decryption_key : (text, text, blob) -> (Result_1);
+  http_request : (HttpRequest) -> (HttpResponse) query;
+  ibe_encryption_key : () -> (Result_1);
+  icrc7_balance_of : (principal) -> (nat64) query;
+  icrc7_description : () -> (text) query;
+  icrc7_name : () -> (text) query;
+  icrc7_owner_of : (text) -> (opt principal) query;
+  icrc7_symbol : () -> (text) query;
+  icrc7_token_metadata : (text) -> (opt text) query;
+  icrc7_total_supply : () -> (nat64) query;
+  icrc7_transfer : (text, principal) -> (Result);
+  set_max_metadata_size : (nat64) -> (Result);
+  update_chronolock : (text, text, nat64) -> (Result);
+  upload_media : (blob) -> (Result_1);
+}

@@ -1,7 +1,6 @@
 use candid::{CandidType, Nat, Principal};
 use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk::api::time;
-use ic_cdk::caller;
 use ic_cdk_macros::{init, query, update};
 use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
 use ic_stable_structures::storable::Bound;
@@ -225,6 +224,10 @@ const DAPP_FUNDS_SUBACCOUNT: [u8; 32] = [4u8; 32];
 fn current_time() -> u64 {
     // Returns seconds
     ic_cdk::api::time() / 1_000_000_000
+}
+
+fn caller() -> Principal {
+    ic_cdk::caller()
 }
 
 fn admin_principal() -> Principal {
@@ -770,6 +773,317 @@ async fn convert_dapp_funds_to_cycles() -> Result<(), LedgerError> {
         "Converted dapp funds to cycles".to_string(),
     );
     Ok(())
+}
+
+// -------------------------
+// Dummy Data Generation (For testing only)
+// Note: The nested loops here have O(n²) complexity and should be batched/limited for large numbers of users.
+// -------------------------
+
+#[update]
+async fn register_dummy_users(
+    num_users: u32,
+    random_bytes: Option<Vec<u8>>,
+) -> Result<Vec<Account>, LedgerError> {
+    ic_cdk::println!("Starting register_dummy_users");
+    let caller = caller();
+    if !is_admin(caller) {
+        return Err(LedgerError::Unauthorized);
+    }
+    let mut users = Vec::new();
+    let run_timestamp = current_time();
+    log_event(
+        "RegisterUsersStarted",
+        format!("Registering {} users", num_users),
+    );
+
+    for i in 0..num_users {
+        let mut subaccount = [0u8; 32];
+        subaccount[0..8].copy_from_slice(&run_timestamp.to_le_bytes());
+        subaccount[8..12].copy_from_slice(&i.to_le_bytes());
+        let dummy_account = Account {
+            owner: caller,
+            subaccount: Some(subaccount),
+        };
+        match register_user(dummy_account.clone(), random_bytes.clone()).await {
+            Ok(_) => {
+                users.push(dummy_account.clone());
+                log_event(
+                    "UserRegistered",
+                    format!("User {}: {}", i, dummy_account.owner),
+                );
+            }
+            Err(e) => {
+                log_event(
+                    "UserRegistrationFailed",
+                    format!("User {} failed: {:?}", i, e),
+                );
+                return Err(e);
+            }
+        }
+    }
+    log_event(
+        "RegisterUsersCompleted",
+        format!("Registered {} users", users.len()),
+    );
+    ic_cdk::println!("Completed register_dummy_users");
+    Ok(users)
+}
+
+#[update]
+fn perform_dummy_claim_referral(users: Vec<Account>) -> Result<(), LedgerError> {
+    let caller = caller();
+    if !is_admin(caller) {
+        return Err(LedgerError::Unauthorized);
+    }
+    ic_cdk::println!("Step 2: perform_dummy_claim_referral started");
+    log_event(
+        "ClaimReferralsStarted",
+        "Starting dummy referral claims".to_string(),
+    );
+
+    // For simplicity, using nested loops; in production, consider batching.
+    for i in 1..users.len() {
+        let referrer = users[i - 1].clone();
+        let referee = users[i].clone();
+        let referral_code = REFERRAL_BY_ACCOUNT.with(|rba| rba.borrow().get(&referrer).clone());
+        match referral_code {
+            Some(code) => match claim_referral(code, referee.clone()) {
+                Ok(msg) => {
+                    log_event(
+                        "ReferralClaimed",
+                        format!(
+                            "Referrer: {}, Referee: {}, Message: {}",
+                            referrer.owner, referee.owner, msg
+                        ),
+                    );
+                }
+                Err(e) => {
+                    log_event(
+                        "ReferralClaimFailed",
+                        format!(
+                            "Referrer: {}, Referee: {}, Error: {:?}",
+                            referrer.owner, referee.owner, e
+                        ),
+                    );
+                    return Err(e);
+                }
+            },
+            None => {
+                log_event(
+                    "ReferralCodeNotFound",
+                    format!("No referral code found for referrer: {}", referrer.owner),
+                );
+                return Err(LedgerError::InvalidReferral);
+            }
+        }
+    }
+    log_event(
+        "ClaimReferralsCompleted",
+        "All referral claims completed".to_string(),
+    );
+    ic_cdk::println!("Completed perform_dummy_claim_referral");
+    Ok(())
+}
+
+#[update]
+fn perform_dummy_approvals(users: Vec<Account>, approve_amount: u128) -> Result<(), LedgerError> {
+    let caller = caller();
+    if !is_admin(caller) {
+        return Err(LedgerError::Unauthorized);
+    }
+    ic_cdk::println!("Step 3: perform_dummy_approvals started");
+    log_event("ApprovalsStarted", "Starting dummy approvals".to_string());
+    for i in 0..users.len() {
+        for j in 0..users.len() {
+            if i != j {
+                let owner = users[i].clone();
+                let spender = users[j].clone();
+                match icrc1_approve(ApproveArgs {
+                    from_subaccount: owner.subaccount,
+                    spender: spender.clone(),
+                    amount: Nat::from(approve_amount),
+                }) {
+                    Ok(_) => log_event(
+                        "Approval",
+                        format!("Owner: {}, Spender: {}", owner.owner, spender.owner),
+                    ),
+                    Err(e) => {
+                        log_event(
+                            "ApprovalFailed",
+                            format!(
+                                "Owner: {}, Spender: {}, Error: {:?}",
+                                owner.owner, spender.owner, e
+                            ),
+                        );
+                        return Err(e);
+                    }
+                }
+            }
+        }
+    }
+    log_event("ApprovalsCompleted", "All approvals completed".to_string());
+    Ok(())
+}
+
+#[update]
+async fn generate_dummy_data(
+    num_users: u32,
+    transfer_amount: u128,
+    approve_amount: u128,
+) -> Result<String, LedgerError> {
+    let caller = caller();
+    if !is_admin(caller) {
+        return Err(LedgerError::Unauthorized);
+    }
+    ic_cdk::println!("Starting dummy data generation:");
+
+    // Generate sufficient random bytes once
+    let num_referral_codes = num_users;
+    let num_tx_ids = num_users * (num_users - 1) * 2; // Transfers + Transfer-from
+    let total_bytes_needed = num_referral_codes as usize * 10 + num_tx_ids as usize * 32;
+    let (mut rand_bytes,) = raw_rand().await.unwrap();
+    while rand_bytes.len() < total_bytes_needed {
+        let (more_bytes,) = raw_rand().await.unwrap();
+        rand_bytes.extend(more_bytes);
+    }
+    let mut rand_index = 0;
+
+    // Helper function to get next n bytes
+    fn get_next_bytes(rand_bytes: &Vec<u8>, n: usize, index: &mut usize) -> Vec<u8> {
+        let start = *index;
+        let end = start + n;
+        if end > rand_bytes.len() {
+            panic!("Not enough random bytes");
+        }
+        let bytes = rand_bytes[start..end].to_vec();
+        *index = end;
+        bytes
+    }
+
+    ic_cdk::println!("Step 1: Starting new users registration");
+    log_event(
+        "RegisterUsersStarted",
+        format!("Registering {} users", num_users),
+    );
+    // Step 1: Register users
+    let users = {
+        let mut users = Vec::new();
+        let run_timestamp = current_time();
+
+        for i in 0..num_users {
+            let mut subaccount = [0u8; 32];
+            subaccount[0..8].copy_from_slice(&run_timestamp.to_le_bytes());
+            subaccount[8..12].copy_from_slice(&i.to_le_bytes());
+            let dummy_account = Account {
+                owner: caller,
+                subaccount: Some(subaccount),
+            };
+            let referral_bytes = get_next_bytes(&rand_bytes, 10, &mut rand_index);
+            match register_user(dummy_account.clone(), Some(referral_bytes)).await {
+                Ok(_) => {
+                    users.push(dummy_account.clone());
+                    log_event(
+                        "UserRegistered",
+                        format!("User {}: {}", i, dummy_account.owner),
+                    );
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        users
+    };
+    ic_cdk::println!("Registering new users completed");
+    log_event(
+        "RegisterUsersCompleted",
+        format!("Registered {} users", users.len()),
+    );
+
+    // Step 2: Referral claims
+    if let Err(e) = perform_dummy_claim_referral(users.clone()) {
+        return Err(e);
+    }
+    ic_cdk::println!("Referral claims operations completed");
+
+    // Step 3: Approvals
+    if let Err(e) = perform_dummy_approvals(users.clone(), approve_amount) {
+        return Err(e);
+    }
+    ic_cdk::println!("Approvals operations completed");
+
+    // Step 4: Transfer-from
+    {
+        ic_cdk::println!("Step 4: perform_dummy_transfer_from started");
+        for i in 0..users.len() {
+            for j in 0..users.len() {
+                if i != j {
+                    let spender = users[i].clone();
+                    let from = users[j].clone();
+                    let to = users[(i + j) % users.len()].clone();
+                    let tx_bytes = get_next_bytes(&rand_bytes, 32, &mut rand_index);
+                    match icrc1_transfer_from(
+                        TransferFromArgs {
+                            spender: spender.clone(),
+                            from: from.clone(),
+                            to: to.clone(),
+                            amount: Nat::from(transfer_amount),
+                        },
+                        Some(tx_bytes),
+                    )
+                    .await
+                    {
+                        Ok(_) => log_event(
+                            "TransferFrom",
+                            format!(
+                                "Spender: {}, From: {}, To: {}",
+                                spender.owner, from.owner, to.owner
+                            ),
+                        ),
+                        Err(e) => return Err(e),
+                    }
+                }
+            }
+        }
+        log_event(
+            "TransferFromCompleted",
+            "All transfer-from operations completed".to_string(),
+        );
+    }
+    ic_cdk::println!("Transfer-from operations completed");
+
+    // Step 5: Transfers
+    {
+        ic_cdk::println!("Step 5: perform_dummy_transfers started");
+        for i in 0..users.len() {
+            for j in 0..users.len() {
+                if i != j {
+                    let from = users[i].clone();
+                    let to = users[j].clone();
+                    let tx_bytes = get_next_bytes(&rand_bytes, 32, &mut rand_index);
+                    match icrc1_transfer(
+                        TransferArgs {
+                            from_subaccount: from.subaccount,
+                            to: to.clone(),
+                            amount: Nat::from(transfer_amount),
+                        },
+                        Some(tx_bytes),
+                    )
+                    .await
+                    {
+                        Ok(_) => log_event(
+                            "Transfer",
+                            format!("From: {}, To: {}", from.owner, to.owner),
+                        ),
+                        Err(e) => return Err(e),
+                    }
+                }
+            }
+        }
+        log_event("TransfersCompleted", "All transfers completed".to_string());
+    }
+    ic_cdk::println!("Direct transfers operations completed");
+
+    Ok("Dummy data generation completed successfully".to_string())
 }
 
 // -------------------------

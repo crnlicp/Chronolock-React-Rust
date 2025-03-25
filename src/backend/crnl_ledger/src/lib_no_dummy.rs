@@ -1,7 +1,6 @@
 use candid::{CandidType, Nat, Principal};
 use ic_cdk::api::management_canister::main::raw_rand;
 use ic_cdk::api::time;
-use ic_cdk::caller;
 use ic_cdk_macros::{init, query, update};
 use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
 use ic_stable_structures::storable::Bound;
@@ -225,6 +224,10 @@ const DAPP_FUNDS_SUBACCOUNT: [u8; 32] = [4u8; 32];
 fn current_time() -> u64 {
     // Returns seconds
     ic_cdk::api::time() / 1_000_000_000
+}
+
+fn caller() -> Principal {
+    ic_cdk::caller()
 }
 
 fn admin_principal() -> Principal {

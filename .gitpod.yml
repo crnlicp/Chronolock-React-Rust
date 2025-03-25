@@ -13,14 +13,13 @@ tasks:
       dfx start --background --clean 2>/dev/null
       npm run setup
     init: |
-      npm start
+      echo 'You can run with: npm start'
     command: |
-      npm start
+      echo 'You can run with: npm start'
 
 vscode:
   extensions:
     - dfinity-foundation.vscode-motoko
-    - rust-lang.rust-analyzer
     - tamasfe.even-better-toml
 
 ports:
