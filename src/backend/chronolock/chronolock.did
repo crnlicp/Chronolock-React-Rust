@@ -22,7 +22,7 @@ type Result = variant { Ok; Err : ChronoError };
 type Result_1 = variant { Ok : text; Err : ChronoError };
 type Result_2 = variant { Ok : vec LogEntry; Err : ChronoError };
 type Result_3 = variant { Ok : blob; Err : ChronoError };
-service : (principal) -> {
+service : (principal, opt principal) -> {
   burn_chronolock : (text) -> (Result);
   create_chronolock : (text, nat64) -> (Result_1);
   get_logs_paginated : (nat64, nat64) -> (Result_2) query;

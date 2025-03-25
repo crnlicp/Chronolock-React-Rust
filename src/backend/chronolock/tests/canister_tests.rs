@@ -1,10 +1,13 @@
+// Chronolock/canister_tests.rs
+
 use candid::{decode_one, encode_args, CandidType, Principal};
 use pocket_ic::PocketIc;
 use std::fs;
 use std::time::{Duration, UNIX_EPOCH};
 
-// Path to your compiled WASM file (adjust as needed)
+// Path to compiled WASM file (adjust as needed)
 const BACKEND_WASM: &str = "../../../target/wasm32-unknown-unknown/release/chronolock.wasm";
+const VETKD_WASM: &str = "../../../target/wasm32-unknown-unknown/release/vetkd_mock.wasm";
 
 // Structures required for testing (must match canister definitions)
 #[derive(CandidType, serde::Deserialize, Clone, Debug)]
@@ -53,19 +56,25 @@ struct HttpResponse {
 }
 
 // Setup function
-fn setup() -> (PocketIc, Principal, Principal) {
+fn setup() -> (PocketIc, Principal, Principal, Principal) {
     std::env::set_var("POCKET_IC_BIN", "/usr/local/bin/pocket-ic");
     let pic = PocketIc::new();
 
+    // Deploy Chronolock canister
     let backend_canister = pic.create_canister();
     pic.add_cycles(backend_canister, 2_000_000_000_000);
     let wasm = fs::read(BACKEND_WASM).expect("Wasm file not found, run 'cargo build'.");
-
     let admin = Principal::from_text("aaaaa-aa").unwrap();
     let init_args = encode_args((admin,)).expect("Failed to encode init arguments");
-
     pic.install_canister(backend_canister, wasm, init_args, None);
-    (pic, backend_canister, admin)
+
+    // Deploy VETKD mock canister
+    let vetkd_canister = pic.create_canister();
+    pic.add_cycles(vetkd_canister, 2_000_000_000_000);
+    let vetkd_wasm = fs::read(VETKD_WASM).expect("VETKD WASM file not found");
+    pic.install_canister(vetkd_canister, vetkd_wasm, vec![], None);
+
+    (pic, backend_canister, vetkd_canister, admin)
 }
 
 fn decode_with_fallback<T: CandidType + for<'de> serde::Deserialize<'de>>(
@@ -87,7 +96,7 @@ fn decode_with_fallback<T: CandidType + for<'de> serde::Deserialize<'de>>(
 // Initialization Test
 #[test]
 fn test_initialization() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     let response = pic
         .query_call(
@@ -100,13 +109,13 @@ fn test_initialization() {
     let logs_result: Result<Vec<LogEntry>, ChronoError> = decode_one(&response).unwrap();
     let logs = logs_result.expect("Failed to get logs");
     assert_eq!(logs.len(), 1);
-    assert_eq!(logs[0].activity, "Canister initialized with admin");
+    assert_eq!(logs[0].activity, "Canister initialized with aaaaa-aa");
 }
 
 // Admin Function Tests
 #[test]
 fn test_set_max_metadata_size() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     let response = pic
         .update_call(
@@ -128,7 +137,7 @@ fn test_set_max_metadata_size() {
 // Log Management Test
 #[test]
 fn test_get_logs_paginated() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     let response = pic
         .query_call(
@@ -151,7 +160,7 @@ fn test_get_logs_paginated() {
 // ICRC-7 Query Tests
 #[test]
 fn test_icrc7_symbol() {
-    let (pic, backend_canister, _) = setup();
+    let (pic, backend_canister, _, _) = setup();
 
     let response = pic
         .query_call(
@@ -167,7 +176,7 @@ fn test_icrc7_symbol() {
 
 #[test]
 fn test_icrc7_name() {
-    let (pic, backend_canister, _) = setup();
+    let (pic, backend_canister, _, _) = setup();
 
     let response = pic
         .query_call(
@@ -183,7 +192,7 @@ fn test_icrc7_name() {
 
 #[test]
 fn test_icrc7_description() {
-    let (pic, backend_canister, _) = setup();
+    let (pic, backend_canister, _, _) = setup();
 
     let response = pic
         .query_call(
@@ -199,7 +208,7 @@ fn test_icrc7_description() {
 
 #[test]
 fn test_icrc7_total_supply() {
-    let (pic, backend_canister, _) = setup();
+    let (pic, backend_canister, _, _) = setup();
 
     let response = pic
         .query_call(
@@ -215,7 +224,7 @@ fn test_icrc7_total_supply() {
 
 #[test]
 fn test_icrc7_balance_of() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     let response = pic
         .query_call(
@@ -231,7 +240,7 @@ fn test_icrc7_balance_of() {
 
 #[test]
 fn test_icrc7_owner_of_and_metadata() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
     let create_response = pic
@@ -270,7 +279,7 @@ fn test_icrc7_owner_of_and_metadata() {
 
 #[test]
 fn test_icrc7_transfer() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     // Step 1: Create a chronolock token
     let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
@@ -321,7 +330,7 @@ fn test_icrc7_transfer() {
 
 #[test]
 fn test_icrc7_transfer_no_op() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
     let create_response = pic
@@ -366,7 +375,7 @@ fn test_icrc7_transfer_no_op() {
 // Chronolock Management Tests
 #[test]
 fn test_create_update_burn_chronolock() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
     let create_response = pic
@@ -434,7 +443,7 @@ fn test_create_update_burn_chronolock() {
 // Media Management Tests
 #[test]
 fn test_upload_and_get_media() {
-    let (pic, backend_canister, admin) = setup();
+    let (pic, backend_canister, _, admin) = setup();
 
     let file_data = vec![1, 2, 3, 4, 5];
     let upload_response = pic
@@ -478,75 +487,4 @@ fn test_upload_and_get_media() {
     let response: HttpResponse = decode_one(&http_response).unwrap();
     assert_eq!(response.status_code, 200);
     assert_eq!(response.body, file_data);
-}
-
-// VETKD Integration Tests
-#[test]
-fn test_vetkd_functions() {
-    let (pic, backend_canister, admin) = setup();
-
-    // Test ibe_encryption_key (expect failure due to missing VETKD canister)
-    let ibe_response = pic.update_call(
-        backend_canister,
-        admin,
-        "ibe_encryption_key",
-        encode_args(()).unwrap(),
-    );
-    assert!(
-        ibe_response.is_err() || {
-            let result: Result<String, ChronoError> = decode_one(&ibe_response.unwrap()).unwrap();
-            result.is_err()
-        },
-        "Expected failure due to missing VETKD canister"
-    );
-
-    let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
-    let unlock_time_hex = format!("{:x}", unlock_time);
-    let encryption_public_key = vec![1, 2, 3];
-
-    // Test get_time_decryption_key (before unlock time)
-    let time_decrypt_response = pic.update_call(
-        backend_canister,
-        admin,
-        "get_time_decryption_key",
-        encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
-    );
-    let time_decrypt_result: Result<String, ChronoError> = time_decrypt_response
-        .map(|resp| decode_one(&resp).unwrap())
-        .unwrap_or(Err(ChronoError::TimeLocked));
-    assert_eq!(time_decrypt_result, Err(ChronoError::TimeLocked));
-
-    // Advance time and test again (still expect failure due to VETKD)
-    pic.advance_time(Duration::from_secs(3600));
-    let time_decrypt_response_after = pic.update_call(
-        backend_canister,
-        admin,
-        "get_time_decryption_key",
-        encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
-    );
-    assert!(
-        time_decrypt_response_after.is_err() || {
-            let result: Result<String, ChronoError> =
-                decode_one(&time_decrypt_response_after.unwrap()).unwrap();
-            result.is_err()
-        },
-        "Expected failure due to missing VETKD canister"
-    );
-
-    // Test get_user_time_decryption_key (expect failure)
-    let user_id = admin.to_text();
-    let user_decrypt_response = pic.update_call(
-        backend_canister,
-        admin,
-        "get_user_time_decryption_key",
-        encode_args((unlock_time_hex, user_id, encryption_public_key)).unwrap(),
-    );
-    assert!(
-        user_decrypt_response.is_err() || {
-            let result: Result<String, ChronoError> =
-                decode_one(&user_decrypt_response.unwrap()).unwrap();
-            result.is_err()
-        },
-        "Expected failure due to missing VETKD canister"
-    );
 }

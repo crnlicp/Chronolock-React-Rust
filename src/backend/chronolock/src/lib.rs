@@ -1,3 +1,5 @@
+// Chronolock/lib.rs
+
 use candid::{CandidType, Principal};
 use hex;
 use ic_cdk::api::time;
@@ -54,6 +56,9 @@ thread_local! {
     );
     static MEDIA_FILES: RefCell<StableBTreeMap<String, Vec<u8>, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(7))))
+    );
+    static VETKD_CANISTER_ID: RefCell<Principal> = RefCell::new(
+        Principal::from_text(VETKD_CANISTER_ID_TEXT).unwrap()
     );
     static SYMBOL: RefCell<String> = RefCell::new("CHRONO".to_string());
     static NAME: RefCell<String> = RefCell::new("Chronolock Collection".to_string());
@@ -221,8 +226,7 @@ async fn call_vetkd_derive_encrypted_key(
         encryption_public_key: ByteBuf(encryption_public_key),
     };
 
-    let vetkd_canister_id = Principal::from_text(VETKD_CANISTER_ID_TEXT)
-        .map_err(|e| ChronoError::InvalidInput(format!("Invalid VetKD canister ID: {}", e)))?;
+    let vetkd_canister_id = VETKD_CANISTER_ID.with(|id| *id.borrow());
 
     let (result,): (Vec<u8>,) =
         ic_cdk::call(vetkd_canister_id, "vetkd_derive_encrypted_key", (args,))
@@ -233,11 +237,17 @@ async fn call_vetkd_derive_encrypted_key(
 }
 
 #[init]
-fn init(admin: Principal) {
+fn init(admin: Principal, vetkd_canister_id: Option<Principal>) {
     ADMINS.with(|admins| {
         admins.borrow_mut().insert(0, admin);
     });
-    log_activity("Canister initialized with admin".to_string());
+    if let Some(vetkd_id) = vetkd_canister_id {
+        VETKD_CANISTER_ID.with(|id| {
+            *id.borrow_mut() = vetkd_id;
+        });
+    }
+
+    log_activity(format!("Canister initialized with {}", admin));
 }
 
 fn is_admin(caller: Principal) -> bool {
@@ -370,9 +380,7 @@ async fn ibe_encryption_key() -> Result<String, ChronoError> {
         canister_id: None,
     };
 
-    let vetkd_canister_id = Principal::from_text(VETKD_CANISTER_ID_TEXT)
-        .map_err(|e| ChronoError::InvalidInput(format!("Invalid VetKD canister ID: {}", e)))?;
-
+    let vetkd_canister_id = VETKD_CANISTER_ID.with(|id| *id.borrow());
     let (result,): (Vec<u8>,) = ic_cdk::call(vetkd_canister_id, "vetkd_public_key", (args,))
         .await
         .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
