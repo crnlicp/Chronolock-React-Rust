@@ -9,13 +9,13 @@
       "candid": "src/backend/crnl_ledger/crnl_ledger.did",
       "package": "crnl_ledger",
       "type": "rust",
-      "init_arg_file": "src/backend/crnl_ledger/init_args.did"
+      "init_arg_file": "src/backend/crnl_ledger/ledger_init_args.did"
     },
     "chronolock": {
       "candid": "src/backend/chronolock/chronolock.did",
       "package": "chronolock",
       "type": "rust",
-      "init_arg_file": "src/backend/chronolock/init_args.did"
+      "init_arg_file": "src/backend/chronolock/chronolock_init_args.did"
     },
     "vetkd_mock": {
       "candid": "src/backend/vetkd_mock/vetkd_mock.did",
