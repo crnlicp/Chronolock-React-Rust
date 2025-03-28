@@ -3,7 +3,7 @@
 use candid::{decode_one, encode_args, CandidType, Principal};
 use pocket_ic::PocketIc;
 use std::fs;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 // Path to compiled WASM file (adjust as needed)
 const BACKEND_WASM: &str = "../../../target/wasm32-unknown-unknown/release/chronolock.wasm";
@@ -60,19 +60,20 @@ fn setup() -> (PocketIc, Principal, Principal, Principal) {
     std::env::set_var("POCKET_IC_BIN", "/usr/local/bin/pocket-ic");
     let pic = PocketIc::new();
 
-    // Deploy Chronolock canister
-    let backend_canister = pic.create_canister();
-    pic.add_cycles(backend_canister, 2_000_000_000_000);
-    let wasm = fs::read(BACKEND_WASM).expect("Wasm file not found, run 'cargo build'.");
-    let admin = Principal::from_text("aaaaa-aa").unwrap();
-    let init_args = encode_args((admin,)).expect("Failed to encode init arguments");
-    pic.install_canister(backend_canister, wasm, init_args, None);
-
     // Deploy VETKD mock canister
     let vetkd_canister = pic.create_canister();
     pic.add_cycles(vetkd_canister, 2_000_000_000_000);
     let vetkd_wasm = fs::read(VETKD_WASM).expect("VETKD WASM file not found");
     pic.install_canister(vetkd_canister, vetkd_wasm, vec![], None);
+
+    // Deploy Chronolock canister
+    let backend_canister = pic.create_canister();
+    pic.add_cycles(backend_canister, 2_000_000_000_000);
+    let wasm = fs::read(BACKEND_WASM).expect("Wasm file not found, run 'cargo build'.");
+    let admin = Principal::from_text("aaaaa-aa").unwrap();
+    let init_args =
+        encode_args((admin, Some(vetkd_canister))).expect("Failed to encode init arguments");
+    pic.install_canister(backend_canister, wasm, init_args, None);
 
     (pic, backend_canister, vetkd_canister, admin)
 }
@@ -96,7 +97,7 @@ fn decode_with_fallback<T: CandidType + for<'de> serde::Deserialize<'de>>(
 // Initialization Test
 #[test]
 fn test_initialization() {
-    let (pic, backend_canister, _, admin) = setup();
+    let (pic, backend_canister, vetkd_canister, admin) = setup();
 
     let response = pic
         .query_call(
@@ -109,7 +110,8 @@ fn test_initialization() {
     let logs_result: Result<Vec<LogEntry>, ChronoError> = decode_one(&response).unwrap();
     let logs = logs_result.expect("Failed to get logs");
     assert_eq!(logs.len(), 1);
-    assert_eq!(logs[0].activity, "Canister initialized with aaaaa-aa");
+    let expected_log = format!("Canister initialized with {} and {}", admin, vetkd_canister);
+    assert_eq!(logs[0].activity, expected_log);
 }
 
 // Admin Function Tests
@@ -487,4 +489,348 @@ fn test_upload_and_get_media() {
     let response: HttpResponse = decode_one(&http_response).unwrap();
     assert_eq!(response.status_code, 200);
     assert_eq!(response.body, file_data);
+}
+
+// VETKD Tests cases
+
+#[test]
+fn test_ibe_encryption_key() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "ibe_encryption_key",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to call ibe_encryption_key");
+    let key_result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let key = key_result.expect("Failed to get encryption key");
+
+    // The mock returns "mock_public_key_time_lock_key" as bytes, hex-encoded by the canister
+    let expected_key = hex::encode("mock_public_key_time_lock_key".as_bytes());
+    assert_eq!(
+        key, expected_key,
+        "Encryption key does not match expected value"
+    );
+}
+
+#[test]
+fn test_get_time_decryption_key_time_lock() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let unlock_time = current_time + 1000; // 1000 seconds from now
+    let unlock_time_hex = format!("{:016x}", unlock_time);
+    let encryption_public_key = vec![1, 2, 3];
+
+    let encoded = encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap();
+    println!("Encoded args: {}", hex::encode(&encoded));
+
+    // Before unlock time
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_time_decryption_key",
+            encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
+        )
+        .expect("Failed to call get_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    assert_eq!(
+        result,
+        Err(ChronoError::TimeLocked),
+        "Expected TimeLocked error before unlock time"
+    );
+
+    // Advance time by 1001 seconds
+    pic.advance_time(std::time::Duration::from_secs(1001));
+
+    // After unlock time
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_time_decryption_key",
+            encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
+        )
+        .expect("Failed to call get_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let key = result.expect("Failed to get decryption key");
+
+    let derivation_id = hex::decode(unlock_time_hex).unwrap();
+    let derivation_id_hex = hex::encode(&derivation_id); // Matches unlock_time_hex in lowercase
+    let encryption_public_key_hex = hex::encode(&encryption_public_key);
+    let mock_key = format!(
+        "mock_encrypted_key_{}_{}",
+        derivation_id_hex, encryption_public_key_hex
+    );
+    let expected_key = hex::encode(mock_key.as_bytes());
+
+    assert_eq!(
+        key, expected_key,
+        "Decryption key does not match expected value"
+    );
+}
+
+#[test]
+fn test_get_user_time_decryption_key_auth_and_time() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let unlock_time = current_time + 1000; // 1000 seconds from now
+    let unlock_time_hex = format!("{:016x}", unlock_time);
+    let encryption_public_key = vec![1, 2, 3];
+    let user_id = admin.to_text();
+
+    let encoded = encode_args((
+        unlock_time_hex.clone(),
+        user_id.clone(),
+        encryption_public_key.clone(),
+    ))
+    .unwrap();
+    println!("Encoded args: {}", hex::encode(&encoded));
+
+    // Test unauthorized caller
+    let unauthorized_caller = Principal::self_authenticating(&[1, 2, 3]);
+    let response = pic
+        .update_call(
+            backend_canister,
+            unauthorized_caller,
+            "get_user_time_decryption_key",
+            encode_args((
+                unlock_time_hex.clone(),
+                user_id.clone(),
+                encryption_public_key.clone(),
+            ))
+            .unwrap(),
+        )
+        .expect("Failed to call get_user_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    assert_eq!(
+        result,
+        Err(ChronoError::Unauthorized),
+        "Expected Unauthorized error for wrong caller"
+    );
+
+    // Test authorized caller before unlock time
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_user_time_decryption_key",
+            encode_args((
+                unlock_time_hex.clone(),
+                user_id.clone(),
+                encryption_public_key.clone(),
+            ))
+            .unwrap(),
+        )
+        .expect("Failed to call get_user_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    assert_eq!(
+        result,
+        Err(ChronoError::TimeLocked),
+        "Expected TimeLocked error before unlock time"
+    );
+
+    // Advance time by 1001 seconds
+    pic.advance_time(std::time::Duration::from_secs(1001));
+
+    // Test authorized caller after unlock time
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_user_time_decryption_key",
+            encode_args((
+                unlock_time_hex.clone(),
+                user_id.clone(),
+                encryption_public_key.clone(),
+            ))
+            .unwrap(),
+        )
+        .expect("Failed to call get_user_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let key = result.expect("Failed to get decryption key");
+
+    let combined_id = format!("{}:{}", unlock_time_hex, user_id); // e.g., "000000006094449e:aaaaa-aa"
+    let combined_id_hex = hex::encode(combined_id.as_bytes());
+    let encryption_public_key_hex = hex::encode(&encryption_public_key);
+    let mock_key = format!(
+        "mock_encrypted_key_{}_{}",
+        combined_id_hex, encryption_public_key_hex
+    );
+    let expected_key = hex::encode(mock_key.as_bytes());
+
+    assert_eq!(
+        key, expected_key,
+        "Decryption key does not match expected value"
+    );
+}
+
+#[test]
+fn test_encryption_decryption_invalid_inputs1() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    // Invalid unlock_time_hex
+    let invalid_unlock_time_hex = "invalid_hex".to_string();
+    let encryption_public_key = vec![1, 2, 3];
+    println!("Encoded args: {}", hex::encode(&encryption_public_key));
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_time_decryption_key",
+            encode_args((
+                invalid_unlock_time_hex.clone(),
+                encryption_public_key.clone(),
+            ))
+            .unwrap(),
+        )
+        .expect("Failed to call get_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    assert!(
+        matches!(result, Err(ChronoError::InvalidInput(_))),
+        "Expected InvalidInput for invalid unlock_time_hex"
+    );
+
+    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let unlock_time = current_time + 1000; // 1000 seconds from now
+    let unlock_time_hex = format!("{:016x}", unlock_time);
+    let encryption_public_key = vec![1, 2, 3];
+
+    println!(
+        "Encoded args: {},{}",
+        hex::encode(&unlock_time_hex.clone()),
+        hex::encode(encryption_public_key.clone())
+    );
+
+    // Before unlock time
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_time_decryption_key",
+            encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
+        )
+        .expect("Failed to call get_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    assert_eq!(
+        result,
+        Err(ChronoError::TimeLocked),
+        "Expected TimeLocked error before unlock time"
+    );
+
+    // Empty encryption_public_key
+    let unlock_time_hex = "00000000000003e8".to_string(); // 1000 in hex
+    let empty_key: Vec<u8> = vec![];
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_time_decryption_key",
+            encode_args((unlock_time_hex.clone(), empty_key.clone())).unwrap(),
+        )
+        .expect("Failed to call get_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    assert_eq!(
+        result,
+        Err(ChronoError::InvalidInput(
+            "Encryption public key cannot be empty".to_string()
+        )),
+        "Expected InvalidInput for empty encryption key"
+    );
+
+    // Invalid user_id
+    let invalid_user_id = "not_a_principal".to_string();
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_user_time_decryption_key",
+            encode_args((
+                unlock_time_hex.clone(),
+                invalid_user_id,
+                encryption_public_key.clone(),
+            ))
+            .unwrap(),
+        )
+        .expect("Failed to call get_user_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    assert!(
+        matches!(result, Err(ChronoError::InvalidInput(_))),
+        "Expected InvalidInput for invalid user_id"
+    );
+}
+
+#[test]
+fn test_chronolock_encryption_integration() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let unlock_time = current_time + 1000; // 1000 seconds from now
+    let unlock_time_hex = format!("{:016x}", unlock_time);
+    let encryption_public_key = vec![1, 2, 3];
+
+    let encoded = encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap();
+    println!("Encoded args: {}", hex::encode(&encoded));
+
+    // Create chronolock
+    let create_response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "create_chronolock",
+            encode_args(("Test metadata".to_string(), unlock_time)).unwrap(),
+        )
+        .expect("Failed to call create_chronolock");
+    let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
+    token_id_result.expect("Failed to create chronolock");
+
+    // Try to get decryption key before unlock time
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_time_decryption_key",
+            encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
+        )
+        .expect("Failed to call get_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    assert_eq!(
+        result,
+        Err(ChronoError::TimeLocked),
+        "Expected TimeLocked before unlock time"
+    );
+
+    // Advance time by 1001 seconds to surpass unlock_time
+    pic.advance_time(std::time::Duration::from_secs(1001));
+
+    // Get decryption key after unlock time
+    let response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "get_time_decryption_key",
+            encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
+        )
+        .expect("Failed to call get_time_decryption_key");
+    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let key = result.expect("Failed to get decryption key");
+
+    let derivation_id = hex::decode(unlock_time_hex).unwrap();
+    let derivation_id_hex = hex::encode(&derivation_id); // Matches unlock_time_hex in lowercase
+    let encryption_public_key_hex = hex::encode(&encryption_public_key);
+    let mock_key = format!(
+        "mock_encrypted_key_{}_{}",
+        derivation_id_hex, encryption_public_key_hex
+    );
+    let expected_key = hex::encode(mock_key.as_bytes());
+
+    assert_eq!(
+        key, expected_key,
+        "Decryption key does not match expected value"
+    );
 }

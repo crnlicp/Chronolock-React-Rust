@@ -38,15 +38,15 @@ thread_local! {
     );
     static MAX_METADATA_SIZE: RefCell<StableCell<u64, Memory>> = RefCell::new(
         StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(2))), 1024)
-            .expect("Failed to initialize MAX_METADATA_SIZE")
+        .unwrap_or_else(|e| panic!("Failed to initialize MAX_METADATA_SIZE: {:?}", e))
     );
     static LAST_TIMESTAMP: RefCell<StableCell<u64, Memory>> = RefCell::new(
         StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(3))), 0)
-            .expect("Failed to initialize LAST_TIMESTAMP")
+            .unwrap_or_else(|e| panic!("Failed to initialize LAST_TIMESTAMP: {:?}", e))
     );
     static COUNTER: RefCell<StableCell<u64, Memory>> = RefCell::new(
         StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(4))), 0)
-            .expect("Failed to initialize COUNTER")
+            .unwrap_or_else(|e| panic!("Failed to initialize COUNTER: {:?}", e))
     );
     static CHRONOLOCKS: RefCell<StableBTreeMap<String, Chronolock, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(5))))
@@ -195,6 +195,11 @@ fn generate_unique_id() -> String {
 const MAX_LOGS: u64 = 10_000;
 
 fn log_activity(activity: String) {
+    let sanitized_activity = if activity.len() > 100 {
+        format!("{}...", &activity[..97])
+    } else {
+        activity
+    };
     LOGS.with(|logs| {
         let mut logs = logs.borrow_mut();
         if logs.len() >= MAX_LOGS {
@@ -206,7 +211,7 @@ fn log_activity(activity: String) {
         let entry = LogEntry {
             id: id.clone(),
             timestamp: time(),
-            activity,
+            activity: sanitized_activity,
         };
         logs.insert(id, entry);
     });
@@ -246,8 +251,15 @@ fn init(admin: Principal, vetkd_canister_id: Option<Principal>) {
             *id.borrow_mut() = vetkd_id;
         });
     }
+    let vetkd_str = match vetkd_canister_id {
+        Some(id) => id.to_string(),
+        None => "no VETKD canister ID".to_string(),
+    };
 
-    log_activity(format!("Canister initialized with {}", admin));
+    log_activity(format!(
+        "Canister initialized with {} and {}",
+        admin, vetkd_str
+    ));
 }
 
 fn is_admin(caller: Principal) -> bool {
@@ -398,20 +410,25 @@ async fn get_time_decryption_key(
             "Encryption public key cannot be empty".to_string(),
         ));
     }
-    let current_time = time();
+    if unlock_time_hex.len() != 16 || !unlock_time_hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(ChronoError::InvalidInput(
+            "unlock_time_hex must be a 16-character hexadecimal string".to_string(),
+        ));
+    }
+
     let unlock_time = u64::from_str_radix(&unlock_time_hex, 16)
         .map_err(|e| ChronoError::InvalidInput(format!("Invalid hex for unlock time: {}", e)))?;
+    let unlock_time_ns = unlock_time * 1_000_000_000;
 
-    if current_time < unlock_time {
+    let current_time_ns = time();
+    if current_time_ns < unlock_time_ns {
         return Err(ChronoError::TimeLocked);
     }
 
-    call_vetkd_derive_encrypted_key(
-        hex::decode(unlock_time_hex)
-            .map_err(|e| ChronoError::InvalidInput(format!("Hex decode failed: {}", e)))?,
-        encryption_public_key,
-    )
-    .await
+    let derivation_id = hex::decode(&unlock_time_hex)
+        .map_err(|e| ChronoError::InvalidInput(format!("Invalid hex: {}", e)))?;
+
+    call_vetkd_derive_encrypted_key(derivation_id, encryption_public_key).await
 }
 
 #[update]
@@ -433,11 +450,11 @@ async fn get_user_time_decryption_key(
         return Err(ChronoError::Unauthorized);
     }
 
-    let current_time = time();
     let unlock_time = u64::from_str_radix(&unlock_time_hex, 16)
-        .map_err(|e| ChronoError::InvalidInput(format!("Invalid hex for unlock time: {}", e)))?;
-
-    if current_time < unlock_time {
+        .map_err(|e| ChronoError::InvalidInput(format!("Invalid hex: {}", e)))?;
+    let unlock_time_ns = unlock_time * 1_000_000_000; // Convert to nanoseconds
+    let current_time_ns = time();
+    if current_time_ns < unlock_time_ns {
         return Err(ChronoError::TimeLocked);
     }
 
@@ -454,11 +471,12 @@ fn create_chronolock(metadata: String, unlock_time: u64) -> Result<String, Chron
         return Err(ChronoError::MetadataTooLarge);
     }
     let id = generate_unique_id();
+    let unlock_time_ns = unlock_time * 1_000_000_000;
     let chronolock = Chronolock {
         id: id.clone(),
         owner: caller,
         metadata,
-        unlock_time,
+        unlock_time: unlock_time_ns,
     };
     CHRONOLOCKS.with(|locks| {
         locks.borrow_mut().insert(id.clone(), chronolock);

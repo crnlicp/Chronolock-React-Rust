@@ -1,6 +1,7 @@
 // vetkd_mock/lib.rs
 
 use candid::{CandidType, Principal};
+use hex;
 use ic_cdk_macros::{query, update};
 use serde::Deserialize;
 
@@ -23,11 +24,14 @@ enum VetkdCurve {
 }
 
 #[derive(CandidType, Deserialize)]
+struct ByteBuf(Vec<u8>);
+
+#[derive(CandidType, Deserialize)]
 struct VetkdDeriveEncryptedKeyArgs {
     key_id: VetkdDeriveEncryptedKeyArgsKeyId,
     derivation_path: Vec<Vec<u8>>,
-    derivation_id: Vec<u8>,
-    encryption_public_key: Vec<u8>,
+    derivation_id: ByteBuf,
+    encryption_public_key: ByteBuf,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -45,12 +49,13 @@ fn vetkd_public_key(args: VetkdPublicKeyArgs) -> Vec<u8> {
 
 #[update]
 fn vetkd_derive_encrypted_key(args: VetkdDeriveEncryptedKeyArgs) -> Vec<u8> {
+    let derivation_id_hex = hex::encode(&args.derivation_id.0);
+    let encryption_pubkey_hex = hex::encode(&args.encryption_public_key.0);
     let mock_key = format!(
         "mock_encrypted_key_{}_{}",
-        String::from_utf8_lossy(&args.derivation_id),
-        String::from_utf8_lossy(&args.encryption_public_key)
+        derivation_id_hex, encryption_pubkey_hex
     );
-    ic_cdk::println!("Mock VETKD returning: {}", mock_key);
+    // println!("Mock VETKD returning: {}", mock_key);
     mock_key.as_bytes().to_vec()
 }
 
