@@ -9,7 +9,7 @@ Chronolock is a full-stack Web3 application built on the [Internet Computer](htt
 Ensure the following tools are installed on your system:
 
 - [Node.js](https://nodejs.org/en/) `>= 21`
-- [`dfx`](https://internetcomputer.org/docs/current/developer-docs/build/install-upgrade-remove) `>= 0.18`
+- [dfx](https://internetcomputer.org/docs/current/developer-docs/build/install-upgrade-remove) `>= 0.18`
 - [Rust](https://www.rust-lang.org/tools/install)
 
 ### Setup Instructions
@@ -50,14 +50,27 @@ This command will automatically install dependencies, build and deploy all the t
 
 ## 🧪 Testing
 
-- **Run frontend tests**:
+- **Run frontend and backend tests**:
   ```sh
-  npm test
+  npm run test
   ```
 
-- **Run backend tests**:
+- **Run frontend only tests**:
+  ```sh
+  npm run test:frontend
+  ```
+
+- **Run backend only tests**:
+  ```sh
+  npm run test:backend
+  ```
   ```sh
   cargo test --all
+  ```
+
+- **Run specific canister's tests**:
+    ```sh
+  cargo test --package [package_name]
   ```
 
 ## 🛡️ License
