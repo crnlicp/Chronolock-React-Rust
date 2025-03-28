@@ -1,3 +1,5 @@
+// src/backend/hello_world/tests/canister_tests.rs
+
 use candid::{decode_one, encode_one, Principal};
 use pocket_ic::PocketIc;
 use std::fs;

@@ -1,4 +1,4 @@
-// Chronolock/lib.rs
+// src/backend/chronolock/src/lib.rs
 
 use candid::{CandidType, Principal};
 use hex;

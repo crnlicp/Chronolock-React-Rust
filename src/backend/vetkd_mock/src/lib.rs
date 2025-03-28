@@ -1,4 +1,4 @@
-// vetkd_mock/lib.rs
+// src/backend/vetkd_mock/src/lib.rs
 
 use candid::{CandidType, Principal};
 use hex;

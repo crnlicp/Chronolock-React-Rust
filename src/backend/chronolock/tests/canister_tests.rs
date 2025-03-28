@@ -1,4 +1,4 @@
-// Chronolock/canister_tests.rs
+// src/backend/chronolock/tests/canister_tests.rs
 
 use candid::{decode_one, encode_args, CandidType, Principal};
 use pocket_ic::PocketIc;
