@@ -12,7 +12,7 @@
     "build": "tsc -p \"src/frontend/tsconfig.json\"  && vite build --config \"src/frontend/vite.config.ts\"",
     "test": "run-s test:backend test:frontend",
     "test:frontend": "vitest run --config \"src/frontend/vite.config.ts\"",
-    "test:backend": "cargo test",
+    "test:backend": "cargo test --all",
     "format": "prettier --write \"src/**/*.{json,js,jsx,ts,tsx,css,scss}\" \"src/backend/**/*.rs\""
   },
   "dependencies": {
