@@ -1,61 +1,65 @@
-# Vite + React + Rust
+# Chronolock: Vite + React + Rust
 
-This template gives you everything you need to build a full-stack Web3 application on the [Internet Computer](https://internetcomputer.org/).
-It includes a frontend built with Vite and React and a backend written in Rust.
+Chronolock is a full-stack Web3 application built on the [Internet Computer](https://internetcomputer.org/). It features a frontend powered by Vite and React and a backend written in Rust.
 
-## Get started:
+## 🚀 Get Started
 
-Make sure that [Node.js](https://nodejs.org/en/) `>= 21` and [`dfx`](https://internetcomputer.org/docs/current/developer-docs/build/install-upgrade-remove) `>= 0.18` are installed on your system.
+### Prerequisites
 
-Run the following commands in a new, empty project directory:
+Ensure the following tools are installed on your system:
+
+- [Node.js](https://nodejs.org/en/) `>= 21`
+- [`dfx`](https://internetcomputer.org/docs/current/developer-docs/build/install-upgrade-remove) `>= 0.18`
+- [Rust](https://www.rust-lang.org/tools/install)
+
+### Setup Instructions
+
+Run the following command to set up the project:
 
 ```sh
-git clone [https://github.com/crnlicp/Chronolock-React-Rust.git](https://github.com/crnlicp/Chronolock-React-Rust.git) # Download this starter project
-cd Chronolock-React-Rust # Navigate to the project directory
-dfx start --clean --background # Run dfx in the background
-npm install # Install project dependencies
-npm run setup # Install packages, deploy canisters, and generate type bindings
-
-npm start # Start the development server
+npm run setup
 ```
 
-## 🚀 Develop
+This command will automatically install dependencies, build and deploy all the the backend canisters, and prepare the project for development.
 
-The frontend will update automatically as you save changes. 
-For the backend, run `dfx deploy backend` to redeploy.
-To redeploy all canisters (front- and backend), run `dfx deploy`.
+### Development Workflow
 
-When ready, run `dfx deploy --network ic` to deploy your application to the ICP mainnet.
+- **Start the development server**:
+  ```sh
+  npm start
+  ```
+
+- **Deploy to the Internet Computer mainnet**:
+  ```sh
+  dfx deploy --network ic
+  ```
 
 ## 🛠️ Technology Stack
 
-- [Vite](https://vitejs.dev/): high-performance tooling for front-end web development
-- [React](https://reactjs.org/): a component-based UI library
+- [Vite](https://vitejs.dev/): High-performance tooling for front-end web development
+- [React](https://reactjs.org/): A component-based UI library
 - [TypeScript](https://www.typescriptlang.org/): JavaScript extended with syntax for types
-- [Sass](https://sass-lang.com/): an extended syntax for CSS stylesheets
-- [Prettier](https://prettier.io/): code formatting for a wide range of supported languages
-- [Rust CDK](https://docs.rs/ic-cdk/): the Canister Development Kit for Rust
+- [Rust CDK](https://docs.rs/ic-cdk/): The Canister Development Kit for Rust
 
 ## 📚 Documentation
 
 - [Internet Computer docs](https://internetcomputer.org/docs/current/developer-docs/ic-overview)
-- [Internet Computer wiki](https://wiki.internetcomputer.org/)
-- [Internet Computer forum](https://forum.dfinity.org/)
 - [Vite developer docs](https://vitejs.dev/guide/)
 - [React quick start guide](https://react.dev/learn)
-- [`dfx.json` reference schema](https://internetcomputer.org/docs/current/references/dfx-json-reference/)
 - [Rust developer docs](https://internetcomputer.org/docs/current/developer-docs/backend/rust/)
-- [Developer Experience Feedback Board](https://dx.internetcomputer.org/)
 
+## 🧪 Testing
 
-## 💡 Tips and Tricks
+- **Run frontend tests**:
+  ```sh
+  npm test
+  ```
 
-- If the links printed by dfx do not work in Codespaces, run `./canister_urls.py` and click the links shown there.
-- If you get an error `The wasm of 7hfb6-caaaa-aaaar-qadga-cai in pulled cache ...` run `rm -rf ~/.cache/dfinity/pulled/7hfb6-caaaa-aaaar-qadga-cai`
-- Customize your project's code style by editing the `.prettierrc` file and then running `npm run format`.
-- Split your frontend and backend console output by running `npm run frontend` and `npm run backend` in separate terminals.
+- **Run backend tests**:
+  ```sh
+  cargo test --all
+  ```
 
+## 🛡️ License
 
-## Extracting Candid
-
-You can use `candid-extractor target/wasm32-unknown-unknown/release/[package_id].wasm > src/backend/[package_id]/[package_id].did` command to extract candid file for a canister. 
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
