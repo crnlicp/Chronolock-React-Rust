@@ -15,4 +15,5 @@ candid-extractor target/wasm32-unknown-unknown/release/chronolock.wasm > src/bac
 echo "Extracted chronolock.did" &&
 candid-extractor target/wasm32-unknown-unknown/release/vetkd_mock.wasm > src/backend/vetkd_mock/vetkd_mock.did &&
 echo "Extracted vetkd_mock.did" &&
+dfx generate hello_world && dfx generate crnl_ledger && dfx generate chronolock &&
 dfx deploy
