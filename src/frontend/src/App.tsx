@@ -1,12 +1,35 @@
-import { Fragment } from "react"
-import Header from "./components/Header"
+import { BrowserRouter, Route, Routes } from 'react-router';
+import { Home } from './pages/Home';
+import { Chronolock } from './pages/Chronolock';
+import { Create } from './pages/Create';
+import { Collection } from './pages/Collection';
+import { Header } from './components/header/Header';
+import { dataBgImg, imgToSVG } from './utils/utility';
+import { useEffect } from 'react';
+import { Footer } from './components/Footer';
+import { NotFound } from './components/NotFound';
 
 const App = () => {
-    return (
-        <Fragment>
-            <Header />
-        </Fragment>
-    )
-}
+  useEffect(() => {
+    dataBgImg();
+    imgToSVG();
+  }, []);
 
-export default App
+  return (
+    <BrowserRouter>
+      <Header />
+      <div className="body_container">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/chronolock/:id" element={<Chronolock />} />
+          <Route path="/create" element={<Create />} />
+          <Route path="/collection" element={<Collection />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+      <Footer />
+    </BrowserRouter>
+  );
+};
+
+export default App;

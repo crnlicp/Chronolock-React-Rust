@@ -834,3 +834,201 @@ fn test_chronolock_encryption_integration() {
         "Decryption key does not match expected value"
     );
 }
+
+#[test]
+fn test_multi_user_time_locked_decryption_keys() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    // Setup unlock time and encryption public key
+    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let unlock_time = current_time + 1000;
+    let unlock_time_hex = format!("{:016x}", unlock_time);
+    let encryption_public_key = vec![9, 8, 7];
+
+    // Define multiple users
+    let user1 = admin;
+    let user2 = Principal::self_authenticating(&[4, 5, 6]);
+    let user3 = Principal::self_authenticating(&[7, 8, 9]);
+    let users = vec![user1, user2, user3];
+
+    // Before unlock time, all users should get TimeLocked error
+    for user in &users {
+        let user_id = user.to_text();
+        let response = pic
+            .update_call(
+                backend_canister,
+                *user,
+                "get_user_time_decryption_key",
+                encode_args((
+                    unlock_time_hex.clone(),
+                    user_id.clone(),
+                    encryption_public_key.clone(),
+                ))
+                .unwrap(),
+            )
+            .expect("Failed to call get_user_time_decryption_key");
+        let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+        assert_eq!(
+            result,
+            Err(ChronoError::TimeLocked),
+            "Expected TimeLocked error before unlock time for user {}",
+            user_id
+        );
+    }
+
+    // Advance time past unlock_time
+    pic.advance_time(std::time::Duration::from_secs(1001));
+
+    // After unlock time, each user should get their own decryption key
+    for user in &users {
+        let user_id = user.to_text();
+        let response = pic
+            .update_call(
+                backend_canister,
+                *user,
+                "get_user_time_decryption_key",
+                encode_args((
+                    unlock_time_hex.clone(),
+                    user_id.clone(),
+                    encryption_public_key.clone(),
+                ))
+                .unwrap(),
+            )
+            .expect("Failed to call get_user_time_decryption_key");
+        let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+        let key = result.expect("Failed to get decryption key");
+
+        // Compute expected key
+        let combined_id = format!("{}:{}", unlock_time_hex, user_id);
+        let combined_id_hex = hex::encode(combined_id.as_bytes());
+        let encryption_public_key_hex = hex::encode(&encryption_public_key);
+        let mock_key = format!(
+            "mock_encrypted_key_{}_{}",
+            combined_id_hex, encryption_public_key_hex
+        );
+        let expected_key = hex::encode(mock_key.as_bytes());
+
+        assert_eq!(
+            key, expected_key,
+            "Decryption key does not match expected value for user {}",
+            user_id
+        );
+    }
+}
+
+#[test]
+fn test_create_and_unlock_multi_user_chronolock() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    // Setup unlock time and encryption public key
+    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let unlock_time = current_time + 1000;
+    let unlock_time_hex = format!("{:016x}", unlock_time);
+    let encryption_public_key = vec![42, 43, 44];
+
+    // Define multiple users
+    let user1 = admin;
+    let user2 = Principal::self_authenticating(&[10, 11, 12]);
+    let user3 = Principal::self_authenticating(&[13, 14, 15]);
+    let users = vec![user1, user2, user3];
+
+    // Simulate encrypting a symmetric key for each user (in practice, this would be done off-chain)
+    let mut encrypted_keys = vec![];
+    for user in &users {
+        let user_id = user.to_text();
+        // In a real scenario, you would encrypt the symmetric key with the IBE key for (unlock_time_hex, user_id)
+        // Here, we just store the tuple for test purposes
+        encrypted_keys.push((user_id.clone(), format!("encrypted_key_for_{}", user_id)));
+    }
+
+    // Store the encrypted keys as JSON in metadata (simulate multi-user metadata)
+    let metadata = serde_json::to_string(&encrypted_keys).unwrap();
+
+    // Create the chronolock
+    let create_response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "create_chronolock",
+            encode_args((metadata.clone(), unlock_time)).unwrap(),
+        )
+        .expect("Failed to call create_chronolock");
+    let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
+    let token_id = token_id_result.expect("Failed to create chronolock");
+
+    // Before unlock time, all users should get TimeLocked error
+    for user in &users {
+        let user_id = user.to_text();
+        let response = pic
+            .update_call(
+                backend_canister,
+                *user,
+                "get_user_time_decryption_key",
+                encode_args((
+                    unlock_time_hex.clone(),
+                    user_id.clone(),
+                    encryption_public_key.clone(),
+                ))
+                .unwrap(),
+            )
+            .expect("Failed to call get_user_time_decryption_key");
+        let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+        assert_eq!(
+            result,
+            Err(ChronoError::TimeLocked),
+            "Expected TimeLocked error before unlock time for user {}",
+            user_id
+        );
+    }
+
+    // Advance time past unlock_time
+    pic.advance_time(std::time::Duration::from_secs(1001));
+
+    // After unlock time, each user should get their own decryption key
+    for user in &users {
+        let user_id = user.to_text();
+        let response = pic
+            .update_call(
+                backend_canister,
+                *user,
+                "get_user_time_decryption_key",
+                encode_args((
+                    unlock_time_hex.clone(),
+                    user_id.clone(),
+                    encryption_public_key.clone(),
+                ))
+                .unwrap(),
+            )
+            .expect("Failed to call get_user_time_decryption_key");
+        let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+        let key = result.expect("Failed to get decryption key");
+
+        // Compute expected key
+        let combined_id = format!("{}:{}", unlock_time_hex, user_id);
+        let combined_id_hex = hex::encode(combined_id.as_bytes());
+        let encryption_public_key_hex = hex::encode(&encryption_public_key);
+        let mock_key = format!(
+            "mock_encrypted_key_{}_{}",
+            combined_id_hex, encryption_public_key_hex
+        );
+        let expected_key = hex::encode(mock_key.as_bytes());
+
+        assert_eq!(
+            key, expected_key,
+            "Decryption key does not match expected value for user {}",
+            user_id
+        );
+    }
+
+    // Optionally, check that the metadata contains all user keys
+    let metadata_response = pic
+        .query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc7_token_metadata",
+            encode_args((token_id.clone(),)).unwrap(),
+        )
+        .expect("Failed to query icrc7_token_metadata");
+    let returned_metadata: Option<String> = decode_one(&metadata_response).unwrap();
+    assert_eq!(returned_metadata, Some(metadata));
+}

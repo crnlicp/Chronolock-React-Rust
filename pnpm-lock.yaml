@@ -11,9 +11,21 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.3.1
+      react-countup:
+        specifier: ^6.5.3
+        version: 6.5.3(react@18.3.1)
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
+      react-visibility-sensor:
+        specifier: ^5.1.1
+        version: 5.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react-water-wave:
+        specifier: ^2.0.1
+        version: 2.0.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      swiper:
+        specifier: ^11.2.6
+        version: 11.2.6
     devDependencies:
       '@dfinity/agent':
         specifier: ^0.18.1
@@ -919,6 +931,9 @@ packages:
     resolution: {integrity: sha1-6sEdpRWS3Ya58G9uesKTs9+HXSk=}
     engines: {node: '>= 0.10'}
 
+  countup.js@2.8.2:
+    resolution: {integrity: sha1-6knoeBaTYSzxHYEgmiMAWO8ibaU=}
+
   cross-fetch@3.1.5:
     resolution: {integrity: sha1-4TifRNnnunZ5B/evhFR4eVKrU08=}
 
@@ -1466,6 +1481,14 @@ packages:
     resolution: {integrity: sha1-I8K2K/sivoK0TemAVYAv83EPwLw=}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
+  jquery.ripples@0.6.3:
+    resolution: {integrity: sha1-wjdKXjDnIsMXfpDxdw/JCPHFrIA=}
+    peerDependencies:
+      jquery: '>=1.7.0'
+
+  jquery@3.7.1:
+    resolution: {integrity: sha1-CD75iSfJpqdNBaavAoBlZtFidN4=}
+
   js-sha256@0.9.0:
     resolution: {integrity: sha1-C4msFmWD6R75EjZEvTxTNM6dCWY=}
 
@@ -1792,6 +1815,9 @@ packages:
     resolution: {integrity: sha1-ykLHWDEPNlv6caC9oKgHFgt3aBI=}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
+  prop-types@15.8.1:
+    resolution: {integrity: sha1-Z9h78aaU9IQ1zzMsJK8QIUoxQLU=}
+
   proxy-addr@2.0.7:
     resolution: {integrity: sha1-8Z/mnOqzEe65S0LnDowgcPm6ECU=}
     engines: {node: '>= 0.10'}
@@ -1821,10 +1847,18 @@ packages:
     resolution: {integrity: sha1-mf69g7kOCJdQh+jx+UGaFJNmtoo=}
     engines: {node: '>= 0.8'}
 
+  react-countup@6.5.3:
+    resolution: {integrity: sha1-6JKqPqsta6nDzbowv07Wdkgm2Eg=}
+    peerDependencies:
+      react: '>= 16.3.0'
+
   react-dom@18.3.1:
     resolution: {integrity: sha1-wiZdeVEbV9R5s90/36UVNklMXLQ=}
     peerDependencies:
       react: ^18.3.1
+
+  react-is@16.13.1:
+    resolution: {integrity: sha1-eJcppNw23imZ3BVt1sHZwYzqVqQ=}
 
   react-is@17.0.2:
     resolution: {integrity: sha1-5pHUqOnHiTZWVVOas3J2Kw77VPA=}
@@ -1835,6 +1869,18 @@ packages:
   react-refresh@0.17.0:
     resolution: {integrity: sha1-t+V5w2V/I9BOzL5K0uWKjtUeflM=}
     engines: {node: '>=0.10.0'}
+
+  react-visibility-sensor@5.1.1:
+    resolution: {integrity: sha1-Ujg4CWDToLK+C3+t3/OFQeM39ak=}
+    peerDependencies:
+      react: '>=16.0.0'
+      react-dom: '>=16.0.0'
+
+  react-water-wave@2.0.1:
+    resolution: {integrity: sha1-gUgglm1fuznVTERXkPi8/u/w6iw=}
+    peerDependencies:
+      react: ^16 | ^17 | ^18
+      react-dom: ^16 | ^17 | ^18
 
   react@18.3.1:
     resolution: {integrity: sha1-SauJIAnFOTNiW9FrJTP8dUyrKJE=}
@@ -2086,6 +2132,10 @@ packages:
   supports-preserve-symlinks-flag@1.0.0:
     resolution: {integrity: sha1-btpL00SjyUrqN21MwxvHcxEDngk=}
     engines: {node: '>= 0.4'}
+
+  swiper@11.2.6:
+    resolution: {integrity: sha1-gmlDv4cVhRjKCx9X04cnKxKgfFI=}
+    engines: {node: '>= 4.7.0'}
 
   symbol-tree@3.2.4:
     resolution: {integrity: sha1-QwY30ki6d+B4iDlR+5qg7tfGP6I=}
@@ -3142,6 +3192,8 @@ snapshots:
       object-assign: 4.1.1
       vary: 1.1.2
 
+  countup.js@2.8.2: {}
+
   cross-fetch@3.1.5:
     dependencies:
       node-fetch: 2.6.7
@@ -3843,6 +3895,12 @@ snapshots:
       graceful-fs: 4.2.11
       picomatch: 2.3.1
 
+  jquery.ripples@0.6.3(jquery@3.7.1):
+    dependencies:
+      jquery: 3.7.1
+
+  jquery@3.7.1: {}
+
   js-sha256@0.9.0: {}
 
   js-tokens@4.0.0: {}
@@ -4160,6 +4218,12 @@ snapshots:
       ansi-styles: 5.2.0
       react-is: 18.3.1
 
+  prop-types@15.8.1:
+    dependencies:
+      loose-envify: 1.4.0
+      object-assign: 4.1.1
+      react-is: 16.13.1
+
   proxy-addr@2.0.7:
     dependencies:
       forwarded: 0.2.0
@@ -4188,17 +4252,37 @@ snapshots:
       iconv-lite: 0.4.24
       unpipe: 1.0.0
 
+  react-countup@6.5.3(react@18.3.1):
+    dependencies:
+      countup.js: 2.8.2
+      react: 18.3.1
+
   react-dom@18.3.1(react@18.3.1):
     dependencies:
       loose-envify: 1.4.0
       react: 18.3.1
       scheduler: 0.23.2
 
+  react-is@16.13.1: {}
+
   react-is@17.0.2: {}
 
   react-is@18.3.1: {}
 
   react-refresh@0.17.0: {}
+
+  react-visibility-sensor@5.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      prop-types: 15.8.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  react-water-wave@2.0.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      jquery: 3.7.1
+      jquery.ripples: 0.6.3(jquery@3.7.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   react@18.3.1:
     dependencies:
@@ -4523,6 +4607,8 @@ snapshots:
       has-flag: 4.0.0
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  swiper@11.2.6: {}
 
   symbol-tree@3.2.4: {}
 
