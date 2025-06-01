@@ -4,17 +4,10 @@ import { Chronolock } from './pages/Chronolock';
 import { Create } from './pages/Create';
 import { Collection } from './pages/Collection';
 import { Header } from './components/header/Header';
-import { dataBgImg, imgToSVG } from './utils/utility';
-import { useEffect } from 'react';
 import { Footer } from './components/Footer';
 import { NotFound } from './components/NotFound';
 
 const App = () => {
-  useEffect(() => {
-    dataBgImg();
-    imgToSVG();
-  }, []);
-
   return (
     <BrowserRouter>
       <Header />

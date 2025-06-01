@@ -60,7 +60,7 @@ thread_local! {
     static VETKD_CANISTER_ID: RefCell<Principal> = RefCell::new(
         Principal::from_text(VETKD_CANISTER_ID_TEXT).unwrap()
     );
-    static SYMBOL: RefCell<String> = RefCell::new("CHRONO".to_string());
+    static SYMBOL: RefCell<String> = RefCell::new("CHRONOLOCK".to_string());
     static NAME: RefCell<String> = RefCell::new("Chronolock Collection".to_string());
     static DESCRIPTION: RefCell<String> = RefCell::new("A collection of time-locked NFTs".to_string());
 }

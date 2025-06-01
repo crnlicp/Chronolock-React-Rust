@@ -12,17 +12,17 @@ export const Footer = () => {
             <ul>
               <li>
                 <NavLink to="/policy">
-                  <a className="creative_link">Privacy Policy</a>
+                  <span className="creative_link">Privacy Policy</span>
                 </NavLink>
               </li>
               <li>
                 <NavLink to="/cookies">
-                  <a className="creative_link">Cookies</a>
+                  <span className="creative_link">Cookies</span>
                 </NavLink>
               </li>
               <li>
                 <NavLink to="/terms-conditions">
-                  <a className="creative_link">Terms &amp; Conditions</a>
+                  <span className="creative_link">Terms &amp; Conditions</span>
                 </NavLink>
               </li>
             </ul>

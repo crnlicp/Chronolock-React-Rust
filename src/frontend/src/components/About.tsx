@@ -65,14 +65,14 @@ export const About = () => {
                 pretium et, tempus at libero.
               </p>
             </div>
-            <a
-              href="https://discord.com/"
+            <NavLink
+              to="https://discord.com/"
               className="metaportal_fn_button"
               target="_blank"
               rel="noreferrer"
             >
               <span>Find us On Discord</span>
-            </a>
+            </NavLink>
           </div>
         </div>
       </div>

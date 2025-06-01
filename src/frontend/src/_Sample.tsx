@@ -3,6 +3,7 @@ import './styles/App.scss';
 import rustLogo from '../assets/rust.svg';
 import reactLogo from '../assets/react.svg';
 import ethLogo from '../assets/eth.svg';
+import { NavLink } from 'react-router';
 // import { hello_world } from '../../declarations/hello_world';
 
 function App() {
@@ -37,23 +38,23 @@ function App() {
   return (
     <div className="App">
       <div>
-        <a href="https://reactjs.org" target="_blank">
+        <NavLink to="https://reactjs.org" target="_blank">
           <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-        <a
-          href="https://github.com/internet-computer-protocol/evm-rpc-canister#readme"
+        </NavLink>
+        <NavLink
+          to="https://github.com/internet-computer-protocol/evm-rpc-canister#readme"
           target="_blank"
         >
           <img src={ethLogo} className="logo ethereum" alt="Ethereum logo" />
-        </a>
-        <a
-          href="https://internetcomputer.org/docs/current/developer-docs/backend/rust/"
+        </NavLink>
+        <NavLink
+          to="https://internetcomputer.org/docs/current/developer-docs/backend/rust/"
           target="_blank"
         >
           <span className="logo-stack">
             <img src={rustLogo} className="logo rust" alt="Rust logo" />
           </span>
-        </a>
+        </NavLink>
       </div>
       <h1 style={{ paddingLeft: 36 }}>React + EVM RPC + Rust</h1>
       <input type="text" onChange={handleChangeText} value={name} />

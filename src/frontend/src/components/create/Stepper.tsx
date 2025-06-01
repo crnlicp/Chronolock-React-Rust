@@ -84,11 +84,12 @@ const steps = [
   '1. Set Unlock Time and Recipients',
   '2. Upload Your File',
   '3. Fill in the details',
+  '4. Create Your Chronolock',
 ];
 
 export default function CustomizedSteppers({ activeStep = 0 }) {
   return (
-    <Stack sx={{ width: '100%', paddingTop: 7 }} spacing={4}>
+    <Stack spacing={4} style={{ marginBottom: '24px' }}>
       <Stepper
         alternativeLabel
         activeStep={activeStep}

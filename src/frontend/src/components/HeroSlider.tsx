@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import WaterWave from 'react-water-wave';
 import Clock from './Clock';
+import { NavLink } from 'react-router';
 
 export const HeroSlider = () => {
   useEffect(() => {
@@ -193,16 +194,16 @@ export const HeroSlider = () => {
                     <li className="next" data-index={3}>
                       <div className="item has_video">
                         <img src="assets/img/1x1.jpg" alt="" />
-                        <a
+                        <NavLink
                           className="popup-youtube metaportal_fn_videobutton"
-                          href="https://www.youtube.com/embed/7e90gBu4pas"
+                          to="https://www.youtube.com/embed/7e90gBu4pas"
                         >
                           <img
                             src="assets/svg/play.svg"
                             alt=""
                             className="fn__svg"
                           />
-                        </a>
+                        </NavLink>
                         <div className="item_in">
                           <div
                             className="img"
@@ -258,7 +259,7 @@ export const HeroSlider = () => {
                   </ul>
                 </div>
                 <div className="slider_nav">
-                  <a href="#" className="prev">
+                  <NavLink to="#" className="prev">
                     <span className="circle" />
                     <span className="icon">
                       <img
@@ -268,8 +269,8 @@ export const HeroSlider = () => {
                       />
                     </span>
                     <span className="circle" />
-                  </a>
-                  <a href="#" className="next">
+                  </NavLink>
+                  <NavLink to="#" className="next">
                     <span className="circle" />
                     <span className="icon">
                       <img
@@ -279,7 +280,7 @@ export const HeroSlider = () => {
                       />
                     </span>
                     <span className="circle" />
-                  </a>
+                  </NavLink>
                 </div>
               </div>
               {/* !Slider */}

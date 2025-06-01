@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { NavLink } from 'react-router';
 
 interface IMobileNavigationProps {
   navigation: boolean;
@@ -10,6 +11,10 @@ export const MobileNavigation = ({
   onNavigationToggle,
 }: IMobileNavigationProps) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  const handleMobileMenuToggle = () => {
+    setShowMobileMenu(!showMobileMenu);
+  };
   return (
     <Fragment>
       <div className="metaportal_fn_mobnav">
@@ -23,22 +28,22 @@ export const MobileNavigation = ({
             </div>
           </div>
           <div className="wallet">
-            <a
-              href="#"
+            <NavLink
+              to="#"
               onClick={(e) => {
                 e.preventDefault();
               }}
               className="metaportal_fn_button wallet_opener"
             >
               <img src="assets/svg/ii.svg" width={150} height={50} />
-            </a>
+            </NavLink>
           </div>
         </div>
         <div className="mob_mid">
           <div className="logo">
-            <a href="/">
+            <NavLink to="/">
               <img src="/img/logo.png" alt="" />
-            </a>
+            </NavLink>
           </div>
           <div
             className={`trigger ${showMobileMenu ? 'active' : ''}`}
@@ -53,29 +58,49 @@ export const MobileNavigation = ({
         >
           <ul>
             <li>
-              <a className="creative_link" href="#home">
+              <NavLink
+                className="creative_link"
+                to="/#home"
+                onClick={handleMobileMenuToggle}
+              >
                 Home
-              </a>
+              </NavLink>
             </li>
             <li>
-              <a className="creative_link" href="#about">
+              <NavLink
+                className="creative_link"
+                to="/#about"
+                onClick={handleMobileMenuToggle}
+              >
                 About
-              </a>
+              </NavLink>
             </li>
             <li>
-              <a className="creative_link" href="#collection">
+              <NavLink
+                className="creative_link"
+                to="/#collection"
+                onClick={handleMobileMenuToggle}
+              >
                 Collection
-              </a>
+              </NavLink>
             </li>
             <li>
-              <a className="creative_link" href="#news">
-                Blog
-              </a>
+              <NavLink
+                to="/#roadmap"
+                className="creative_link"
+                onClick={handleMobileMenuToggle}
+              >
+                Road Map
+              </NavLink>
             </li>
             <li>
-              <a className="creative_link" href="#contact">
-                Contact
-              </a>
+              <NavLink
+                to="/#faq"
+                className="creative_link"
+                onClick={handleMobileMenuToggle}
+              >
+                FAQ
+              </NavLink>
             </li>
           </ul>
         </div>
