@@ -1,0 +1,277 @@
+@import url("https://fonts.googleapis.com/css?family=BenchNine:300,400");
+
+.lock-container {
+  box-sizing: border-box;
+  container-type: size;
+}
+
+.lock {
+  position: absolute;
+}
+
+.clock-container {
+  font-family: "BenchNine", sans-serif;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  overflow: hidden;
+  container-type: size;
+  background: #111;
+  position: absolute;
+  width: 47.5cqw;
+  height: 47.5cqw;
+  transform: translate(59.5%, 95.2%);
+}
+
+.clock-container .spear {
+  position: absolute;
+  width: 50%;
+  height: 1px;
+  background: red;
+  left: 50%;
+  top: 49.8%;
+  z-index: 200;
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.4);
+}
+.clock-container .spear:after {
+  content: "";
+  position: absolute;
+  border: 7px solid transparent;
+  border-right-color: red;
+  right: 0;
+  top: -6.5px;
+}
+
+.clock-container .spear:before {
+  content: "";
+  position: absolute;
+  border: 7px solid transparent;
+  border-left-color: red;
+  top: -6.5px;
+}
+
+.clock-container .clock-analog {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #fff;
+  z-index: 5;
+  container-type: size;
+  box-shadow: 0 0 25px 3px #000 inset;
+}
+
+.clock-container .clock-analog .dail,
+.clock-container .clock-analog .second,
+.clock-container .clock-analog .minute,
+.clock-container .clock-analog .hour,
+.clock-container .clock-analog .days {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+  z-index: 100;
+  transition: 0.2s 0.2s ease-in;
+  transform: rotate(90deg);
+  font-size: 2cqw;
+}
+
+.clock-container .clock-analog .dail span,
+.clock-container .clock-analog .second span,
+.clock-container .clock-analog .minute span,
+.clock-container .clock-analog .hour span,
+.clock-container .clock-analog .days span {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  transform-origin: 50%;
+  z-index: 5;
+}
+
+.clock-container .clock-analog .dail span:after {
+  content: "";
+  position: absolute;
+  width: 1cqw;
+  height: 1cqw;
+  border-radius: 50%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  opacity: 0.4;
+}
+
+.clock-container .clock-analog .dail {
+  z-index: 110;
+}
+
+.clock-container .clock-analog .second {
+  z-index: 120;
+  font-size: 4cqw;
+}
+
+.clock-container .clock-analog .minute {
+  z-index: 130;
+  color: #fff;
+  font-size: 4cqw;
+}
+
+.clock-container .clock-analog .hour {
+  z-index: 140;
+  font-size: 5cqw;
+}
+
+.clock-container .clock-analog .days {
+  z-index: 150;
+  color: #ffffff;
+  font-size: 4cqw;
+}
+
+.clock-container .clock-analog .dail:after {
+  content: "";
+  background: #333;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100cqw;
+  height: 100cqw;
+  border-radius: 50%;
+  box-shadow: 0 0 25px 2px #000 inset;
+}
+
+.clock-container .clock-analog .second:after {
+  content: "";
+  background: #fff;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 93cqw;
+  height: 93cqw;
+  border-radius: 50%;
+  box-shadow: 0 0 15px 2px rgba(0, 0, 0, 0.6) inset;
+}
+
+.clock-container .clock-analog .minute:after {
+  content: "";
+  background: #333;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 80cqw;
+  height: 80cqw;
+  border-radius: 50%;
+  box-shadow: 0 0 25px 2px #000 inset;
+}
+
+.clock-container .clock-analog .hour:after {
+  content: "";
+  background: #fff;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 60cqw;
+  height: 60cqw;
+  border-radius: 50%;
+  box-shadow: 0 0 15px 2px rgba(0, 0, 0, 0.6) inset;
+}
+
+.clock-container .clock-analog .days:after {
+  content: "";
+  background: #333;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 40cqw;
+  height: 40cqw;
+  border-radius: 50%;
+  box-shadow: 0 0 15px 2px rgba(0, 0, 0, 0.6) inset;
+}
+
+.clock-container .clock-analog .dail span {
+  color: #ffffff00;
+}
+
+.clock-container .clock-analog .dail span:nth-child(5n + 1):after {
+  width: 4cqw;
+}
+
+.clock-container .clock-digital {
+  position: absolute;
+  width: 50%;
+  height: 100%;
+  background: #090909;
+  border-radius: 220px 0 0 220px;
+  box-shadow: 5px 0 15px #000;
+  z-index: 7;
+}
+
+.clock-container .clock-digital .round-border {
+  position: absolute;
+  border: 3.2cqw solid #8e0a0a;
+  border-right: none;
+  height: 100%;
+  width: 100%;
+  border-radius: 460px 0 0 460px;
+  z-index: 5;
+}
+
+.clock-container .clock-digital .unlock {
+  position: absolute;
+  width: 90%;
+  text-align: right;
+  right: 5%;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #fff;
+  font-size: 11cqw;
+}
+
+.clock-container .clock-digital .target-day {
+  position: absolute;
+  width: 80%;
+  text-align: right;
+  right: 5%;
+  bottom: 22%;
+  color: #fff;
+  font-size: 4.5cqw;
+}
+
+.clock-container .clock-digital .seconds,
+.clock-container .clock-digital .minutes,
+.clock-container .clock-digital .hours,
+.clock-container .clock-digital .days {
+  position: absolute;
+  width: 40%;
+  text-align: right;
+  right: 5%;
+  top: 19%;
+  color: #fff;
+  font-size: 4cqw;
+}
+
+.clock-container .clock-digital .seconds {
+  top: 4%;
+}
+.clock-container .clock-digital .minutes {
+  top: 12%;
+}
+.clock-container .clock-digital .hours {
+  top: 21%;
+}
+.clock-container .clock-digital .days {
+  top: 32%;
+}
+
+

@@ -60,7 +60,7 @@ thread_local! {
     static VETKD_CANISTER_ID: RefCell<Principal> = RefCell::new(
         Principal::from_text(VETKD_CANISTER_ID_TEXT).unwrap()
     );
-    static SYMBOL: RefCell<String> = RefCell::new("CHRONO".to_string());
+    static SYMBOL: RefCell<String> = RefCell::new("CHRONOLOCK".to_string());
     static NAME: RefCell<String> = RefCell::new("Chronolock Collection".to_string());
     static DESCRIPTION: RefCell<String> = RefCell::new("A collection of time-locked NFTs".to_string());
 }
@@ -217,7 +217,7 @@ fn log_activity(activity: String) {
     });
 }
 
-async fn call_vetkd_derive_encrypted_key(
+async fn call_vetkd_derive_key(
     derivation_id: Vec<u8>,
     encryption_public_key: Vec<u8>,
 ) -> Result<String, ChronoError> {
@@ -233,10 +233,9 @@ async fn call_vetkd_derive_encrypted_key(
 
     let vetkd_canister_id = VETKD_CANISTER_ID.with(|id| *id.borrow());
 
-    let (result,): (Vec<u8>,) =
-        ic_cdk::call(vetkd_canister_id, "vetkd_derive_encrypted_key", (args,))
-            .await
-            .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
+    let (result,): (Vec<u8>,) = ic_cdk::call(vetkd_canister_id, "vetkd_derive_key", (args,))
+        .await
+        .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
 
     Ok(hex::encode(result))
 }
@@ -328,6 +327,7 @@ fn icrc7_balance_of(account: Principal) -> u64 {
     })
 }
 
+// Returns a list of token IDs owned by the specified account.
 #[query]
 fn icrc7_owner_of(token_id: String) -> Option<Principal> {
     CHRONOLOCKS.with(|locks| locks.borrow().get(&token_id).map(|lock| lock.owner))
@@ -428,7 +428,7 @@ async fn get_time_decryption_key(
     let derivation_id = hex::decode(&unlock_time_hex)
         .map_err(|e| ChronoError::InvalidInput(format!("Invalid hex: {}", e)))?;
 
-    call_vetkd_derive_encrypted_key(derivation_id, encryption_public_key).await
+    call_vetkd_derive_key(derivation_id, encryption_public_key).await
 }
 
 #[update]
@@ -459,7 +459,7 @@ async fn get_user_time_decryption_key(
     }
 
     let combined_id = format!("{}:{}", unlock_time_hex, user_id);
-    call_vetkd_derive_encrypted_key(combined_id.into_bytes(), encryption_public_key).await
+    call_vetkd_derive_key(combined_id.into_bytes(), encryption_public_key).await
 }
 
 #[update]
