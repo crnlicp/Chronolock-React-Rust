@@ -9,7 +9,7 @@ export const Create = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [lockTime, setLockTime] = useState<PickerValue | null>(null);
   const [recipients, setRecipients] = useState<string[]>([]);
-  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [_mediaUrl, setMediaUrl] = useState<string | null>(null);
   // const targetDate = new Date();
   // targetDate.setHours(targetDate.getHours() + 2325);
 
@@ -34,10 +34,6 @@ export const Create = () => {
 
   const handleMediaUrlChange = (url: string): void => {
     setMediaUrl(url);
-  };
-
-  const handleFinish = () => {
-    console.log('Finish clicked');
   };
 
   return (

@@ -4,7 +4,6 @@ import rustLogo from '../assets/rust.svg';
 import reactLogo from '../assets/react.svg';
 import ethLogo from '../assets/eth.svg';
 import { NavLink } from 'react-router';
-// import { hello_world } from '../../declarations/hello_world';
 
 function App() {
   const [loading, setLoading] = useState(false);
@@ -16,8 +15,6 @@ function App() {
     try {
       setLoading(true);
       setError(undefined);
-      // const res = await hello_world.greet(name);
-      // setResponse(res);
     } catch (err) {
       console.error(err);
       setError(String(err));

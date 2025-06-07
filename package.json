@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "setup": "npm i && npm run setup:backend",
+    "setup": "pnpm i && pnpm run setup:backend",
     "setup:backend": "./setup-backend.sh",
     "start": "run-p frontend backend",
     "frontend": "vite --config \"src/frontend/vite.config.ts\" --port 3000",

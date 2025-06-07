@@ -1,9 +1,0 @@
-// src/backend/hello_world/src/lib.rs
-
-#[ic_cdk::query]
-fn greet(name: String) -> String {
-    format!("Hello, {}!", name)
-}
-
-// Export Candid interface
-ic_cdk::export_candid!();

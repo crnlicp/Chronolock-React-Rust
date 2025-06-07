@@ -5,12 +5,12 @@
 # Get the admin principal from the current DFX identity
 ADMIN_PRINCIPAL=$(dfx identity get-principal)
 
-# Get the canister ID of the vetkd_mock canister
-VETKD_MOCK_CANISTER_ID=$(dfx canister id vetkd_mock)
+# Get the canister ID of the chainkey_testing_canister canister
+CHAINKEY_TESTING_CANISTER_CANISTER_ID=$(dfx canister id chainkey_testing_canister)
 
-# Check if VETKD_MOCK_CANISTER_ID was retrieved successfully
-if [ -z "$VETKD_MOCK_CANISTER_ID" ]; then
-  echo "Error: Could not retrieve vetkd_mock canister ID. Ensure the canister is created and DFX is configured correctly."
+# Check if CHAINKEY_TESTING_CANISTER_CANISTER_ID was retrieved successfully
+if [ -z "$CHAINKEY_TESTING_CANISTER_CANISTER_ID" ]; then
+  echo "Error: Could not retrieve chainkey_testing_canister canister ID. Ensure the canister is created and DFX is configured correctly."
   exit 1
 fi
 
@@ -30,7 +30,7 @@ EOF
 cat <<EOF > src/backend/chronolock/chronolock_init_args.did
 (
   principal "$ADMIN_PRINCIPAL",
-  opt principal "$VETKD_MOCK_CANISTER_ID"
+  opt principal "$CHAINKEY_TESTING_CANISTER_CANISTER_ID"
 )
 EOF
 

@@ -2,12 +2,14 @@
 
 use candid::{decode_one, encode_args, CandidType, Principal};
 use pocket_ic::PocketIc;
+use serde_json;
 use std::fs;
 use std::time::UNIX_EPOCH;
 
 // Path to compiled WASM file (adjust as needed)
 const BACKEND_WASM: &str = "../../../target/wasm32-unknown-unknown/release/chronolock.wasm";
-const VETKD_WASM: &str = "../../../target/wasm32-unknown-unknown/release/vetkd_mock.wasm";
+const VETKD_WASM: &str =
+    "../../../target/wasm32-unknown-unknown/release/chainkey_testing_canister.wasm";
 
 // Structures required for testing (must match canister definitions)
 #[derive(CandidType, serde::Deserialize, Clone, Debug)]

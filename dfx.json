@@ -1,8 +1,18 @@
 {
   "canisters": {
-    "hello_world": {
-      "candid": "src/backend/hello_world/hello_world.did",
-      "package": "hello_world",
+    "internet_identity": {
+      "type": "custom",
+      "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
+      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz",
+      "remote": {
+        "id": {
+          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+        }
+      }
+    },
+    "chainkey_testing_canister": {
+      "candid": "src/backend/chainkey_testing_canister/chainkey_testing_canister.did",
+      "package": "chainkey_testing_canister",
       "type": "rust"
     },
     "crnl_ledger": {
@@ -17,19 +27,10 @@
       "type": "rust",
       "init_arg_file": "src/backend/chronolock/chronolock_init_args.did"
     },
-    "vetkd_mock": {
-      "candid": "src/backend/vetkd_mock/vetkd_mock.did",
-      "package": "vetkd_mock",
-      "type": "rust"
-    },
     "frontend": {
-      "dependencies": [
-        "hello_world"
-      ],
+      "dependencies": [],
       "type": "assets",
-      "source": [
-        "src/frontend/dist/"
-      ]
+      "source": ["src/frontend/dist/"]
     }
   },
   "output_env_file": ".env",

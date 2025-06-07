@@ -67,7 +67,7 @@ const img: React.CSSProperties = {
 export const UploadFile = ({
   onNext,
   onBack,
-  onUrlChange,
+  onUrlChange: _onUrlChange,
 }: IUploadFileProps) => {
   const [files, setFiles] = useState<Array<File & { preview: string }>>([]);
   const [error, setError] = useState<string | null>(null);
