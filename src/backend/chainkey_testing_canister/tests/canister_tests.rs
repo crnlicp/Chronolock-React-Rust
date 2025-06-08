@@ -16,68 +16,169 @@ pub const CANISTER_WASM: &str =
     "../../../target/wasm32-unknown-unknown/release/chainkey_testing_canister.wasm";
 
 #[test]
-fn should_consistently_derive_vetkey() {
-    let canister = CanisterSetup::default();
+fn test_public_key_retrieval() {
+    let ctx = TestContext::default();
 
-    let context = b"test-context".to_vec();
-    let key_id = VetKDKeyId {
-        curve: VetKDCurve::Bls12_381_G2,
-        name: "insecure_test_key_1".to_string(),
-    };
-    let input = b"test-input".to_vec();
-
-    let public_key_bytes = canister
+    let public_key_bytes = ctx
+        .canister
         .vetkd_public_key(VetKDPublicKeyRequest {
             canister_id: None,
-            context: context.clone(),
-            key_id: key_id.clone(),
+            context: ctx.context.clone(),
+            key_id: ctx.key_id.clone(),
         })
         .public_key;
 
+    assert!(
+        !public_key_bytes.is_empty(),
+        "Public key should not be empty"
+    );
+}
+
+#[test]
+fn test_key_derivation() {
+    let ctx = TestContext::default();
+
+    // Initialize RNG for the test
+    let seed = [101u8; 32];
+    let tsk = TransportSecretKey::from_seed(seed.to_vec())
+        .expect("failed to create transport secret key");
+
+    let encrypted_key = ctx
+        .canister
+        .vetkd_derive_key(VetKDDeriveKeyRequest {
+            context: ctx.context.clone(),
+            input: ctx.input.clone(),
+            transport_public_key: tsk.public_key(),
+            key_id: ctx.key_id.clone(),
+        })
+        .encrypted_key;
+
+    assert!(
+        !encrypted_key.is_empty(),
+        "Encrypted key should not be empty"
+    );
+}
+
+#[test]
+fn test_key_decryption_and_verification() {
+    let ctx = TestContext::default();
+    let tsk = TransportSecretKey::from_seed([101; 32].to_vec())
+        .expect("failed to create transport secret key");
+
+    // Get public key
+    let public_key_bytes = ctx
+        .canister
+        .vetkd_public_key(VetKDPublicKeyRequest {
+            canister_id: None,
+            context: ctx.context.clone(),
+            key_id: ctx.key_id.clone(),
+        })
+        .public_key;
+
+    // Get encrypted key
+    let encrypted_key = ctx
+        .canister
+        .vetkd_derive_key(VetKDDeriveKeyRequest {
+            context: ctx.context.clone(),
+            input: ctx.input.clone(),
+            transport_public_key: tsk.public_key(),
+            key_id: ctx.key_id.clone(),
+        })
+        .encrypted_key;
+
+    // Test decryption and verification
+    let encrypted_vetkey = EncryptedVetKey::deserialize(&encrypted_key)
+        .expect("failed to deserialize EncryptedVetKey");
+    let derived_public_key = DerivedPublicKey::deserialize(&public_key_bytes)
+        .expect("failed to deserialize DerivedPublicKey");
+    let vetkey = encrypted_vetkey
+        .decrypt_and_verify(&tsk, &derived_public_key, &ctx.input)
+        .expect("failed to decrypt and verify vetKey");
+
+    assert!(
+        !vetkey.signature_bytes().is_empty(),
+        "Decrypted key should not be empty"
+    );
+}
+
+#[test]
+fn test_key_consistency_with_different_transport_keys() {
+    let ctx = TestContext::default();
+
+    // Get public key once for both operations
+    let public_key_bytes = ctx
+        .canister
+        .vetkd_public_key(VetKDPublicKeyRequest {
+            canister_id: None,
+            context: ctx.context.clone(),
+            key_id: ctx.key_id.clone(),
+        })
+        .public_key;
+
+    // First transport key
     let tsk_1 = TransportSecretKey::from_seed([101; 32].to_vec())
         .expect("failed to create transport secret key");
-    let encrypted_key_1 = canister
-        .vetkd_derive_key(VetKDDeriveKeyRequest {
-            context: context.clone(),
-            input: input.clone(),
-            transport_public_key: tsk_1.public_key(),
-            key_id: key_id.clone(),
-        })
-        .encrypted_key;
-    let encrypted_vetkey_1 = EncryptedVetKey::deserialize(&encrypted_key_1)
-        .expect("failed to deserialize EncryptedVetKey");
-    let derived_public_key_1 = DerivedPublicKey::deserialize(&public_key_bytes)
-        .expect("failed to deserialize DerivedPublicKey");
-    let vetkey_1 = encrypted_vetkey_1
-        .decrypt_and_verify(&tsk_1, &derived_public_key_1, &input)
-        .expect("failed to decrypt and verify vetKey");
-    let decrypted_key_1 = vetkey_1.signature_bytes().to_vec();
+    let key_1 = derive_and_decrypt_key(&ctx, &tsk_1, &public_key_bytes);
 
+    // Second transport key
     let tsk_2 = TransportSecretKey::from_seed([102; 32].to_vec())
         .expect("failed to create transport secret key");
-    let encrypted_key_2 = canister
+    let key_2 = derive_and_decrypt_key(&ctx, &tsk_2, &public_key_bytes);
+
+    assert_eq!(key_1, key_2, "Derived keys should be identical");
+}
+
+fn derive_and_decrypt_key(
+    ctx: &TestContext,
+    tsk: &TransportSecretKey,
+    public_key_bytes: &[u8],
+) -> Vec<u8> {
+    let encrypted_key = ctx
+        .canister
         .vetkd_derive_key(VetKDDeriveKeyRequest {
-            context,
-            input: input.clone(),
-            transport_public_key: tsk_2.public_key(),
-            key_id,
+            context: ctx.context.clone(),
+            input: ctx.input.clone(),
+            transport_public_key: tsk.public_key(),
+            key_id: ctx.key_id.clone(),
         })
         .encrypted_key;
-    let encrypted_vetkey_2 = EncryptedVetKey::deserialize(&encrypted_key_2)
-        .expect("failed to deserialize EncryptedVetKey");
-    let derived_public_key_2 = DerivedPublicKey::deserialize(&public_key_bytes)
-        .expect("failed to deserialize DerivedPublicKey");
-    let vetkey_2 = encrypted_vetkey_2
-        .decrypt_and_verify(&tsk_2, &derived_public_key_2, &input)
-        .expect("failed to decrypt and verify vetKey");
-    let decrypted_key_2 = vetkey_2.signature_bytes().to_vec();
 
-    assert_eq!(decrypted_key_1, decrypted_key_2);
+    let encrypted_vetkey = EncryptedVetKey::deserialize(&encrypted_key)
+        .expect("failed to deserialize EncryptedVetKey");
+    let derived_public_key = DerivedPublicKey::deserialize(public_key_bytes)
+        .expect("failed to deserialize DerivedPublicKey");
+    let vetkey = encrypted_vetkey
+        .decrypt_and_verify(tsk, &derived_public_key, &ctx.input)
+        .expect("failed to decrypt and verify vetKey");
+
+    vetkey.signature_bytes().to_vec()
 }
 
 pub struct CanisterSetup {
     env: PocketIc,
     canister_id: CanisterId,
+}
+
+struct TestContext {
+    canister: CanisterSetup,
+    context: Vec<u8>,
+    key_id: VetKDKeyId,
+    input: Vec<u8>,
+}
+
+impl Default for TestContext {
+    fn default() -> Self {
+        let canister = CanisterSetup::default();
+        Self {
+            canister,
+            context: b"test-context".to_vec(),
+            key_id: VetKDKeyId {
+                curve: VetKDCurve::Bls12_381_G2,
+                name: "insecure_test_key_1".to_string(),
+            },
+            input: b"test-input".to_vec(),
+        }
+    }
 }
 
 impl CanisterSetup {

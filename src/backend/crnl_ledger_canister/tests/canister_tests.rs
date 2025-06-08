@@ -8,7 +8,8 @@ const COMMUNITY_POOL_SUBACCOUNT: [u8; 32] = [1u8; 32];
 const TEAM_VESTING_POOL_SUBACCOUNT: [u8; 32] = [2u8; 32];
 const RESERVE_POOL_SUBACCOUNT: [u8; 32] = [3u8; 32];
 
-const BACKEND_WASM: &str = "../../../target/wasm32-unknown-unknown/release/crnl_ledger.wasm";
+const BACKEND_WASM: &str =
+    "../../../target/wasm32-unknown-unknown/release/crnl_ledger_canister.wasm";
 
 #[derive(CandidType, serde::Deserialize, Clone, Debug, PartialEq)]
 struct Account {

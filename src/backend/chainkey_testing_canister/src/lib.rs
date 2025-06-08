@@ -28,12 +28,16 @@ const RNG_SEEDING_INTERVAL: Duration = Duration::from_secs(3600);
 
 #[ic_cdk::init]
 fn init() {
+    // Eagerly seed RNG with deterministic value for immediate availability
+    RNG.with_borrow_mut(|rng| *rng = Some(ChaCha20Rng::from_seed([0u8; 32])));
     // Initialize randomness during canister install or reinstall
     schedule_rng_seeding(Duration::ZERO);
 }
 
 #[ic_cdk::post_upgrade]
 fn post_upgrade() {
+    // Eagerly seed RNG with deterministic value for immediate availability
+    RNG.with_borrow_mut(|rng| *rng = Some(ChaCha20Rng::from_seed([0u8; 32])));
     // Initialize randomness after a canister upgrade
     schedule_rng_seeding(Duration::ZERO);
 }

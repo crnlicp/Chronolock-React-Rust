@@ -9,7 +9,8 @@ use std::fs;
 use std::time::UNIX_EPOCH;
 
 // Path to compiled WASM file (adjust as needed)
-const BACKEND_WASM: &str = "../../../target/wasm32-unknown-unknown/release/chronolock.wasm";
+const BACKEND_WASM: &str =
+    "../../../target/wasm32-unknown-unknown/release/chronolock_canister.wasm";
 const VETKD_WASM: &str =
     "../../../target/wasm32-unknown-unknown/release/chainkey_testing_canister.wasm";
 
