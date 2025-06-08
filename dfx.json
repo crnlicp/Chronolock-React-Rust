@@ -15,17 +15,17 @@
       "package": "chainkey_testing_canister",
       "type": "rust"
     },
-    "crnl_ledger": {
-      "candid": "src/backend/crnl_ledger/crnl_ledger.did",
-      "package": "crnl_ledger",
+    "crnl_ledger_canister": {
+      "candid": "src/backend/crnl_ledger_canister/crnl_ledger_canister.did",
+      "package": "crnl_ledger_canister",
       "type": "rust",
-      "init_arg_file": "src/backend/crnl_ledger/ledger_init_args.did"
+      "init_arg_file": "src/backend/crnl_ledger_canister/ledger_init_args.did"
     },
-    "chronolock": {
-      "candid": "src/backend/chronolock/chronolock.did",
-      "package": "chronolock",
+    "chronolock_canister": {
+      "candid": "src/backend/chronolock_canister/chronolock_canister.did",
+      "package": "chronolock_canister",
       "type": "rust",
-      "init_arg_file": "src/backend/chronolock/chronolock_init_args.did"
+      "init_arg_file": "src/backend/chronolock_canister/chronolock_init_args.did"
     },
     "frontend": {
       "dependencies": [],

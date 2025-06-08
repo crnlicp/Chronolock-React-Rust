@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "src/backend/chainkey_testing_canister",
-    "src/backend/chronolock",
-    "src/backend/crnl_ledger",
+    "src/backend/chronolock_canister",
+    "src/backend/crnl_ledger_canister",
 ]
 resolver = "2"

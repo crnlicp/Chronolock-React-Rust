@@ -15,7 +15,7 @@ if [ -z "$CHAINKEY_TESTING_CANISTER_CANISTER_ID" ]; then
 fi
 
 # Generate init_args.did for crnl_ledger
-cat <<EOF > src/backend/crnl_ledger/ledger_init_args.did
+cat <<EOF > src/backend/crnl_ledger_canister/ledger_init_args.did
 (
   "Chronolock",
   "CRNL",
@@ -27,7 +27,7 @@ cat <<EOF > src/backend/crnl_ledger/ledger_init_args.did
 EOF
 
 # Generate init_args.did for chronolock
-cat <<EOF > src/backend/chronolock/chronolock_init_args.did
+cat <<EOF > src/backend/chronolock_canister/chronolock_init_args.did
 (
   principal "$ADMIN_PRINCIPAL",
   opt principal "$CHAINKEY_TESTING_CANISTER_CANISTER_ID"
@@ -35,5 +35,5 @@ cat <<EOF > src/backend/chronolock/chronolock_init_args.did
 EOF
 
 echo "Generated init_args.did files:"
-echo "- src/backend/crnl_ledger/ledger_init_args.did"
-echo "- src/backend/chronolock/chronolock_init_args.did"
+echo "- src/backend/crnl_ledger_canister/ledger_init_args.did"
+echo "- src/backend/chronolock_canister/chronolock_init_args.did"

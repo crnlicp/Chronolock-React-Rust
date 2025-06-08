@@ -1,3 +1,5 @@
+// src/backend/chainkey_testing_canister/src/vetkd.rs
+
 use super::with_rng;
 use crate::ensure_call_is_paid;
 use crate::inc_call_count;
@@ -73,7 +75,6 @@ async fn vetkd_public_key(request: VetKDPublicKeyRequest) -> VetKDPublicKeyReply
     ensure_bls12_381_g2_insecure_test_key_1(&request.key_id);
 
     let is_production: bool = option_env!("IS_PRODUCTION").is_some();
-    ic_cdk::println!("Is production: {}", is_production);
 
     if is_production {
         // Call management canister to get production key
@@ -107,18 +108,12 @@ async fn vetkd_public_key(request: VetKDPublicKeyRequest) -> VetKDPublicKeyReply
 
 #[update]
 async fn vetkd_derive_key(request: VetKDDeriveKeyRequest) -> VetKDDeriveKeyReply {
-    ic_cdk::println!(
-        "Received transport public key: {:?}",
-        request.transport_public_key
-    );
-    ic_cdk::println!("Key length: {}", request.transport_public_key.len());
     inc_call_count("vetkd_derive_key".to_string());
     ensure_call_is_paid(0);
     ensure_transport_public_key_is_48_bytes(&request.transport_public_key);
     ensure_bls12_381_g2_insecure_test_key_1(&request.key_id);
 
     let is_production: bool = option_env!("IS_PRODUCTION").is_some();
-    ic_cdk::println!("Is production: {}", is_production);
 
     if is_production {
         // Call management canister to derive key in production

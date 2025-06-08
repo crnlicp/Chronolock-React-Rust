@@ -1,5 +1,5 @@
 [package]
-name = "crnl_ledger"
+name = "crnl_ledger_canister"
 version = "0.1.0"
 edition = "2021"
 

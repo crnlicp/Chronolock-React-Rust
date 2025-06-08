@@ -1,5 +1,5 @@
 [package]
-name = "chronolock"
+name = "chronolock_canister"
 version = "0.1.0"
 edition = "2021"
 
@@ -15,6 +15,7 @@ ic-stable-structures = "0.6"
 hex = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 ic-crypto-internal-bls12-381-type = { git = "https://github.com/dfinity/ic" }
+ic-vetkd-utils = { git = "https://github.com/dfinity/ic", rev = "95231520" }
 serde_bytes = "0.11.17"
 serde_json = "1.0.140"
 

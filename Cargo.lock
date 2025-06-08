@@ -318,7 +318,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "chronolock"
+name = "chronolock_canister"
 version = "0.1.0"
 dependencies = [
  "candid",
@@ -327,6 +327,7 @@ dependencies = [
  "ic-cdk-macros 0.17.1",
  "ic-crypto-internal-bls12-381-type",
  "ic-stable-structures",
+ "ic-vetkd-utils",
  "pocket-ic",
  "serde",
  "serde_bytes",
@@ -375,7 +376,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "crnl_ledger"
+name = "crnl_ledger_canister"
 version = "0.1.0"
 dependencies = [
  "candid",
@@ -1044,7 +1045,7 @@ dependencies = [
 [[package]]
 name = "ic-crypto-internal-bls12-381-type"
 version = "0.9.0"
-source = "git+https://github.com/dfinity/ic#31872377e471e3472a35a6567971fee97c024fcb"
+source = "git+https://github.com/dfinity/ic#0d2d1e9d8ead709a9ab6523adc7e089aa01282c1"
 dependencies = [
  "hex",
  "ic_bls12_381",
@@ -1062,7 +1063,7 @@ dependencies = [
 [[package]]
 name = "ic-crypto-internal-bls12-381-vetkd"
 version = "0.9.0"
-source = "git+https://github.com/dfinity/ic#31872377e471e3472a35a6567971fee97c024fcb"
+source = "git+https://github.com/dfinity/ic#0d2d1e9d8ead709a9ab6523adc7e089aa01282c1"
 dependencies = [
  "ic-crypto-internal-bls12-381-type",
  "rand 0.8.5",

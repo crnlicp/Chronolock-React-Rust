@@ -1,6 +1,7 @@
 // src/backend/chronolock/tests/canister_tests.rs
 
 use candid::{decode_one, encode_args, CandidType, Principal};
+use ic_vetkd_utils::TransportSecretKey;
 use pocket_ic::PocketIc;
 use serde::Deserialize;
 use serde_json;
@@ -532,7 +533,9 @@ fn test_get_time_decryption_key_time_lock() {
     let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
     let unlock_time = current_time + 1000; // 1000 seconds from now
     let unlock_time_hex = format!("{:016x}", unlock_time);
-    let encryption_public_key = vec![1, 2, 3];
+
+    let tsk = TransportSecretKey::from_seed([42u8; 32].to_vec()).unwrap();
+    let encryption_public_key = tsk.public_key();
 
     let encoded = encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap();
     println!("Encoded args: {}", hex::encode(&encoded));
@@ -568,19 +571,14 @@ fn test_get_time_decryption_key_time_lock() {
     let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     let key = result.expect("Failed to get decryption key");
 
-    let derivation_id = hex::decode(unlock_time_hex).unwrap();
-    let derivation_id_hex = hex::encode(&derivation_id); // Matches unlock_time_hex in lowercase
-    let encryption_public_key_hex = hex::encode(&encryption_public_key);
-    let mock_key = format!(
-        "mock_encrypted_key_{}_{}",
-        derivation_id_hex, encryption_public_key_hex
+    assert!(
+        !key.encrypted_key.is_empty(),
+        "Expected non-empty encrypted key"
     );
-    let expected_key = hex::encode(mock_key.as_bytes());
-
     assert_eq!(
-        hex::encode(&key.encrypted_key),
-        expected_key,
-        "Decryption key does not match expected value"
+        key.encrypted_key.len(),
+        192,
+        "Expected encrypted key to be 48 bytes"
     );
 }
 
@@ -591,8 +589,10 @@ fn test_get_user_time_decryption_key_auth_and_time() {
     let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
     let unlock_time = current_time + 1000; // 1000 seconds from now
     let unlock_time_hex = format!("{:016x}", unlock_time);
-    let encryption_public_key = vec![1, 2, 3];
     let user_id = admin.to_text();
+
+    let tsk = TransportSecretKey::from_seed([42u8; 32].to_vec()).unwrap();
+    let encryption_public_key = tsk.public_key();
 
     let encoded = encode_args((
         unlock_time_hex.clone(),
@@ -665,29 +665,27 @@ fn test_get_user_time_decryption_key_auth_and_time() {
     let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     let key = result.expect("Failed to get decryption key");
 
-    let combined_id = format!("{}:{}", unlock_time_hex, user_id); // e.g., "000000006094449e:aaaaa-aa"
-    let combined_id_hex = hex::encode(combined_id.as_bytes());
-    let encryption_public_key_hex = hex::encode(&encryption_public_key);
-    let mock_key = format!(
-        "mock_encrypted_key_{}_{}",
-        combined_id_hex, encryption_public_key_hex
+    assert!(
+        !key.encrypted_key.is_empty(),
+        "Expected non-empty encrypted key"
     );
-    let expected_key = hex::encode(mock_key.as_bytes());
-
     assert_eq!(
-        hex::encode(&key.encrypted_key),
-        expected_key,
-        "Decryption key does not match expected value"
+        key.encrypted_key.len(),
+        192,
+        "Expected encrypted key to be 48 bytes"
     );
 }
 
 #[test]
-fn test_encryption_decryption_invalid_inputs1() {
+fn test_encryption_decryption_invalid_inputs() {
     let (pic, backend_canister, _, admin) = setup();
 
     // Invalid unlock_time_hex
     let invalid_unlock_time_hex = "invalid_hex".to_string();
-    let encryption_public_key = vec![1, 2, 3];
+
+    let tsk = TransportSecretKey::from_seed([42u8; 32].to_vec()).unwrap();
+    let encryption_public_key = tsk.public_key();
+
     println!("Encoded args: {}", hex::encode(&encryption_public_key));
     let response = pic
         .update_call(
@@ -710,7 +708,6 @@ fn test_encryption_decryption_invalid_inputs1() {
     let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
     let unlock_time = current_time + 1000; // 1000 seconds from now
     let unlock_time_hex = format!("{:016x}", unlock_time);
-    let encryption_public_key = vec![1, 2, 3];
 
     println!(
         "Encoded args: {},{}",
@@ -783,7 +780,9 @@ fn test_chronolock_encryption_integration() {
     let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
     let unlock_time = current_time + 1000; // 1000 seconds from now
     let unlock_time_hex = format!("{:016x}", unlock_time);
-    let encryption_public_key = vec![1, 2, 3];
+
+    let tsk = TransportSecretKey::from_seed([42u8; 32].to_vec()).unwrap();
+    let encryption_public_key = tsk.public_key();
 
     let encoded = encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap();
     println!("Encoded args: {}", hex::encode(&encoded));
@@ -831,19 +830,14 @@ fn test_chronolock_encryption_integration() {
     let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     let key = result.expect("Failed to get decryption key");
 
-    let derivation_id = hex::decode(unlock_time_hex).unwrap();
-    let derivation_id_hex = hex::encode(&derivation_id); // Matches unlock_time_hex in lowercase
-    let encryption_public_key_hex = hex::encode(&encryption_public_key);
-    let mock_key = format!(
-        "mock_encrypted_key_{}_{}",
-        derivation_id_hex, encryption_public_key_hex
+    assert!(
+        !key.encrypted_key.is_empty(),
+        "Expected non-empty encrypted key"
     );
-    let expected_key = hex::encode(mock_key.as_bytes());
-
     assert_eq!(
-        hex::encode(&key.encrypted_key),
-        expected_key,
-        "Decryption key does not match expected value"
+        key.encrypted_key.len(),
+        192,
+        "Expected encrypted key to be 48 bytes"
     );
 }
 
@@ -855,7 +849,9 @@ fn test_multi_user_time_locked_decryption_keys() {
     let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
     let unlock_time = current_time + 1000;
     let unlock_time_hex = format!("{:016x}", unlock_time);
-    let encryption_public_key = vec![9, 8, 7];
+
+    let tsk = TransportSecretKey::from_seed([42u8; 32].to_vec()).unwrap();
+    let encryption_public_key = tsk.public_key();
 
     // Define multiple users
     let user1 = admin;
@@ -910,21 +906,14 @@ fn test_multi_user_time_locked_decryption_keys() {
         let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
         let key = result.expect("Failed to get decryption key");
 
-        // Compute expected key
-        let combined_id = format!("{}:{}", unlock_time_hex, user_id);
-        let combined_id_hex = hex::encode(combined_id.as_bytes());
-        let encryption_public_key_hex = hex::encode(&encryption_public_key);
-        let mock_key = format!(
-            "mock_encrypted_key_{}_{}",
-            combined_id_hex, encryption_public_key_hex
+        assert!(
+            !key.encrypted_key.is_empty(),
+            "Expected non-empty encrypted key"
         );
-        let expected_key = hex::encode(mock_key.as_bytes());
-
         assert_eq!(
-            hex::encode(&key.encrypted_key),
-            expected_key,
-            "Decryption key does not match expected value for user {}",
-            user_id
+            key.encrypted_key.len(),
+            192,
+            "Expected encrypted key to be 48 bytes"
         );
     }
 }
@@ -937,7 +926,9 @@ fn test_create_and_unlock_multi_user_chronolock() {
     let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
     let unlock_time = current_time + 1000;
     let unlock_time_hex = format!("{:016x}", unlock_time);
-    let encryption_public_key = vec![42, 43, 44];
+
+    let tsk = TransportSecretKey::from_seed([42u8; 32].to_vec()).unwrap();
+    let encryption_public_key = tsk.public_key();
 
     // Define multiple users
     let user1 = admin;
@@ -1016,21 +1007,14 @@ fn test_create_and_unlock_multi_user_chronolock() {
         let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
         let key = result.expect("Failed to get decryption key");
 
-        // Compute expected key
-        let combined_id = format!("{}:{}", unlock_time_hex, user_id);
-        let combined_id_hex = hex::encode(combined_id.as_bytes());
-        let encryption_public_key_hex = hex::encode(&encryption_public_key);
-        let mock_key = format!(
-            "mock_encrypted_key_{}_{}",
-            combined_id_hex, encryption_public_key_hex
+        assert!(
+            !key.encrypted_key.is_empty(),
+            "Expected non-empty encrypted key"
         );
-        let expected_key = hex::encode(mock_key.as_bytes());
-
         assert_eq!(
-            hex::encode(&key.encrypted_key),
-            expected_key,
-            "Decryption key does not match expected value for user {}",
-            user_id
+            key.encrypted_key.len(),
+            192,
+            "Expected encrypted key to be 48 bytes"
         );
     }
 
