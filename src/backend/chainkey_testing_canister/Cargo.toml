@@ -19,12 +19,14 @@ candid = "0.10.10"
 getrandom = { version = "0.2", features = ["custom"] }
 hex = "0.4"
 ic-cdk = "0.16.0"
+ic-cdk-macros = "0.17.1"
 ic-cdk-timers = "0.10.0"
 ic-ed25519 = "0.2.0"
 ic-secp256k1 = "0.1.0"
 ic-crypto-internal-bls12-381-vetkd = { git = "https://github.com/dfinity/ic" }
 ic-crypto-internal-bls12-381-type = { git = "https://github.com/dfinity/ic" }
 ic-stable-structures = "0.6.5"
+ic-vetkd-utils = { git = "https://github.com/dfinity/ic", rev = "95231520" }
 lazy_static = "1.4"
 rand = "0.8"
 rand_chacha = "0.3"

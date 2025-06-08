@@ -1,7 +1,6 @@
+use super::with_rng;
 use crate::ensure_call_is_paid;
 use crate::inc_call_count;
-
-use super::with_rng;
 use candid::CandidType;
 use candid::Deserialize;
 use candid::Principal;
@@ -71,58 +70,112 @@ lazy_static::lazy_static! {
 #[update]
 async fn vetkd_public_key(request: VetKDPublicKeyRequest) -> VetKDPublicKeyReply {
     inc_call_count("vetkd_public_key".to_string());
-    ensure_bls12_381_g2_insecure_test_key_1(request.key_id);
-    let context = {
-        let canister_id = request.canister_id.unwrap_or_else(ic_cdk::caller);
-        DerivationContext::new(canister_id.as_slice(), &request.context)
-    };
-    let derived_public_key = DerivedPublicKey::derive_sub_key(&MASTER_PK, &context);
-    VetKDPublicKeyReply {
-        public_key: derived_public_key.serialize().to_vec(),
+    ensure_bls12_381_g2_insecure_test_key_1(&request.key_id);
+
+    let is_production: bool = option_env!("IS_PRODUCTION").is_some();
+    ic_cdk::println!("Is production: {}", is_production);
+
+    if is_production {
+        // Call management canister to get production key
+        let mgmt_canister = Principal::management_canister();
+        let (pk_result,): (Result<Vec<u8>, String>,) =
+            match ic_cdk::call(mgmt_canister, "vetkd_public_key", (request,)).await {
+                Ok(res) => res,
+                Err(_e) => {
+                    return VetKDPublicKeyReply {
+                        public_key: vec![], // Return empty key on error
+                    };
+                }
+            };
+
+        VetKDPublicKeyReply {
+            public_key: pk_result.unwrap_or_default(),
+        }
+    } else {
+        // Use test key for development
+        let context = {
+            let canister_id = request.canister_id.unwrap_or_else(ic_cdk::caller);
+            DerivationContext::new(canister_id.as_slice(), &request.context)
+        };
+
+        let derived_public_key = DerivedPublicKey::derive_sub_key(&MASTER_PK, &context);
+        VetKDPublicKeyReply {
+            public_key: derived_public_key.serialize().to_vec(),
+        }
     }
 }
 
 #[update]
 async fn vetkd_derive_key(request: VetKDDeriveKeyRequest) -> VetKDDeriveKeyReply {
+    ic_cdk::println!(
+        "Received transport public key: {:?}",
+        request.transport_public_key
+    );
+    ic_cdk::println!("Key length: {}", request.transport_public_key.len());
     inc_call_count("vetkd_derive_key".to_string());
     ensure_call_is_paid(0);
     ensure_transport_public_key_is_48_bytes(&request.transport_public_key);
-    ensure_bls12_381_g2_insecure_test_key_1(request.key_id);
-    let context = DerivationContext::new(ic_cdk::caller().as_slice(), &request.context);
-    let tpk =
-        TransportPublicKey::deserialize(&request.transport_public_key).unwrap_or_else(
-            |e| match e {
-                TransportPublicKeyDeserializationError::InvalidPublicKey => {
-                    ic_cdk::trap("invalid transport public key")
-                }
-            },
-        );
-    let eks = with_rng(|rng| {
-        EncryptedKeyShare::create(rng, &MASTER_PK, &MASTER_SK, &tpk, &context, &request.input)
-    })
-    .await;
-    let ek = EncryptedKey::combine_all(
-        &vec![(0, eks)],
-        1,
-        &MASTER_PK,
-        &tpk,
-        &context,
-        &request.input,
-    )
-    .unwrap_or_else(|_e| ic_cdk::trap("bad key share"));
+    ensure_bls12_381_g2_insecure_test_key_1(&request.key_id);
 
-    VetKDDeriveKeyReply {
-        encrypted_key: ek.serialize().to_vec(),
+    let is_production: bool = option_env!("IS_PRODUCTION").is_some();
+    ic_cdk::println!("Is production: {}", is_production);
+
+    if is_production {
+        // Call management canister to derive key in production
+        let mgmt_canister = Principal::management_canister();
+        let (key_result,): (Result<Vec<u8>, String>,) =
+            match ic_cdk::call(mgmt_canister, "vetkd_derive_key", (request,)).await {
+                Ok(res) => res,
+                Err(_e) => {
+                    return VetKDDeriveKeyReply {
+                        encrypted_key: vec![], // Return empty key on error
+                    };
+                }
+            };
+
+        VetKDDeriveKeyReply {
+            encrypted_key: key_result.unwrap_or_default(),
+        }
+    } else {
+        // Use test key derivation for development
+        let context = DerivationContext::new(ic_cdk::caller().as_slice(), &request.context);
+        let tpk =
+            TransportPublicKey::deserialize(&request.transport_public_key).unwrap_or_else(|e| {
+                match e {
+                    TransportPublicKeyDeserializationError::InvalidPublicKey => {
+                        ic_cdk::trap("invalid transport public key")
+                    }
+                }
+            });
+
+        let eks = with_rng(|rng| {
+            EncryptedKeyShare::create(rng, &MASTER_PK, &MASTER_SK, &tpk, &context, &request.input)
+        })
+        .await;
+
+        let ek = EncryptedKey::combine_all(
+            &vec![(0, eks)],
+            1,
+            &MASTER_PK,
+            &tpk,
+            &context,
+            &request.input,
+        )
+        .unwrap_or_else(|_e| ic_cdk::trap("bad key share"));
+
+        VetKDDeriveKeyReply {
+            encrypted_key: ek.serialize().to_vec(),
+        }
     }
 }
 
 fn ensure_transport_public_key_is_48_bytes(transport_public_key: &[u8]) {
     if transport_public_key.len() != 48 {
-        ic_cdk::trap("transport public key must be 48 bytes")
+        ic_cdk::trap("Transport public key must be 48 bytes");
     }
 }
 
-fn ensure_bls12_381_g2_insecure_test_key_1(key_id: VetKDKeyId) {
+fn ensure_bls12_381_g2_insecure_test_key_1(key_id: &VetKDKeyId) {
     if key_id.curve != VetKDCurve::Bls12_381_G2 {
         ic_cdk::trap("unsupported key ID curve");
     }

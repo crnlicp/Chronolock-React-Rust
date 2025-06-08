@@ -299,12 +299,14 @@ dependencies = [
  "getrandom 0.2.15",
  "hex",
  "ic-cdk 0.16.1",
+ "ic-cdk-macros 0.17.1",
  "ic-cdk-timers",
  "ic-crypto-internal-bls12-381-type",
  "ic-crypto-internal-bls12-381-vetkd",
  "ic-ed25519",
  "ic-secp256k1",
  "ic-stable-structures",
+ "ic-vetkd-utils",
  "k256",
  "lazy_static",
  "pocket-ic",
@@ -323,11 +325,13 @@ dependencies = [
  "hex",
  "ic-cdk 0.17.1",
  "ic-cdk-macros 0.17.1",
+ "ic-crypto-internal-bls12-381-type",
  "ic-stable-structures",
  "pocket-ic",
  "serde",
  "serde_bytes",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -1122,6 +1126,25 @@ dependencies = [
  "serde_repr",
  "sha2",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "ic-vetkd-utils"
+version = "0.1.0"
+source = "git+https://github.com/dfinity/ic?rev=95231520#95231520d829c010b40e258df074e9ce4ad22986"
+dependencies = [
+ "getrandom 0.2.15",
+ "hkdf",
+ "ic_bls12_381",
+ "lazy_static",
+ "pairing",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "sha2",
+ "sha3",
+ "subtle",
+ "wasm-bindgen",
+ "zeroize",
 ]
 
 [[package]]
@@ -2266,6 +2289,16 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "sha3"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
+dependencies = [
+ "digest",
+ "keccak",
 ]
 
 [[package]]

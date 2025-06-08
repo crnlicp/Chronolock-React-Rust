@@ -27,44 +27,6 @@ enum ChronoError {
     InternalError(String),
 }
 
-thread_local! {
-    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
-        RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
-    static LOGS: RefCell<StableBTreeMap<String, LogEntry, Memory>> = RefCell::new(
-        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0))))
-    );
-    static ADMINS: RefCell<StableBTreeMap<u8, Principal, Memory>> = RefCell::new(
-        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1))))
-    );
-    static MAX_METADATA_SIZE: RefCell<StableCell<u64, Memory>> = RefCell::new(
-        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(2))), 1024)
-        .unwrap_or_else(|e| panic!("Failed to initialize MAX_METADATA_SIZE: {:?}", e))
-    );
-    static LAST_TIMESTAMP: RefCell<StableCell<u64, Memory>> = RefCell::new(
-        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(3))), 0)
-            .unwrap_or_else(|e| panic!("Failed to initialize LAST_TIMESTAMP: {:?}", e))
-    );
-    static COUNTER: RefCell<StableCell<u64, Memory>> = RefCell::new(
-        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(4))), 0)
-            .unwrap_or_else(|e| panic!("Failed to initialize COUNTER: {:?}", e))
-    );
-    static CHRONOLOCKS: RefCell<StableBTreeMap<String, Chronolock, Memory>> = RefCell::new(
-        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(5))))
-    );
-    static OWNER_TO_TOKENS: RefCell<StableBTreeMap<Principal, TokenList, Memory>> = RefCell::new(
-        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(6))))
-    );
-    static MEDIA_FILES: RefCell<StableBTreeMap<String, Vec<u8>, Memory>> = RefCell::new(
-        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(7))))
-    );
-    static VETKD_CANISTER_ID: RefCell<Principal> = RefCell::new(
-        Principal::from_text(VETKD_CANISTER_ID_TEXT).unwrap()
-    );
-    static SYMBOL: RefCell<String> = RefCell::new("CHRONOLOCK".to_string());
-    static NAME: RefCell<String> = RefCell::new("Chronolock Collection".to_string());
-    static DESCRIPTION: RefCell<String> = RefCell::new("A collection of time-locked NFTs".to_string());
-}
-
 #[derive(CandidType, Deserialize)]
 struct HttpRequest {
     method: String,
@@ -83,8 +45,13 @@ struct HttpResponse {
 #[derive(CandidType, Deserialize)]
 struct VetkdPublicKeyArgs {
     key_id: VetkdPublicKeyArgsKeyId,
-    derivation_path: Vec<Vec<u8>>,
+    context: Vec<u8>,
     canister_id: Option<Principal>,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct VetKDPublicKeyReply {
+    pub public_key: Vec<u8>,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -95,21 +62,28 @@ struct VetkdPublicKeyArgsKeyId {
 
 #[derive(CandidType, Deserialize)]
 enum VetkdCurve {
-    Bls12381G2,
+    #[serde(rename = "bls12_381_g2")]
+    #[allow(non_camel_case_types)]
+    Bls12_381_G2,
 }
 
 #[derive(CandidType, Deserialize)]
 struct VetkdDeriveEncryptedKeyArgs {
+    input: Vec<u8>,
+    context: Vec<u8>,
+    transport_public_key: Vec<u8>,
     key_id: VetkdDeriveEncryptedKeyArgsKeyId,
-    derivation_path: Vec<Vec<u8>>,
-    derivation_id: ByteBuf,
-    encryption_public_key: ByteBuf,
 }
 
 #[derive(CandidType, Deserialize)]
 struct VetkdDeriveEncryptedKeyArgsKeyId {
     name: String,
     curve: VetkdCurve,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct VetKDDeriveKeyReply {
+    pub encrypted_key: Vec<u8>,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -170,6 +144,44 @@ impl Storable for TokenList {
     const BOUND: Bound = Bound::Unbounded;
 }
 
+thread_local! {
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
+        RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
+    static LOGS: RefCell<StableBTreeMap<String, LogEntry, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0))))
+    );
+    static ADMINS: RefCell<StableBTreeMap<u8, Principal, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1))))
+    );
+    static MAX_METADATA_SIZE: RefCell<StableCell<u64, Memory>> = RefCell::new(
+        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(2))), 1024)
+        .unwrap_or_else(|e| panic!("Failed to initialize MAX_METADATA_SIZE: {:?}", e))
+    );
+    static LAST_TIMESTAMP: RefCell<StableCell<u64, Memory>> = RefCell::new(
+        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(3))), 0)
+            .unwrap_or_else(|e| panic!("Failed to initialize LAST_TIMESTAMP: {:?}", e))
+    );
+    static COUNTER: RefCell<StableCell<u64, Memory>> = RefCell::new(
+        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(4))), 0)
+            .unwrap_or_else(|e| panic!("Failed to initialize COUNTER: {:?}", e))
+    );
+    static CHRONOLOCKS: RefCell<StableBTreeMap<String, Chronolock, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(5))))
+    );
+    static OWNER_TO_TOKENS: RefCell<StableBTreeMap<Principal, TokenList, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(6))))
+    );
+    static MEDIA_FILES: RefCell<StableBTreeMap<String, Vec<u8>, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(7))))
+    );
+    static VETKD_CANISTER_ID: RefCell<Principal> = RefCell::new(
+        Principal::from_text(VETKD_CANISTER_ID_TEXT).unwrap()
+    );
+    static SYMBOL: RefCell<String> = RefCell::new("CHRONOLOCK".to_string());
+    static NAME: RefCell<String> = RefCell::new("Chronolock Collection".to_string());
+    static DESCRIPTION: RefCell<String> = RefCell::new("A collection of time-locked NFTs".to_string());
+}
+
 fn generate_unique_id() -> String {
     let current_time = time();
     let mut counter = 0;
@@ -220,24 +232,25 @@ fn log_activity(activity: String) {
 async fn call_vetkd_derive_key(
     derivation_id: Vec<u8>,
     encryption_public_key: Vec<u8>,
-) -> Result<String, ChronoError> {
+) -> Result<VetKDDeriveKeyReply, ChronoError> {
     let args = VetkdDeriveEncryptedKeyArgs {
         key_id: VetkdDeriveEncryptedKeyArgsKeyId {
-            name: "time_lock_key".to_string(),
-            curve: VetkdCurve::Bls12381G2,
+            name: "insecure_test_key_1".to_string(),
+            curve: VetkdCurve::Bls12_381_G2,
         },
-        derivation_path: vec![b"ibe_key".to_vec()],
-        derivation_id: ByteBuf(derivation_id),
-        encryption_public_key: ByteBuf(encryption_public_key),
+        input: derivation_id,
+        context: vec![], // Empty context is fine for testing
+        transport_public_key: encryption_public_key.clone(),
     };
 
     let vetkd_canister_id = VETKD_CANISTER_ID.with(|id| *id.borrow());
 
-    let (result,): (Vec<u8>,) = ic_cdk::call(vetkd_canister_id, "vetkd_derive_key", (args,))
-        .await
-        .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
+    let (result,): (VetKDDeriveKeyReply,) =
+        ic_cdk::call(vetkd_canister_id, "vetkd_derive_key", (args,))
+            .await
+            .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
 
-    Ok(hex::encode(result))
+    Ok(result)
 }
 
 #[init]
@@ -382,29 +395,31 @@ fn icrc7_transfer(token_id: String, to: Principal) -> Result<(), ChronoError> {
 }
 
 #[update]
-async fn ibe_encryption_key() -> Result<String, ChronoError> {
+async fn ibe_encryption_key() -> Result<VetKDPublicKeyReply, ChronoError> {
     let args = VetkdPublicKeyArgs {
         key_id: VetkdPublicKeyArgsKeyId {
-            name: "time_lock_key".to_string(),
-            curve: VetkdCurve::Bls12381G2,
+            name: "insecure_test_key_1".to_string(),
+            curve: VetkdCurve::Bls12_381_G2,
         },
-        derivation_path: vec![b"ibe_key".to_vec()],
+        context: vec![],
         canister_id: None,
     };
 
     let vetkd_canister_id = VETKD_CANISTER_ID.with(|id| *id.borrow());
-    let (result,): (Vec<u8>,) = ic_cdk::call(vetkd_canister_id, "vetkd_public_key", (args,))
-        .await
-        .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
 
-    Ok(hex::encode(result))
+    let (result,): (VetKDPublicKeyReply,) =
+        ic_cdk::call(vetkd_canister_id, "vetkd_public_key", (args,))
+            .await
+            .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
+
+    Ok(result)
 }
 
 #[update]
 async fn get_time_decryption_key(
     unlock_time_hex: String,
     encryption_public_key: Vec<u8>,
-) -> Result<String, ChronoError> {
+) -> Result<VetKDDeriveKeyReply, ChronoError> {
     if encryption_public_key.is_empty() {
         return Err(ChronoError::InvalidInput(
             "Encryption public key cannot be empty".to_string(),
@@ -436,7 +451,7 @@ async fn get_user_time_decryption_key(
     unlock_time_hex: String,
     user_id: String,
     encryption_public_key: Vec<u8>,
-) -> Result<String, ChronoError> {
+) -> Result<VetKDDeriveKeyReply, ChronoError> {
     if encryption_public_key.is_empty() {
         return Err(ChronoError::InvalidInput(
             "Encryption public key cannot be empty".to_string(),

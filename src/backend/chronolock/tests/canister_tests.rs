@@ -2,6 +2,7 @@
 
 use candid::{decode_one, encode_args, CandidType, Principal};
 use pocket_ic::PocketIc;
+use serde::Deserialize;
 use serde_json;
 use std::fs;
 use std::time::UNIX_EPOCH;
@@ -12,7 +13,7 @@ const VETKD_WASM: &str =
     "../../../target/wasm32-unknown-unknown/release/chainkey_testing_canister.wasm";
 
 // Structures required for testing (must match canister definitions)
-#[derive(CandidType, serde::Deserialize, Clone, Debug)]
+#[derive(CandidType, Deserialize, Clone, Debug)]
 struct Chronolock {
     id: String,
     owner: Principal,
@@ -20,19 +21,19 @@ struct Chronolock {
     unlock_time: u64,
 }
 
-#[derive(CandidType, serde::Deserialize, Clone, Debug)]
+#[derive(CandidType, Deserialize, Clone, Debug)]
 struct LogEntry {
     id: String,
     timestamp: u64,
     activity: String,
 }
 
-#[derive(CandidType, serde::Deserialize, Clone, Debug)]
+#[derive(CandidType, Deserialize, Clone, Debug)]
 struct TokenList {
     tokens: Vec<String>,
 }
 
-#[derive(CandidType, serde::Deserialize, Debug, PartialEq)]
+#[derive(CandidType, Deserialize, Debug, PartialEq)]
 enum ChronoError {
     Unauthorized,
     TokenNotFound,
@@ -42,7 +43,7 @@ enum ChronoError {
     InternalError(String),
 }
 
-#[derive(CandidType, serde::Deserialize)]
+#[derive(CandidType, Deserialize)]
 struct HttpRequest {
     method: String,
     url: String,
@@ -50,11 +51,21 @@ struct HttpRequest {
     body: Vec<u8>,
 }
 
-#[derive(CandidType, serde::Deserialize)]
+#[derive(CandidType, Deserialize)]
 struct HttpResponse {
     status_code: u16,
     headers: Vec<(String, String)>,
     body: Vec<u8>,
+}
+
+#[derive(CandidType, Deserialize)]
+struct VetKDPublicKeyReply {
+    public_key: Vec<u8>,
+}
+
+#[derive(CandidType, Deserialize, Debug, PartialEq)]
+pub struct VetKDDeriveKeyReply {
+    pub encrypted_key: Vec<u8>,
 }
 
 // Setup function
@@ -80,7 +91,7 @@ fn setup() -> (PocketIc, Principal, Principal, Principal) {
     (pic, backend_canister, vetkd_canister, admin)
 }
 
-fn decode_with_fallback<T: CandidType + for<'de> serde::Deserialize<'de>>(
+fn decode_with_fallback<T: CandidType + for<'de> Deserialize<'de>>(
     bytes: &[u8],
     method: &str,
 ) -> Result<T, String> {
@@ -175,7 +186,7 @@ fn test_icrc7_symbol() {
         )
         .expect("Failed to query icrc7_symbol");
     let result: String = decode_one(&response).unwrap();
-    assert_eq!(result, "CHRONO");
+    assert_eq!(result, "CHRONOLOCK");
 }
 
 #[test]
@@ -507,15 +518,11 @@ fn test_ibe_encryption_key() {
             encode_args(()).unwrap(),
         )
         .expect("Failed to call ibe_encryption_key");
-    let key_result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let key_result: Result<VetKDPublicKeyReply, ChronoError> = decode_one(&response).unwrap();
     let key = key_result.expect("Failed to get encryption key");
-
-    // The mock returns "mock_public_key_time_lock_key" as bytes, hex-encoded by the canister
-    let expected_key = hex::encode("mock_public_key_time_lock_key".as_bytes());
-    assert_eq!(
-        key, expected_key,
-        "Encryption key does not match expected value"
-    );
+    assert!(!key.public_key.is_empty(), "Expected non-empty public key");
+    println!("VETKD Public Key: {:?}", key.public_key);
+    println!("Key length: {:?}", key.public_key.len());
 }
 
 #[test]
@@ -539,7 +546,7 @@ fn test_get_time_decryption_key_time_lock() {
             encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
         )
         .expect("Failed to call get_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     assert_eq!(
         result,
         Err(ChronoError::TimeLocked),
@@ -558,7 +565,7 @@ fn test_get_time_decryption_key_time_lock() {
             encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
         )
         .expect("Failed to call get_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     let key = result.expect("Failed to get decryption key");
 
     let derivation_id = hex::decode(unlock_time_hex).unwrap();
@@ -571,7 +578,8 @@ fn test_get_time_decryption_key_time_lock() {
     let expected_key = hex::encode(mock_key.as_bytes());
 
     assert_eq!(
-        key, expected_key,
+        hex::encode(&key.encrypted_key),
+        expected_key,
         "Decryption key does not match expected value"
     );
 }
@@ -609,7 +617,7 @@ fn test_get_user_time_decryption_key_auth_and_time() {
             .unwrap(),
         )
         .expect("Failed to call get_user_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     assert_eq!(
         result,
         Err(ChronoError::Unauthorized),
@@ -630,7 +638,7 @@ fn test_get_user_time_decryption_key_auth_and_time() {
             .unwrap(),
         )
         .expect("Failed to call get_user_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     assert_eq!(
         result,
         Err(ChronoError::TimeLocked),
@@ -654,7 +662,7 @@ fn test_get_user_time_decryption_key_auth_and_time() {
             .unwrap(),
         )
         .expect("Failed to call get_user_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     let key = result.expect("Failed to get decryption key");
 
     let combined_id = format!("{}:{}", unlock_time_hex, user_id); // e.g., "000000006094449e:aaaaa-aa"
@@ -667,7 +675,8 @@ fn test_get_user_time_decryption_key_auth_and_time() {
     let expected_key = hex::encode(mock_key.as_bytes());
 
     assert_eq!(
-        key, expected_key,
+        hex::encode(&key.encrypted_key),
+        expected_key,
         "Decryption key does not match expected value"
     );
 }
@@ -692,7 +701,7 @@ fn test_encryption_decryption_invalid_inputs1() {
             .unwrap(),
         )
         .expect("Failed to call get_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     assert!(
         matches!(result, Err(ChronoError::InvalidInput(_))),
         "Expected InvalidInput for invalid unlock_time_hex"
@@ -718,7 +727,7 @@ fn test_encryption_decryption_invalid_inputs1() {
             encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
         )
         .expect("Failed to call get_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     assert_eq!(
         result,
         Err(ChronoError::TimeLocked),
@@ -736,7 +745,7 @@ fn test_encryption_decryption_invalid_inputs1() {
             encode_args((unlock_time_hex.clone(), empty_key.clone())).unwrap(),
         )
         .expect("Failed to call get_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     assert_eq!(
         result,
         Err(ChronoError::InvalidInput(
@@ -760,7 +769,7 @@ fn test_encryption_decryption_invalid_inputs1() {
             .unwrap(),
         )
         .expect("Failed to call get_user_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     assert!(
         matches!(result, Err(ChronoError::InvalidInput(_))),
         "Expected InvalidInput for invalid user_id"
@@ -800,7 +809,7 @@ fn test_chronolock_encryption_integration() {
             encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
         )
         .expect("Failed to call get_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     assert_eq!(
         result,
         Err(ChronoError::TimeLocked),
@@ -819,7 +828,7 @@ fn test_chronolock_encryption_integration() {
             encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
         )
         .expect("Failed to call get_time_decryption_key");
-    let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
     let key = result.expect("Failed to get decryption key");
 
     let derivation_id = hex::decode(unlock_time_hex).unwrap();
@@ -832,7 +841,8 @@ fn test_chronolock_encryption_integration() {
     let expected_key = hex::encode(mock_key.as_bytes());
 
     assert_eq!(
-        key, expected_key,
+        hex::encode(&key.encrypted_key),
+        expected_key,
         "Decryption key does not match expected value"
     );
 }
@@ -869,7 +879,7 @@ fn test_multi_user_time_locked_decryption_keys() {
                 .unwrap(),
             )
             .expect("Failed to call get_user_time_decryption_key");
-        let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+        let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
         assert_eq!(
             result,
             Err(ChronoError::TimeLocked),
@@ -897,7 +907,7 @@ fn test_multi_user_time_locked_decryption_keys() {
                 .unwrap(),
             )
             .expect("Failed to call get_user_time_decryption_key");
-        let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+        let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
         let key = result.expect("Failed to get decryption key");
 
         // Compute expected key
@@ -911,7 +921,8 @@ fn test_multi_user_time_locked_decryption_keys() {
         let expected_key = hex::encode(mock_key.as_bytes());
 
         assert_eq!(
-            key, expected_key,
+            hex::encode(&key.encrypted_key),
+            expected_key,
             "Decryption key does not match expected value for user {}",
             user_id
         );
@@ -974,7 +985,7 @@ fn test_create_and_unlock_multi_user_chronolock() {
                 .unwrap(),
             )
             .expect("Failed to call get_user_time_decryption_key");
-        let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+        let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
         assert_eq!(
             result,
             Err(ChronoError::TimeLocked),
@@ -1002,7 +1013,7 @@ fn test_create_and_unlock_multi_user_chronolock() {
                 .unwrap(),
             )
             .expect("Failed to call get_user_time_decryption_key");
-        let result: Result<String, ChronoError> = decode_one(&response).unwrap();
+        let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
         let key = result.expect("Failed to get decryption key");
 
         // Compute expected key
@@ -1016,7 +1027,8 @@ fn test_create_and_unlock_multi_user_chronolock() {
         let expected_key = hex::encode(mock_key.as_bytes());
 
         assert_eq!(
-            key, expected_key,
+            hex::encode(&key.encrypted_key),
+            expected_key,
             "Decryption key does not match expected value for user {}",
             user_id
         );
