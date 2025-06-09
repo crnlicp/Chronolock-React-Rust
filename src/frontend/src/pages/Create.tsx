@@ -4,8 +4,11 @@ import { UnlockTimeAndRecipients } from '../components/create/UnlockTimeAndRecip
 import { PickerValue } from '@mui/x-date-pickers/internals';
 import { UploadFile } from '../components/create/UploadFile';
 import { Details } from './Details';
+import { useAuth } from '../hooks/useAuth';
 
 export const Create = () => {
+  const { isAuthenticated } = useAuth();
+
   const [activeStep, setActiveStep] = useState(0);
   const [lockTime, setLockTime] = useState<PickerValue | null>(null);
   const [recipients, setRecipients] = useState<string[]>([]);
@@ -35,6 +38,17 @@ export const Create = () => {
   const handleMediaUrlChange = (url: string): void => {
     setMediaUrl(url);
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div
+        className="container page_container"
+        style={{ textAlign: 'center', marginTop: '50px' }}
+      >
+        <h2>Please log in to Continue</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="container page_container">

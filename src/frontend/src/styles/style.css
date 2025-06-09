@@ -1010,7 +1010,7 @@ a.full_link {
 
 /* Header */
 .header {
-  padding: 30px;
+  padding: 20px 30px;
   position: fixed;
   top: 0;
   left: 0;
