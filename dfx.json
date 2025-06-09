@@ -28,7 +28,11 @@
       "init_arg_file": "src/backend/chronolock_canister/chronolock_init_args.did"
     },
     "frontend": {
-      "dependencies": [],
+      "dependencies": [
+        "internet_identity",
+        "crnl_ledger_canister",
+        "chronolock_canister"
+      ],
       "type": "assets",
       "source": ["src/frontend/dist/"]
     }
