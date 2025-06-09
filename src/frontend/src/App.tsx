@@ -1,73 +1,28 @@
-import { ChangeEvent, useState } from 'react';
-import './styles/App.scss';
-import rustLogo from '../assets/rust.svg';
-import reactLogo from '../assets/react.svg';
-import ethLogo from '../assets/eth.svg';
-import { hello_world } from '../../declarations/hello_world';
+import { BrowserRouter, Route, Routes } from 'react-router';
+import { Home } from './pages/Home';
+import { Chronolock } from './pages/Chronolock';
+import { Create } from './pages/Create';
+import { Collection } from './pages/Collection';
+import { Header } from './components/header/Header';
+import { Footer } from './components/Footer';
+import { NotFound } from './components/NotFound';
 
-function App() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-  const [name, setName] = useState<string>('');
-  const [response, setResponse] = useState<string>('');
-
-  const fetchResponse = async () => {
-    try {
-      setLoading(true);
-      setError(undefined);
-      const res = await hello_world.greet(name);
-      setResponse(res);
-    } catch (err) {
-      console.error(err);
-      setError(String(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChangeText = (
-    event: ChangeEvent<HTMLInputElement> | undefined,
-  ): void => {
-    if (!event?.target.value) {
-      return;
-    }
-    setName(event.target.value);
-  };
-
+const App = () => {
   return (
-    <div className="App">
-      <div>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-        <a
-          href="https://github.com/internet-computer-protocol/evm-rpc-canister#readme"
-          target="_blank"
-        >
-          <img src={ethLogo} className="logo ethereum" alt="Ethereum logo" />
-        </a>
-        <a
-          href="https://internetcomputer.org/docs/current/developer-docs/backend/rust/"
-          target="_blank"
-        >
-          <span className="logo-stack">
-            <img src={rustLogo} className="logo rust" alt="Rust logo" />
-          </span>
-        </a>
+    <BrowserRouter>
+      <Header />
+      <div className="body_container">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/chronolock/:id" element={<Chronolock />} />
+          <Route path="/create" element={<Create />} />
+          <Route path="/collection" element={<Collection />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </div>
-      <h1 style={{ paddingLeft: 36 }}>React + EVM RPC + Rust</h1>
-      <input type="text" onChange={handleChangeText} value={name} />
-      <div className="card" style={{ opacity: loading ? 0.5 : 1 }}>
-        <button onClick={fetchResponse}>Get Backend Response</button>
-
-        {!!error && (
-          <pre style={{ textAlign: 'left', color: 'grey' }}>{error}</pre>
-        )}
-        {!!loading && !error && <div className="loader" />}
-        {!!response && <div>{response}</div>}
-      </div>
-    </div>
+      <Footer />
+    </BrowserRouter>
   );
-}
+};
 
 export default App;
