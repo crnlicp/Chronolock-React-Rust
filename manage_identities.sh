@@ -23,7 +23,6 @@ IDENTITIES=$(dfx identity list | grep -v "anonymous" | grep -v "Using identity" 
 # Check if there are any identities to remove
 if [ -z "$IDENTITIES" ]; then
     echo "No identities (except anonymous) found to remove."
-    exit 0
 fi
 
 # Confirm with the user before proceeding
