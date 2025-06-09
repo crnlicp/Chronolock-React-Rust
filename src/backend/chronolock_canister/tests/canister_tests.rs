@@ -20,7 +20,6 @@ struct Chronolock {
     id: String,
     owner: Principal,
     metadata: String,
-    unlock_time: u64,
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -260,12 +259,18 @@ fn test_icrc7_owner_of_and_metadata() {
     let (pic, backend_canister, _, admin) = setup();
 
     let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let metadata = serde_json::json!({
+        "unlock_time": unlock_time,
+        "title": "Test NFT",
+        "encrypted_metadata": "hex_or_base64_string"
+    })
+    .to_string();
     let create_response = pic
         .update_call(
             backend_canister,
             admin,
             "create_chronolock",
-            encode_args(("Test metadata".to_string(), unlock_time)).unwrap(),
+            encode_args((metadata.clone(),)).unwrap(),
         )
         .expect("Failed to call create_chronolock");
     let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
@@ -290,8 +295,8 @@ fn test_icrc7_owner_of_and_metadata() {
             encode_args((token_id.clone(),)).unwrap(),
         )
         .expect("Failed to query icrc7_token_metadata");
-    let metadata: Option<String> = decode_one(&metadata_response).unwrap();
-    assert_eq!(metadata, Some("Test metadata".to_string()));
+    let received_metadata: Option<String> = decode_one(&metadata_response).unwrap();
+    assert_eq!(received_metadata, Some(metadata));
 }
 
 #[test]
@@ -300,12 +305,18 @@ fn test_icrc7_transfer() {
 
     // Step 1: Create a chronolock token
     let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let metadata = serde_json::json!({
+        "unlock_time": unlock_time,
+        "title": "Test NFT",
+        "encrypted_metadata": "hex_or_base64_string"
+    })
+    .to_string();
     let create_response = pic
         .update_call(
             backend_canister,
             admin,
             "create_chronolock",
-            encode_args(("Test metadata".to_string(), unlock_time)).unwrap(),
+            encode_args((metadata.clone(),)).unwrap(),
         )
         .expect("Failed to call create_chronolock");
     let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
@@ -350,12 +361,18 @@ fn test_icrc7_transfer_no_op() {
     let (pic, backend_canister, _, admin) = setup();
 
     let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let metadata = serde_json::json!({
+        "unlock_time": unlock_time,
+        "title": "Test NFT",
+        "encrypted_metadata": "hex_or_base64_string"
+    })
+    .to_string();
     let create_response = pic
         .update_call(
             backend_canister,
             admin,
             "create_chronolock",
-            encode_args(("Test metadata".to_string(), unlock_time)).unwrap(),
+            encode_args((metadata.clone(),)).unwrap(),
         )
         .expect("Failed to call create_chronolock");
     let token_id_result: Result<String, ChronoError> =
@@ -395,29 +412,36 @@ fn test_create_update_burn_chronolock() {
     let (pic, backend_canister, _, admin) = setup();
 
     let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let metadata = serde_json::json!({
+        "unlock_time": unlock_time,
+        "title": "Test NFT",
+        "encrypted_metadata": "hex_or_base64_string"
+    })
+    .to_string();
     let create_response = pic
         .update_call(
             backend_canister,
             admin,
             "create_chronolock",
-            encode_args(("Test metadata".to_string(), unlock_time)).unwrap(),
+            encode_args((metadata.clone(),)).unwrap(),
         )
         .expect("Failed to call create_chronolock");
     let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
     let token_id = token_id_result.expect("Failed to create chronolock");
 
     let new_unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 7200;
+    let new_metadata = serde_json::json!({
+        "unlock_time": new_unlock_time,
+        "title": "Test NFT",
+        "encrypted_metadata": "hex_or_base64_string"
+    })
+    .to_string();
     let update_response = pic
         .update_call(
             backend_canister,
             admin,
             "update_chronolock",
-            encode_args((
-                token_id.clone(),
-                "Updated metadata".to_string(),
-                new_unlock_time,
-            ))
-            .unwrap(),
+            encode_args((token_id.clone(), new_metadata.clone())).unwrap(),
         )
         .expect("Failed to call update_chronolock");
     let update_result: Result<(), ChronoError> = decode_one(&update_response).unwrap();
@@ -431,8 +455,8 @@ fn test_create_update_burn_chronolock() {
             encode_args((token_id.clone(),)).unwrap(),
         )
         .expect("Failed to query icrc7_token_metadata");
-    let metadata: Option<String> = decode_one(&metadata_response).unwrap();
-    assert_eq!(metadata, Some("Updated metadata".to_string()));
+    let received_metadata: Option<String> = decode_one(&metadata_response).unwrap();
+    assert_eq!(received_metadata, Some(new_metadata));
 
     let burn_response = pic
         .update_call(
@@ -787,14 +811,18 @@ fn test_chronolock_encryption_integration() {
 
     let encoded = encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap();
     println!("Encoded args: {}", hex::encode(&encoded));
-
+let metadata = serde_json::json!({
+    "unlock_time": unlock_time,
+    "title": "Test NFT",
+    "encrypted_metadata": "hex_or_base64_string"
+}).to_string();
     // Create chronolock
     let create_response = pic
         .update_call(
             backend_canister,
             admin,
             "create_chronolock",
-            encode_args(("Test metadata".to_string(), unlock_time)).unwrap(),
+            encode_args((metadata.clone(),)).unwrap(),
         )
         .expect("Failed to call create_chronolock");
     let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
@@ -947,7 +975,12 @@ fn test_create_and_unlock_multi_user_chronolock() {
     }
 
     // Store the encrypted keys as JSON in metadata (simulate multi-user metadata)
-    let metadata = serde_json::to_string(&encrypted_keys).unwrap();
+    let metadata = serde_json::json!({
+        "unlock_time": unlock_time,
+        "title": "Multi-User Chronolock",
+        "user_keys": encrypted_keys,
+        "encrypted_metadata": "hex_or_base64_string"
+    });
 
     // Create the chronolock
     let create_response = pic
@@ -955,7 +988,7 @@ fn test_create_and_unlock_multi_user_chronolock() {
             backend_canister,
             admin,
             "create_chronolock",
-            encode_args((metadata.clone(), unlock_time)).unwrap(),
+            encode_args((metadata.to_string(),)).unwrap(),
         )
         .expect("Failed to call create_chronolock");
     let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
@@ -1029,5 +1062,5 @@ fn test_create_and_unlock_multi_user_chronolock() {
         )
         .expect("Failed to query icrc7_token_metadata");
     let returned_metadata: Option<String> = decode_one(&metadata_response).unwrap();
-    assert_eq!(returned_metadata, Some(metadata));
+    assert_eq!(returned_metadata, Some(metadata.to_string()));
 }

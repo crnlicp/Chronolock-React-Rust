@@ -11,6 +11,7 @@ use ic_stable_structures::{
     DefaultMemoryImpl, StableBTreeMap, StableCell, Storable,
 };
 use serde::Deserialize;
+use serde::Serialize;
 use std::borrow::Cow;
 use std::cell::RefCell;
 
@@ -93,8 +94,25 @@ struct ByteBuf(Vec<u8>);
 struct Chronolock {
     id: String,
     owner: Principal,
-    metadata: String,
-    unlock_time: u64,
+    metadata: String, // hex encoded metadata as MetaData
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct MetaData {
+    pub unlock_time: u64,                       // Unix timestamp in seconds
+    pub title: Option<String>,                  // Optional title for the NFT
+    pub user_keys : Option<serde_json::Value>,  // Map of user principal to their encrypted keys
+    pub encrypted_metadata: String,             // hex encoded encrypted metadata as EncryptedMetadataPayload
+}
+
+// Example for the decrypted encrypted_metadata payload to be used in Frontend:
+#[derive(Serialize, Deserialize, Clone)]
+pub struct EncryptedMetadataPayload {
+    pub name: Option<String>,                   // Optional name for the NFT
+    pub description: Option<String>,            // Optional description
+    pub file_type: Option<String>,              // MIME type, optional
+    pub media_url: Option<String>,              // URL to encrypted media
+    pub attributes: Option<serde_json::Value>,  // Arbitrary user key-values
 }
 
 impl Storable for Chronolock {
@@ -478,7 +496,7 @@ async fn get_user_time_decryption_key(
 }
 
 #[update]
-fn create_chronolock(metadata: String, unlock_time: u64) -> Result<String, ChronoError> {
+fn create_chronolock(metadata: String) -> Result<String, ChronoError> {
     let caller = caller();
     let metadata_size = metadata.len() as u64;
     let max_size = MAX_METADATA_SIZE.with(|size| *size.borrow().get());
@@ -486,12 +504,10 @@ fn create_chronolock(metadata: String, unlock_time: u64) -> Result<String, Chron
         return Err(ChronoError::MetadataTooLarge);
     }
     let id = generate_unique_id();
-    let unlock_time_ns = unlock_time * 1_000_000_000;
     let chronolock = Chronolock {
         id: id.clone(),
         owner: caller,
         metadata,
-        unlock_time: unlock_time_ns,
     };
     CHRONOLOCKS.with(|locks| {
         locks.borrow_mut().insert(id.clone(), chronolock);
@@ -513,7 +529,6 @@ fn create_chronolock(metadata: String, unlock_time: u64) -> Result<String, Chron
 fn update_chronolock(
     token_id: String,
     metadata: String,
-    unlock_time: u64,
 ) -> Result<(), ChronoError> {
     let caller = caller();
     CHRONOLOCKS.with(|locks| {
@@ -529,7 +544,6 @@ fn update_chronolock(
             return Err(ChronoError::MetadataTooLarge);
         }
         lock.metadata = metadata;
-        lock.unlock_time = unlock_time;
         locks.insert(token_id.clone(), lock);
         log_activity(format!("Updated chronolock {}", token_id));
         Ok(())
