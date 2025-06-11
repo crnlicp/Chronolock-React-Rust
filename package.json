@@ -22,6 +22,8 @@
     "@dfinity/principal": "^2.4.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@ic-reactor/core": "^1.16.0",
+    "@ic-reactor/react": "^1.16.0",
     "@mui/icons-material": "^7.1.1",
     "@mui/material": "^7.1.1",
     "@mui/x-date-pickers": "^8.5.1",

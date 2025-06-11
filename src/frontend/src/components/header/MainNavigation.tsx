@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { stickyNav } from '../../utils/utility';
-import { useMenuClick } from '../../hooks/useMenuClick';
-import { NavLink } from 'react-router';
-
-import LogoutIcon from '@mui/icons-material/Logout';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import { Backdrop, CircularProgress } from '@mui/material';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { NavLink } from 'react-router';
+import { Principal } from '@dfinity/principal';
+import { stickyNav } from '../../utils/utility';
 import { useAuth } from '../../hooks/useAuth';
+import { useMenuClick } from '../../hooks/useMenuClick';
+import { useActor } from '../../ActorContextProvider';
 
 interface IHeaderProps {
   onNavigationToggle: (value: boolean) => void;
@@ -24,9 +25,28 @@ export const MainNavigation = ({ onNavigationToggle }: IHeaderProps) => {
 
   const [copied, setCopied] = useState(false);
 
+  const {
+    crnlLedgerActor: { useQueryCall: crnlQueryCall },
+  } = useActor();
+
+  const { data, error, loading } = crnlQueryCall({
+    refetchOnMount: true,
+    functionName: 'icrc1_balance_of' as any,
+    args: [
+      {
+        owner: Principal.fromText(principal ?? 'aaaaa-aa'),
+        subaccount: [],
+      },
+    ],
+  });
+
+  console.log(data, error, loading);
+
   useEffect(() => {
     stickyNav();
-  }, []);
+  }, [principal]);
+
+  console.log('principal', principal);
 
   useMenuClick();
 
@@ -93,6 +113,15 @@ export const MainNavigation = ({ onNavigationToggle }: IHeaderProps) => {
           <div className="wallet">
             {isAuthenticated ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 25 }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.8em' }}>
+                  {loading ? (
+                    <CircularProgress size={18} />
+                  ) : typeof data === 'undefined' ? (
+                    ''
+                  ) : (
+                    String(data) + ' CRNL'
+                  )}{' '}
+                </span>
                 <span
                   title={principal || ''}
                   style={{ fontFamily: 'monospace' }}
