@@ -50,6 +50,7 @@ export const useAuth = () => {
     setPrincipal(null);
     setIsAuthLoading(false);
     navigate('/');
+    window.location.reload();
   }
 
   useEffect(() => {
