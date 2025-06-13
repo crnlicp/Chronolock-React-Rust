@@ -412,6 +412,7 @@ h6 > a:hover {
   color: var(--mc1);
 }
 input[type='password'],
+input[type='number'],
 input[type='text'] {
   background-color: transparent;
   border-radius: 5px;
@@ -435,6 +436,7 @@ textarea {
 }
 textarea:focus,
 input[type='password']:focus,
+input[type='number']:focus,
 input[type='text']:focus {
   outline: none;
   background-color: transparent;
@@ -2432,6 +2434,10 @@ a.metaportal_fn_videobutton:hover .fn__svg,
   flex-wrap: wrap;
 }
 .fn_cs_contact_form input[type='text'] {
+  height: 80px;
+  padding: 0 27px;
+}
+.fn_cs_contact_form input[type='number'] {
   height: 80px;
   padding: 0 27px;
 }
@@ -4845,10 +4851,19 @@ a.metaportal_fn_videobutton:hover .fn__svg,
   width: 50%;
 }
 .metaportal_fn_comments .comment-form textarea,
+.metaportal_fn_comments .comment-form input[type='number'] {
+  width: 100%;
+  min-width: 100%;
+  display: block;
+}
 .metaportal_fn_comments .comment-form input[type='text'] {
   width: 100%;
   min-width: 100%;
   display: block;
+}
+.metaportal_fn_comments .comment-form input[type='number'] {
+  height: 80px;
+  padding: 0 27px;
 }
 .metaportal_fn_comments .comment-form input[type='text'] {
   height: 80px;

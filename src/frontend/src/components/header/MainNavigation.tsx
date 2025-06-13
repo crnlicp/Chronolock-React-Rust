@@ -20,6 +20,7 @@ import { IUseCrnlToken } from '../../hooks/useCrnlToken';
 interface IHeaderProps {
   crnlTokenHook: IUseCrnlToken;
   onNavigationToggle: (value: boolean) => void;
+  onOpenSendTokenModal: () => void;
 }
 
 const CustomTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -33,6 +34,7 @@ const CustomTooltip = styled(({ className, ...props }: TooltipProps) => (
 export const MainNavigation = ({
   crnlTokenHook,
   onNavigationToggle,
+  onOpenSendTokenModal,
 }: IHeaderProps) => {
   const { isAuthenticated, handleLogin } = useAuth();
 
@@ -100,13 +102,20 @@ export const MainNavigation = ({
               <ClickAwayListener onClickAway={handleCloseMenu}>
                 <Box>
                   <CustomTooltip
-                    title={<UserMenu crnlTokenHook={crnlTokenHook} />}
+                    title={
+                      <UserMenu
+                        crnlTokenHook={crnlTokenHook}
+                        onCloseMenu={handleCloseMenu}
+                        onOpenSendTokenModal={onOpenSendTokenModal}
+                      />
+                    }
                     onClose={handleCloseMenu}
                     open={showMenu}
                     disableFocusListener
                     disableHoverListener
                     disableTouchListener
                     placement="bottom-start"
+                    id="user-menu-tooltip-desktop"
                   >
                     <IconButton sx={{ color: 'gray' }} onClick={handleOpenMenu}>
                       <Box display={'flex'} gap={1}>

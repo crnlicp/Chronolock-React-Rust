@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Dialog, IconButton } from '@mui/material';
+import { Box, CircularProgress, IconButton } from '@mui/material';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -10,13 +10,16 @@ import { IUseCrnlToken } from '../../hooks/useCrnlToken';
 
 interface IUserMenuProps {
   crnlTokenHook: IUseCrnlToken;
+  onCloseMenu: () => void;
+  onOpenSendTokenModal: () => void;
 }
 
 export const UserMenu = ({
   crnlTokenHook: { balanceData, isLoading: isBalanceLoading, checkBalance },
+  onCloseMenu,
+  onOpenSendTokenModal,
 }: IUserMenuProps) => {
   const [copied, setCopied] = useState(false);
-  const [showSendTokenModal, setShowSendTokenModal] = useState(false);
 
   const { principal, handleLogout } = useAuth();
 
@@ -40,11 +43,8 @@ export const UserMenu = ({
   }
 
   function handleOpenSendTokenModal() {
-    setShowSendTokenModal(true);
-  }
-
-  function handleCloseSendTokenModal() {
-    setShowSendTokenModal(false);
+    onCloseMenu();
+    onOpenSendTokenModal();
   }
 
   return (
@@ -59,6 +59,7 @@ export const UserMenu = ({
         display: 'flex',
         flexDirection: 'column',
         zIndex: 0,
+        fontSize: '1.6em',
         background:
           'linear-gradient(135deg,rgb(118, 42, 95) 0%,rgb(70, 3, 101) 100%, rgb(118, 42, 95) 100%)',
       }}
@@ -130,6 +131,7 @@ export const UserMenu = ({
             padding: '0.3em 0.8em',
             border: 'none',
             width: '100%',
+            cursor: 'pointer',
           }}
         >
           <Box mx={2}>Send Token</Box>
@@ -149,15 +151,13 @@ export const UserMenu = ({
             padding: '0.3em 0.8em',
             border: 'none',
             width: '100%',
+            cursor: 'pointer',
           }}
         >
           <Box mx={2}>Logout</Box>
           <LogoutIcon />
         </button>
       </Box>
-      <Dialog open={showSendTokenModal} onClose={handleCloseSendTokenModal}>
-        1
-      </Dialog>
     </Box>
   );
 };

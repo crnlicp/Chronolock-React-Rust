@@ -19,6 +19,7 @@ interface IMobileNavigationProps {
   navigation: boolean;
   crnlTokenHook: IUseCrnlToken;
   onNavigationToggle: (value: boolean) => void;
+  onOpenSendTokenModal: () => void;
 }
 
 const CustomTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -33,6 +34,7 @@ export const MobileNavigation = ({
   navigation,
   crnlTokenHook,
   onNavigationToggle,
+  onOpenSendTokenModal,
 }: IMobileNavigationProps) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
@@ -69,13 +71,20 @@ export const MobileNavigation = ({
               <ClickAwayListener onClickAway={handleCloseMenu}>
                 <Box>
                   <CustomTooltip
-                    title={<UserMenu crnlTokenHook={crnlTokenHook} />}
+                    title={
+                      <UserMenu
+                        crnlTokenHook={crnlTokenHook}
+                        onCloseMenu={handleCloseMenu}
+                        onOpenSendTokenModal={onOpenSendTokenModal}
+                      />
+                    }
                     onClose={handleCloseMenu}
                     open={showUserMenu}
                     disableFocusListener
                     disableHoverListener
                     disableTouchListener
                     placement="bottom-start"
+                    id="user-menu-tooltip-mobile"
                   >
                     <IconButton sx={{ color: 'gray' }} onClick={handleOpenMenu}>
                       <Box display={'flex'} gap={1}>
