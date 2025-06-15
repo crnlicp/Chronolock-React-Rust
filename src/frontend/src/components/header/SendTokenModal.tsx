@@ -15,7 +15,7 @@ export const SendTokenModal = ({
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('');
 
-  const { transfer, isLoading, feeData } = useCrnlToken();
+  const { transfer, isLoading, feeData, isTransferLoading } = useCrnlToken();
 
   const readableFeeData = feeData
     ? (Number(feeData) / 1e8).toLocaleString(undefined, {
@@ -181,7 +181,7 @@ export const SendTokenModal = ({
             position="relative"
           >
             <span>Send</span>
-            {isLoading && (
+            {isTransferLoading && (
               <Box
                 display={'flex'}
                 position="absolute"
