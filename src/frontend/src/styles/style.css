@@ -770,6 +770,20 @@ a.full_link {
 .metaportal_fn_button:hover {
   color: #fff;
 }
+
+.metaportal_fn_button:disabled,
+.metaportal_fn_button.disabled {
+  background: none !important;
+  color: #888 !important;
+  cursor: not-allowed !important;
+  border: 2px solid #6c6969 !important;
+  opacity: 0.6 !important;
+}
+.metaportal_fn_button:disabled:after,
+.metaportal_fn_button.disabled:after {
+  display: none !important;
+}
+
 .metaportal_fn_protected .submit:after,
 .metaportal_fn_button:after {
   content: '';

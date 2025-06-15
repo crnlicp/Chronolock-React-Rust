@@ -11,13 +11,19 @@ export interface IUseCrnlToken {
   registerError: Error | undefined;
   transferData: unknown;
   transferError: Error | undefined;
+  feeData: unknown;
+  isFeeLoading: boolean;
+  feeError: Error | undefined;
+  getFee: () => Promise<unknown>;
   registerUser: () => Promise<unknown>;
   checkBalance: () => Promise<unknown>;
-  transfer: (transferArgs: ITransferArgs) => Promise<void>;
+  transfer: (transferArgs: ITransferArgs) => Promise<unknown>;
 }
 
-// 5lvul-lqobm-ks5e6-dqehb-ckzns-j6utt-objsh-oht4p-uea4x-lbrtp-gqe
-// dfi5r-jv4p3-4ipkk-3py6c-dqgfe-uerxt-stprr-tzq35-tnhig-yetrp-yqe
+// 10000 3nv5e-pwjqz-56cg7-d6vwf-zf2tf-ofyi3-fgixi-gpykj-somfb-dmyxf-aqe
+// 10001 u55pe-inrvr-hzjcl-gxcds-rbhty-ispld-d2o5p-aqp6a-k46uh-xqkvp-zqe
+// 10002 mrg7m-blouy-ykmv6-xbmhw-avt2f-g7kqq-hfmoq-gu6nu-gltad-yn5l7-wqe
+
 export interface ITransferArgs {
   to: Principal;
   amount: BigInt;
@@ -51,6 +57,17 @@ export const useCrnlToken = (): IUseCrnlToken => {
   });
 
   const {
+    call: getFee,
+    loading: isFeeLoading,
+    data: feeData,
+    error: feeError,
+  } = crnlQueryCall({
+    refetchOnMount: true,
+    functionName: 'icrc1_fee' as any,
+    args: [],
+  });
+
+  const {
     call: transferCall,
     loading: isTransferLoading,
     data: transferData,
@@ -75,11 +92,10 @@ export const useCrnlToken = (): IUseCrnlToken => {
   const transfer = useCallback(
     async (args: ITransferArgs) => {
       transferArgsRef.current = args;
-      setTimeout(() => {
-        transferCall().then(() => {
-          checkBalance();
-        });
-      }, 0);
+      return transferCall().then((res) => {
+        checkBalance();
+        return res;
+      });
     },
     [transferCall],
   );
@@ -110,7 +126,8 @@ export const useCrnlToken = (): IUseCrnlToken => {
 
   const balanceData = balance ? readableBalance(balance) : '0.00';
 
-  const isLoading = isBalanceLoading || isRegisterLoading || isTransferLoading;
+  const isLoading =
+    isBalanceLoading || isRegisterLoading || isTransferLoading || isFeeLoading;
 
   useEffect(() => {
     if (principal) {
@@ -125,7 +142,10 @@ export const useCrnlToken = (): IUseCrnlToken => {
     }
   }, [principal]);
 
-  console.log(balance);
+  console.log(balance, balanceData, 'balanceData');
+  console.log(transferData, 'transferData');
+  console.log(isTransferLoading, 'isTransferLoading');
+  console.log(feeData, 'feeData');
 
   return {
     balanceData,
@@ -135,6 +155,10 @@ export const useCrnlToken = (): IUseCrnlToken => {
     registerError,
     transferData,
     transferError,
+    feeData,
+    isFeeLoading,
+    feeError,
+    getFee,
     registerUser,
     checkBalance,
     transfer,

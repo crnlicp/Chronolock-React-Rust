@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Dialog, Typography } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCrnlToken } from '../../hooks/useCrnlToken';
 import { Principal } from '@dfinity/principal';
 
@@ -8,11 +8,21 @@ interface ISendTokenModalProps {
   onClose: () => void;
 }
 
-export const SendTokenModal = ({ open, onClose }: ISendTokenModalProps) => {
+export const SendTokenModal = ({
+  open,
+  onClose,
+}: ISendTokenModalProps): JSX.Element => {
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('');
 
-  const { transfer, isLoading, transferData } = useCrnlToken();
+  const { transfer, isLoading, feeData } = useCrnlToken();
+
+  const readableFeeData = feeData
+    ? (Number(feeData) / 1e8).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })
+    : '0.00';
 
   const handleChaneAddress = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAddress(e.target.value);
@@ -44,14 +54,25 @@ export const SendTokenModal = ({ open, onClose }: ISendTokenModalProps) => {
         to: Principal.fromText(address),
         amount: BigInt(Math.round(parsedAmount * 1e8)),
       });
-      console.log('Transfer successful!', transferData);
-      // setAddress('');
-      // setAmount('');
-      // onClose();
+      setTimeout(() => {
+        setAddress('');
+        setAmount('');
+        onClose();
+      }, 0);
     } catch (error) {
       console.error('Error sending token:', error);
     }
   };
+
+  console.log(amount, 'amount');
+  console.log(isLoading, 'isLoading');
+
+  useEffect(() => {
+    if (open) {
+      setAddress('');
+      setAmount('');
+    }
+  }, [open]);
 
   return (
     <Dialog fullWidth open={open} onClose={onClose}>
@@ -88,6 +109,49 @@ export const SendTokenModal = ({ open, onClose }: ISendTokenModalProps) => {
               disabled={isLoading}
               style={{ fontSize: '14px', color: 'lightgray' }}
             />
+            {Number(amount) <= Number(readableFeeData) && (
+              <Typography variant="caption" color="error" mt={-3}>
+                Amount must be greater than the fee.
+              </Typography>
+            )}
+            {feeData ? (
+              <Box>
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mt={1}
+                >
+                  <Typography color="lightGray" fontWeight={'bold'}>
+                    Fee:
+                  </Typography>
+                  <Typography color="lightGray">
+                    {readableFeeData} CRNL
+                  </Typography>
+                </Box>
+                {amount && Number(amount) > Number(readableFeeData) ? (
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mt={1}
+                  >
+                    <Typography color="lightGray" fontWeight={'bold'}>
+                      Receipient will receive:
+                    </Typography>
+                    <Typography color="lightGray" fontWeight={'bold'}>
+                      {(
+                        Number(amount) - Number(readableFeeData)
+                      ).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 8,
+                      }) || '0.00'}{' '}
+                      CRNL
+                    </Typography>
+                  </Box>
+                ) : null}
+              </Box>
+            ) : null}
           </Box>
         </Box>
         <button
@@ -99,7 +163,13 @@ export const SendTokenModal = ({ open, onClose }: ISendTokenModalProps) => {
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          disabled={isLoading}
+          disabled={
+            isLoading ||
+            !address ||
+            !amount ||
+            Number(amount) <= 0 ||
+            Number(amount) <= Number(readableFeeData)
+          }
           onClick={handleSendToken}
         >
           <Box
