@@ -5,6 +5,7 @@ type ApproveArgs = record {
   expires_at : opt nat64;
   spender : Account;
 };
+type ClaimReferralArgs = record { referral_code : text };
 type LedgerError = variant {
   InvalidAccount;
   TransferError;
@@ -45,7 +46,7 @@ type TransferFromArgs = record {
   spender : Account;
 };
 service : (text, text, nat, nat64, nat, principal) -> {
-  claim_referral : (text, Account) -> (Result);
+  claim_referral : (ClaimReferralArgs) -> (Result);
   convert_dapp_funds_to_cycles : () -> (Result_1);
   create_media_chronolock : (Account) -> (Result);
   create_text_chronolock : (Account) -> (Result);

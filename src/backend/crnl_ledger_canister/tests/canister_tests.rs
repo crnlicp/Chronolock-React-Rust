@@ -25,6 +25,11 @@ struct TransferArgs {
 }
 
 #[derive(CandidType, serde::Deserialize, Clone, Debug)]
+struct ClaimReferralArgs {
+    referral_code: String,
+}
+
+#[derive(CandidType, serde::Deserialize, Clone, Debug)]
 struct ApproveArgs {
     from_subaccount: Option<[u8; 32]>,
     spender: Account,
@@ -350,14 +355,12 @@ fn test_claim_referral() {
         .unwrap()
         .to_string();
 
-    let args = encode_args((referral_code, referee)).expect("Failed to encode args");
+    let args = encode_args((ClaimReferralArgs {
+        referral_code: referral_code.clone(),
+    },))
+    .expect("Failed to encode args");
     let response = pic
-        .update_call(
-            backend_canister,
-            Principal::anonymous(),
-            "claim_referral",
-            args,
-        )
+        .update_call(backend_canister, referee.owner, "claim_referral", args)
         .expect("Failed to call claim_referral");
     let result: Result<String, LedgerError> = decode_one(&response).unwrap();
     assert_eq!(result.unwrap(), "Referral reward of 20 CRNL credited");
@@ -710,9 +713,12 @@ fn test_referral_reward() {
 
     pic.update_call(
         backend_canister,
-        Principal::anonymous(),
+        referee.owner,
         "claim_referral",
-        encode_args((referral_code, referee.clone())).unwrap(),
+        encode_args((ClaimReferralArgs {
+            referral_code: referral_code.clone(),
+        },))
+        .unwrap(),
     )
     .expect("Failed to claim referral");
 

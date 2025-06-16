@@ -481,30 +481,65 @@ fn test_create_update_burn_chronolock() {
     assert_eq!(owner, None);
 }
 
-// Media Management Tests
 #[test]
 fn test_upload_and_get_media() {
     let (pic, backend_canister, _, admin) = setup();
 
-    let file_data = vec![1, 2, 3, 4, 5];
-    let upload_response = pic
+    let file_data = vec![
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    ];
+    let total_chunks = 2;
+    let chunk1 = file_data[..10].to_vec();
+    let chunk2 = file_data[10..].to_vec();
+
+    // Start upload
+    let start_response = pic
         .update_call(
             backend_canister,
             admin,
-            "upload_media",
-            encode_args((file_data.clone(),)).unwrap(),
+            "start_media_upload",
+            encode_args((total_chunks as u32,)).unwrap(),
         )
-        .expect("Failed to call upload_media");
-    let media_url_result: Result<String, ChronoError> = decode_one(&upload_response).unwrap();
+        .expect("Failed to call start_media_upload");
+    let media_id: String = decode_one(&start_response).unwrap();
+
+    // Upload chunks
+    let _ = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "upload_media_chunk",
+            encode_args((media_id.clone(), 0u32, chunk1.clone())).unwrap(),
+        )
+        .expect("Failed to call upload_media_chunk 0");
+    let _ = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "upload_media_chunk",
+            encode_args((media_id.clone(), 1u32, chunk2.clone())).unwrap(),
+        )
+        .expect("Failed to call upload_media_chunk 1");
+
+    // Finish upload
+    let finish_response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "finish_media_upload",
+            encode_args((media_id.clone(),)).unwrap(),
+        )
+        .expect("Failed to call finish_media_upload");
+    let media_url_result: Result<String, ChronoError> = decode_one(&finish_response).unwrap();
     let media_url = media_url_result.expect("Failed to upload media");
-    let media_id = media_url.split('/').last().unwrap().to_string();
+    let media_id_from_url = media_url.split('/').last().unwrap().to_string();
 
     let get_response = pic
         .query_call(
             backend_canister,
             Principal::anonymous(),
             "get_media",
-            encode_args((media_id.clone(),)).unwrap(),
+            encode_args((media_id_from_url.clone(),)).unwrap(),
         )
         .expect("Failed to query get_media");
     let retrieved_data_result: Result<Vec<u8>, ChronoError> = decode_one(&get_response).unwrap();
@@ -513,7 +548,7 @@ fn test_upload_and_get_media() {
 
     let http_request = HttpRequest {
         method: "GET".to_string(),
-        url: format!("/media/{}", media_id),
+        url: format!("/media/{}", media_id_from_url),
         headers: vec![],
         body: vec![],
     };
@@ -811,11 +846,12 @@ fn test_chronolock_encryption_integration() {
 
     let encoded = encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap();
     println!("Encoded args: {}", hex::encode(&encoded));
-let metadata = serde_json::json!({
-    "unlock_time": unlock_time,
-    "title": "Test NFT",
-    "encrypted_metadata": "hex_or_base64_string"
-}).to_string();
+    let metadata = serde_json::json!({
+        "unlock_time": unlock_time,
+        "title": "Test NFT",
+        "encrypted_metadata": "hex_or_base64_string"
+    })
+    .to_string();
     // Create chronolock
     let create_response = pic
         .update_call(

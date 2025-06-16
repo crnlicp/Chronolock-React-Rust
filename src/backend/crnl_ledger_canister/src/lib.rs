@@ -46,6 +46,11 @@ struct TransferArgs {
     amount: Nat,
 }
 
+#[derive(CandidType, Serialize, Deserialize)]
+struct ClaimReferralArgs {
+    referral_code: String,
+}
+
 // ApproveArgs for ICRC-2 compliance
 #[derive(CandidType, Serialize, Deserialize)]
 struct ApproveArgs {
@@ -453,14 +458,19 @@ async fn register_user(
 }
 
 #[update]
-fn claim_referral(referral_code: String, referee: Account) -> Result<String, LedgerError> {
-    let referrer_opt = ACCOUNT_BY_REFERRAL.with(|abr| abr.borrow().get(&referral_code).clone());
+fn claim_referral(args: ClaimReferralArgs) -> Result<String, LedgerError> {
+    let referee = Account {
+        owner: caller(),
+        subaccount: None, // or get from an optional argument if needed
+    };
+    let referrer_opt =
+        ACCOUNT_BY_REFERRAL.with(|abr| abr.borrow().get(&args.referral_code).clone());
     let referrer = match referrer_opt {
         None => return Err(LedgerError::InvalidReferral),
         Some(acc) => acc,
     };
 
-    if !ACCOUNT_BY_REFERRAL.with(|abr| abr.borrow().contains_key(&referral_code))
+    if !ACCOUNT_BY_REFERRAL.with(|abr| abr.borrow().contains_key(&args.referral_code))
         || CLAIMED_REFERRALS.with(|cr| cr.borrow().contains_key(&referee))
     {
         return Err(LedgerError::InvalidReferral);

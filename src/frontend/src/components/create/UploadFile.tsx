@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { FileWithPreview } from '../../pages/Create';
+import { useChronolock } from '../../hooks/useChronolock';
 
 interface IUploadFileProps {
+  files: FileWithPreview[];
+  setFiles: React.Dispatch<React.SetStateAction<FileWithPreview[]>>;
   onNext: () => void;
   onBack: () => void;
   onUrlChange: (url: string) => void;
@@ -65,11 +69,13 @@ const img: React.CSSProperties = {
 };
 
 export const UploadFile = ({
+  files,
+  setFiles,
   onNext,
   onBack,
   onUrlChange: _onUrlChange,
 }: IUploadFileProps) => {
-  const [files, setFiles] = useState<Array<File & { preview: string }>>([]);
+  const { upload } = useChronolock();
   const [error, setError] = useState<string | null>(null);
 
   const { getRootProps, getInputProps, isFocused, isDragAccept, isDragReject } =
@@ -77,11 +83,10 @@ export const UploadFile = ({
       onDrop: (acceptedFiles, fileRejections) => {
         setError(null);
         setFiles(
-          acceptedFiles.map((file) =>
-            Object.assign(file, {
-              preview: URL.createObjectURL(file),
-            }),
-          ),
+          acceptedFiles.map((file) => ({
+            file,
+            preview: URL.createObjectURL(file),
+          })),
         );
         fileRejections.forEach(({ errors }) => {
           errors.forEach(({ message }) => {
@@ -90,13 +95,20 @@ export const UploadFile = ({
         });
       },
       maxFiles: 1,
-      maxSize: 20 * 1024 * 1024, // 20 MB
+      maxSize: 10 * 1024 * 1024, // 10 MB
       multiple: false,
     });
 
   useEffect(() => {
-    return () => files.forEach((file) => URL.revokeObjectURL(file.preview));
-  }, [files]);
+    const filesWithPreview = files.map((file) => ({
+      ...file,
+      preview: URL.createObjectURL(file.file),
+    }));
+    setFiles(filesWithPreview);
+    return () => {
+      files.forEach(({ preview }) => URL.revokeObjectURL(preview));
+    };
+  }, []);
 
   const style = useMemo(
     () => ({
@@ -109,11 +121,11 @@ export const UploadFile = ({
   );
 
   const thumbs = files.map((file) => (
-    <div style={thumb} key={file.name}>
+    <div style={thumb} key={file.file.name}>
       <div style={thumbInner}>
-        {file.type.startsWith('image/') ? (
-          <img src={file.preview} style={img} alt={file.name} />
-        ) : file.type.startsWith('video/') ? (
+        {file.file.type.startsWith('image/') ? (
+          <img src={file.preview} style={img} alt={file.file.name} />
+        ) : file.file.type.startsWith('video/') ? (
           <video src={file.preview} style={img} controls />
         ) : (
           <div style={{ fontSize: 70, textAlign: 'center', width: '100%' }}>
@@ -128,7 +140,7 @@ export const UploadFile = ({
             marginTop: 10,
           }}
         >
-          {file.name}
+          {file.file.name}
         </div>
       </div>
     </div>
@@ -139,6 +151,9 @@ export const UploadFile = ({
       setError('Please upload a file');
       return;
     }
+    const arrayBuffer = await files[0].file.arrayBuffer();
+    const res = await upload(arrayBuffer);
+    console.log(res, 'File uploaded successfully');
   };
 
   return (

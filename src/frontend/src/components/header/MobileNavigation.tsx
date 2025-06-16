@@ -1,20 +1,59 @@
 import { Fragment, useState } from 'react';
+import {
+  Box,
+  ClickAwayListener,
+  IconButton,
+  styled,
+  Tooltip,
+  tooltipClasses,
+  TooltipProps,
+} from '@mui/material';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import { NavLink } from 'react-router';
+import { useAuth } from '../../hooks/useAuth';
+import { IUseCrnlToken } from '../../hooks/useCrnlToken';
+import { UserMenu } from './UserMenu';
 
 interface IMobileNavigationProps {
   navigation: boolean;
+  crnlTokenHook: IUseCrnlToken;
   onNavigationToggle: (value: boolean) => void;
+  onOpenSendTokenModal: () => void;
 }
+
+const CustomTooltip = styled(({ className, ...props }: TooltipProps) => (
+  <Tooltip {...props} classes={{ popper: className }} />
+))(() => ({
+  [`& .${tooltipClasses.tooltip}`]: {
+    backgroundColor: 'transparent',
+  },
+}));
 
 export const MobileNavigation = ({
   navigation,
+  crnlTokenHook,
   onNavigationToggle,
+  onOpenSendTokenModal,
 }: IMobileNavigationProps) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const { isAuthenticated, handleLogin } = useAuth();
 
   const handleMobileMenuToggle = () => {
     setShowMobileMenu(!showMobileMenu);
   };
+
+  function handleCloseMenu(): void {
+    setShowUserMenu(false);
+  }
+
+  function handleOpenMenu(): void {
+    setShowUserMenu(true);
+  }
+
   return (
     <Fragment>
       <div className="metaportal_fn_mobnav">
@@ -28,15 +67,46 @@ export const MobileNavigation = ({
             </div>
           </div>
           <div className="wallet">
-            <NavLink
-              to="#"
-              onClick={(e) => {
-                e.preventDefault();
-              }}
-              className="metaportal_fn_button wallet_opener"
-            >
-              <img src="assets/svg/ii.svg" width={150} height={50} />
-            </NavLink>
+            {isAuthenticated ? (
+              <ClickAwayListener onClickAway={handleCloseMenu}>
+                <Box>
+                  <CustomTooltip
+                    title={
+                      <UserMenu
+                        crnlTokenHook={crnlTokenHook}
+                        onCloseMenu={handleCloseMenu}
+                        onOpenSendTokenModal={onOpenSendTokenModal}
+                      />
+                    }
+                    onClose={handleCloseMenu}
+                    open={showUserMenu}
+                    disableFocusListener
+                    disableHoverListener
+                    disableTouchListener
+                    placement="bottom-start"
+                    id="user-menu-tooltip-mobile"
+                  >
+                    <IconButton sx={{ color: 'gray' }} onClick={handleOpenMenu}>
+                      <Box display={'flex'} gap={1}>
+                        <PersonRoundedIcon fontSize="large" />
+                        <KeyboardArrowDownRoundedIcon fontSize="large" />
+                      </Box>
+                    </IconButton>
+                  </CustomTooltip>
+                </Box>
+              </ClickAwayListener>
+            ) : (
+              <NavLink
+                to="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleLogin();
+                }}
+                className="metaportal_fn_button wallet_opener"
+              >
+                <img src="assets/svg/ii.svg" width={150} height={50} />
+              </NavLink>
+            )}
           </div>
         </div>
         <div className="mob_mid">
