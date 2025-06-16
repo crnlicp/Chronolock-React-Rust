@@ -32,10 +32,6 @@ export interface IUseCrnlToken {
   transfer: (transferArgs: ITransferArgs) => Promise<unknown>;
 }
 
-// 10000 3nv5e-pwjqz-56cg7-d6vwf-zf2tf-ofyi3-fgixi-gpykj-somfb-dmyxf-aqe
-// 10001 u55pe-inrvr-hzjcl-gxcds-rbhty-ispld-d2o5p-aqp6a-k46uh-xqkvp-zqe
-// 10002 mrg7m-blouy-ykmv6-xbmhw-avt2f-g7kqq-hfmoq-gu6nu-gltad-yn5l7-wqe
-
 interface ITransferArgs {
   to: Principal;
   amount: BigInt;
@@ -172,6 +168,7 @@ export const useCrnlToken = (): IUseCrnlToken => {
         [],
       ])
         .then((res) => {
+          getRefrrealCode();
           checkBalance();
           console.log('User registered', res);
         })

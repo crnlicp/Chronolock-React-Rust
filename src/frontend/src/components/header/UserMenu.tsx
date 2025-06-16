@@ -15,24 +15,43 @@ interface IUserMenuProps {
 }
 
 export const UserMenu = ({
-  crnlTokenHook: { balanceData, isLoading: isBalanceLoading, checkBalance },
+  crnlTokenHook: {
+    balanceData,
+    isLoading: isBalanceLoading,
+    referralCode,
+    checkBalance,
+  },
   onCloseMenu,
   onOpenSendTokenModal,
 }: IUserMenuProps) => {
-  const [copied, setCopied] = useState(false);
-
   const { principal, handleLogout } = useAuth();
+
+  const [copiedWallet, setCopiedWallet] = useState(false);
+  const [copiedURL, setCopiedURL] = useState(false);
+
+  const referralLink =
+    process.env.DFX_NETWORK === 'ic'
+      ? `https://${process.env.CANISTER_ID_FRONTEND}.raw.ic0.app/?referral_code=${referralCode}`
+      : `http://${process.env.CANISTER_ID_FRONTEND}.localhost:4943/?referral_code=${referralCode}`;
 
   function formatPrincipal(principal: string) {
     if (principal.length <= 8) return principal;
     return `${principal.slice(0, 5)}...${principal.slice(-3)}`;
   }
 
-  function handleCopy() {
+  function handleCopyWallet() {
     if (principal) {
       navigator.clipboard.writeText(principal);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedWallet(true);
+      setTimeout(() => setCopiedWallet(false), 2000);
+    }
+  }
+
+  function handleCopyURL() {
+    if (referralLink) {
+      navigator.clipboard.writeText(referralLink);
+      setCopiedURL(true);
+      setTimeout(() => setCopiedURL(false), 2000);
     }
   }
 
@@ -74,7 +93,7 @@ export const UserMenu = ({
         }}
         gap={2}
       >
-        <Box>{String(balanceData)} CRNL</Box>
+        <Box width={'100%'}>Your Credit: {String(balanceData)} CRNL</Box>
         <Box width={24} height={24}>
           {isBalanceLoading ? (
             <CircularProgress size={24} />
@@ -94,16 +113,16 @@ export const UserMenu = ({
         gap={2}
         sx={{ fontFamily: 'monospace', fontSize: '0.8em' }}
       >
-        <Box>
-          <span title={principal || ''} onClick={handleCopy}>
-            {principal ? formatPrincipal(principal) : ''}
+        <Box width={'100%'}>
+          <span title={principal || ''} onClick={handleCopyWallet}>
+            Principal ID: {principal ? formatPrincipal(principal) : ''}
           </span>
         </Box>
         <Box>
-          {!copied ? (
+          {!copiedWallet ? (
             <IconButton
               sx={{ color: 'lightGray', width: 24, height: 24 }}
-              onClick={handleCopy}
+              onClick={handleCopyWallet}
             >
               <ContentCopyIcon />
             </IconButton>
@@ -111,13 +130,45 @@ export const UserMenu = ({
             <Box display={'flex'} alignItems={'center'} gap={1}>
               <CheckBoxIcon
                 sx={{
-                  color: copied ? 'lightGreen' : 'transparent',
+                  color: copiedWallet ? 'lightGreen' : 'transparent',
                 }}
               />
             </Box>
           )}
         </Box>
       </Box>
+      {referralCode ? (
+        <Box
+          display={'flex'}
+          alignItems={'center'}
+          gap={2}
+          sx={{ fontFamily: 'monospace', fontSize: '0.8em' }}
+        >
+          <Box width={'100%'}>
+            <span title={principal || ''} onClick={handleCopyURL}>
+              Referral Link:
+            </span>
+          </Box>
+          <Box>
+            {!copiedURL ? (
+              <IconButton
+                sx={{ color: 'lightGray', width: 24, height: 24 }}
+                onClick={handleCopyURL}
+              >
+                <ContentCopyIcon />
+              </IconButton>
+            ) : (
+              <Box display={'flex'} alignItems={'center'} gap={1}>
+                <CheckBoxIcon
+                  sx={{
+                    color: copiedURL ? 'lightGreen' : 'transparent',
+                  }}
+                />
+              </Box>
+            )}
+          </Box>
+        </Box>
+      ) : null}
       <Box>
         <button
           onClick={handleOpenSendTokenModal}

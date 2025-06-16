@@ -6,15 +6,20 @@ import { UploadFile } from '../components/create/UploadFile';
 import { Details } from './Details';
 import { useAuth } from '../hooks/useAuth';
 
+export type FileWithPreview = { file: File; preview: string };
+
 export const Create = () => {
   const { isAuthenticated } = useAuth();
 
   const [activeStep, setActiveStep] = useState(0);
   const [lockTime, setLockTime] = useState<PickerValue | null>(null);
   const [recipients, setRecipients] = useState<string[]>([]);
+  const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [_mediaUrl, setMediaUrl] = useState<string | null>(null);
   // const targetDate = new Date();
   // targetDate.setHours(targetDate.getHours() + 2325);
+
+  console.log(files, 'files in create page');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -64,6 +69,8 @@ export const Create = () => {
       )}
       {activeStep === 1 && (
         <UploadFile
+          files={files}
+          setFiles={setFiles}
           onNext={handleNext}
           onBack={handleBack}
           onUrlChange={handleMediaUrlChange}

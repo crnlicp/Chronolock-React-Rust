@@ -26,9 +26,10 @@ type Result_4 = variant { Ok : VetKDDeriveKeyReply; Err : ChronoError };
 type Result_5 = variant { Ok : VetKDPublicKeyReply; Err : ChronoError };
 type VetKDDeriveKeyReply = record { encrypted_key : blob };
 type VetKDPublicKeyReply = record { public_key : blob };
-service : (principal, opt principal) -> {
+service : (principal, opt principal, opt text) -> {
   burn_chronolock : (text) -> (Result);
   create_chronolock : (text) -> (Result_1);
+  finish_media_upload : (text) -> (Result_1);
   get_logs_paginated : (nat64, nat64) -> (Result_2) query;
   get_media : (text) -> (Result_3) query;
   get_time_decryption_key : (text, blob) -> (Result_4);
@@ -44,6 +45,7 @@ service : (principal, opt principal) -> {
   icrc7_total_supply : () -> (nat64) query;
   icrc7_transfer : (text, principal) -> (Result);
   set_max_metadata_size : (nat64) -> (Result);
+  start_media_upload : (nat32) -> (text);
   update_chronolock : (text, text) -> (Result);
-  upload_media : (blob) -> (Result_1);
+  upload_media_chunk : (text, nat32, blob) -> (Result);
 }

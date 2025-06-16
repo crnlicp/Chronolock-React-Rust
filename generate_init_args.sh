@@ -30,7 +30,8 @@ EOF
 cat <<EOF > src/backend/chronolock_canister/chronolock_init_args.did
 (
   principal "$ADMIN_PRINCIPAL",
-  opt principal "$CHAINKEY_TESTING_CANISTER_CANISTER_ID"
+  opt principal "$CHAINKEY_TESTING_CANISTER_CANISTER_ID",
+  opt "local"
 )
 EOF
 

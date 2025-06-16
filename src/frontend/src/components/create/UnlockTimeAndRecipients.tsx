@@ -45,7 +45,7 @@ export const UnlockTimeAndRecipients = ({
               id="name"
               type="text"
               placeholder="Unlock time*"
-              value={lockTime?.toString().slice(0, 25)}
+              value={lockTime?.toString().slice(0, 25) ?? ''}
               style={{ fontSize: '24px' }}
               readOnly
             />

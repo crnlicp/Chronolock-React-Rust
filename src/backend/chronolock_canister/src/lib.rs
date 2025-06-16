@@ -99,20 +99,20 @@ struct Chronolock {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MetaData {
-    pub unlock_time: u64,                       // Unix timestamp in seconds
-    pub title: Option<String>,                  // Optional title for the NFT
-    pub user_keys : Option<serde_json::Value>,  // Map of user principal to their encrypted keys
-    pub encrypted_metadata: String,             // hex encoded encrypted metadata as EncryptedMetadataPayload
+    pub unlock_time: u64,                     // Unix timestamp in seconds
+    pub title: Option<String>,                // Optional title for the NFT
+    pub user_keys: Option<serde_json::Value>, // Map of user principal to their encrypted keys
+    pub encrypted_metadata: String, // hex encoded encrypted metadata as EncryptedMetadataPayload
 }
 
 // Example for the decrypted encrypted_metadata payload to be used in Frontend:
 #[derive(Serialize, Deserialize, Clone)]
 pub struct EncryptedMetadataPayload {
-    pub name: Option<String>,                   // Optional name for the NFT
-    pub description: Option<String>,            // Optional description
-    pub file_type: Option<String>,              // MIME type, optional
-    pub media_url: Option<String>,              // URL to encrypted media
-    pub attributes: Option<serde_json::Value>,  // Arbitrary user key-values
+    pub name: Option<String>,                  // Optional name for the NFT
+    pub description: Option<String>,           // Optional description
+    pub file_type: Option<String>,             // MIME type, optional
+    pub media_url: Option<String>,             // URL to encrypted media
+    pub attributes: Option<serde_json::Value>, // Arbitrary user key-values
 }
 
 impl Storable for Chronolock {
@@ -162,6 +162,23 @@ impl Storable for TokenList {
     const BOUND: Bound = Bound::Unbounded;
 }
 
+#[derive(CandidType, Deserialize, Clone)]
+struct MediaUploadState {
+    total_chunks: u32,
+    received_chunks: u32,
+    chunks: Vec<Option<Vec<u8>>>,
+}
+
+impl Storable for MediaUploadState {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(candid::encode_one(self).expect("Failed to encode MediaUploadState"))
+    }
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        candid::decode_one(&bytes).expect("Failed to decode MediaUploadState")
+    }
+    const BOUND: Bound = Bound::Unbounded;
+}
+
 thread_local! {
     static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
         RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
@@ -194,6 +211,13 @@ thread_local! {
     );
     static VETKD_CANISTER_ID: RefCell<Principal> = RefCell::new(
         Principal::from_text(VETKD_CANISTER_ID_TEXT).unwrap()
+    );
+    static NETWORK: RefCell<StableCell<Option<String>, Memory>> = RefCell::new(
+        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(8))), None)
+            .unwrap_or_else(|e| panic!("Failed to initialize NETWORK: {:?}", e))
+    );
+    static MEDIA_UPLOADS: RefCell<StableBTreeMap<String, MediaUploadState, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(9))))
     );
     static SYMBOL: RefCell<String> = RefCell::new("CHRONOLOCK".to_string());
     static NAME: RefCell<String> = RefCell::new("Chronolock Collection".to_string());
@@ -272,7 +296,7 @@ async fn call_vetkd_derive_key(
 }
 
 #[init]
-fn init(admin: Principal, vetkd_canister_id: Option<Principal>) {
+fn init(admin: Principal, vetkd_canister_id: Option<Principal>, network: Option<String>) {
     ADMINS.with(|admins| {
         admins.borrow_mut().insert(0, admin);
     });
@@ -286,6 +310,14 @@ fn init(admin: Principal, vetkd_canister_id: Option<Principal>) {
         None => "no VETKD canister ID".to_string(),
     };
 
+    if let Some(net) = network {
+        NETWORK.with(|n| {
+            n.borrow_mut()
+                .set(Some(net))
+                .expect("Failed to set NETWORK")
+        });
+    }
+
     log_activity(format!(
         "Canister initialized with {} and {}",
         admin, vetkd_str
@@ -294,6 +326,10 @@ fn init(admin: Principal, vetkd_canister_id: Option<Principal>) {
 
 fn is_admin(caller: Principal) -> bool {
     ADMINS.with(|admins| admins.borrow().get(&0) == Some(caller))
+}
+
+fn get_network() -> Option<String> {
+    NETWORK.with(|n| n.borrow().get().clone())
 }
 
 #[update]
@@ -526,10 +562,7 @@ fn create_chronolock(metadata: String) -> Result<String, ChronoError> {
 }
 
 #[update]
-fn update_chronolock(
-    token_id: String,
-    metadata: String,
-) -> Result<(), ChronoError> {
+fn update_chronolock(token_id: String, metadata: String) -> Result<(), ChronoError> {
     let caller = caller();
     CHRONOLOCKS.with(|locks| {
         let mut locks = locks.borrow_mut();
@@ -574,22 +607,103 @@ fn burn_chronolock(token_id: String) -> Result<(), ChronoError> {
 }
 
 #[update]
-fn upload_media(file_data: Vec<u8>) -> Result<String, ChronoError> {
-    const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024; // 10 MB
-    if file_data.len() as u64 > MAX_FILE_SIZE {
-        return Err(ChronoError::InvalidInput(format!(
-            "File size exceeds maximum of {} bytes",
-            MAX_FILE_SIZE
-        )));
-    }
+fn start_media_upload(total_chunks: u32) -> String {
     let media_id = generate_unique_id();
-    MEDIA_FILES.with(|media| {
-        media.borrow_mut().insert(media_id.clone(), file_data);
+    MEDIA_UPLOADS.with(|uploads| {
+        uploads.borrow_mut().insert(
+            media_id.clone(),
+            MediaUploadState {
+                total_chunks,
+                received_chunks: 0,
+                chunks: vec![None; total_chunks as usize],
+            },
+        );
     });
-    let canister_id = ic_cdk::id();
-    let url = format!("https://{}.raw.ic0.app/media/{}", canister_id, media_id);
-    log_activity(format!("Uploaded media with ID: {}", media_id));
-    Ok(url)
+    log_activity(format!(
+        "Started media upload: {} ({} chunks)",
+        media_id, total_chunks
+    ));
+    media_id
+}
+
+#[update]
+fn upload_media_chunk(
+    media_id: String,
+    chunk_index: u32,
+    chunk: Vec<u8>,
+) -> Result<(), ChronoError> {
+    const MAX_CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2MB
+    if chunk.len() > MAX_CHUNK_SIZE {
+        return Err(ChronoError::InvalidInput(format!("Chunk size exceeds 2MB")));
+    }
+    MEDIA_UPLOADS.with(|uploads| {
+        let mut uploads = uploads.borrow_mut();
+        let mut entry = uploads
+            .get(&media_id)
+            .ok_or_else(|| {
+                ChronoError::InvalidInput("Invalid media_id for chunk upload".to_string())
+            })?
+            .clone();
+
+        if chunk_index as usize >= entry.total_chunks as usize {
+            return Err(ChronoError::InvalidInput("Invalid chunk index".to_string()));
+        }
+        if entry.chunks[chunk_index as usize].is_some() {
+            return Err(ChronoError::InvalidInput(
+                "Chunk already uploaded".to_string(),
+            ));
+        }
+        entry.chunks[chunk_index as usize] = Some(chunk);
+        entry.received_chunks += 1;
+
+        uploads.insert(media_id, entry);
+        Ok(())
+    })
+}
+
+#[update]
+fn finish_media_upload(media_id: String) -> Result<String, ChronoError> {
+    const MAX_FILE_SIZE: usize = 10 * 1024 * 1024; // 10MB
+    MEDIA_UPLOADS.with(|uploads| {
+        let mut uploads = uploads.borrow_mut();
+        let MediaUploadState {
+            total_chunks,
+            received_chunks,
+            chunks,
+            ..
+        } = uploads
+            .remove(&media_id)
+            .ok_or_else(|| ChronoError::InvalidInput("Invalid media_id for finish".to_string()))?;
+        if received_chunks != total_chunks {
+            return Err(ChronoError::InvalidInput(format!(
+                "Not all chunks uploaded: {}/{}",
+                received_chunks, total_chunks
+            )));
+        }
+        let mut file_data = Vec::new();
+        for chunk in chunks.into_iter() {
+            let chunk = chunk
+                .ok_or_else(|| ChronoError::InvalidInput("Missing chunk in upload".to_string()))?;
+            file_data.extend_from_slice(&chunk);
+        }
+        if file_data.len() > MAX_FILE_SIZE {
+            return Err(ChronoError::InvalidInput(format!(
+                "File size exceeds maximum of {} bytes",
+                MAX_FILE_SIZE
+            )));
+        }
+        MEDIA_FILES.with(|media| {
+            media.borrow_mut().insert(media_id.clone(), file_data);
+        });
+        let canister_id = ic_cdk::id();
+        let base_url = match get_network().as_deref() {
+            Some("local") => format!("http://{}.localhost:4943", canister_id),
+            _ => format!("https://{}.raw.ic0.app", canister_id),
+        };
+        let url = format!("{}/media/{}", base_url, media_id);
+        log_activity(format!("Finished media upload: {}", media_id));
+        Ok(url)
+    })
 }
 
 #[query]
