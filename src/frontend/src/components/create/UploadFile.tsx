@@ -82,8 +82,7 @@ export const UploadFile = ({
   onSetMediaId,
   onUrlChange: onUrlChange,
 }: IUploadFileProps) => {
-  const { upload, isUploadLoading, uploadErrors, getMediaChunked } =
-    useChronolock();
+  const { upload, isUploadLoading, uploadErrors } = useChronolock();
   const [error, setError] = useState<string | null>(null);
 
   const { getRootProps, getInputProps, isFocused, isDragAccept, isDragReject } =

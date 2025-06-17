@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 interface IDetailsProps {
   name: string;
   title: string;
