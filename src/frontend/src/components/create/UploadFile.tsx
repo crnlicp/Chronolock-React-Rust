@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FileWithPreview } from '../../pages/Create';
 import { useChronolock } from '../../hooks/useChronolock';
+import { Box, CircularProgress } from '@mui/material';
 
 interface IUploadFileProps {
   files: FileWithPreview[];
+  mediaUrl: string | null;
+  cryptoKey: CryptoKey | null;
   setFiles: React.Dispatch<React.SetStateAction<FileWithPreview[]>>;
   onNext: () => void;
   onBack: () => void;
+  onSetMediaId: (mediaId: string) => void;
   onUrlChange: (url: string) => void;
 }
 
@@ -70,12 +74,16 @@ const img: React.CSSProperties = {
 
 export const UploadFile = ({
   files,
+  mediaUrl,
+  cryptoKey,
   setFiles,
   onNext,
   onBack,
-  onUrlChange: _onUrlChange,
+  onSetMediaId,
+  onUrlChange: onUrlChange,
 }: IUploadFileProps) => {
-  const { upload } = useChronolock();
+  const { upload, isUploadLoading, uploadErrors, getMediaChunked } =
+    useChronolock();
   const [error, setError] = useState<string | null>(null);
 
   const { getRootProps, getInputProps, isFocused, isDragAccept, isDragReject } =
@@ -147,13 +155,46 @@ export const UploadFile = ({
   ));
 
   const handleUploadFile = async () => {
-    if (files.length === 0) {
-      setError('Please upload a file');
+    if (files.length === 0 || !cryptoKey) {
+      setError(
+        'Some error occurred: No files selected or crypto key is missing',
+      );
       return;
     }
     const arrayBuffer = await files[0].file.arrayBuffer();
-    const res = await upload(arrayBuffer);
-    console.log(res, 'File uploaded successfully');
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encryptedBuffer = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      arrayBuffer,
+    );
+    console.log('file encrypted', {
+      iv: iv,
+      encryptedBuffer: Array.from(new Uint8Array(encryptedBuffer)),
+    });
+
+    const result = await upload(encryptedBuffer);
+    if (
+      result &&
+      typeof result === 'object' &&
+      'urlObject' in result &&
+      'mediaId' in result &&
+      typeof result.urlObject === 'object' &&
+      'Ok' in (result.urlObject as { Ok: string }) &&
+      typeof result.mediaId === 'string'
+    ) {
+      const mediaUrl = (result.urlObject as { Ok: string }).Ok;
+      console.log('File uploaded successfully:', { Ok: mediaUrl });
+      onUrlChange(mediaUrl as string);
+      onSetMediaId(result.mediaId as string);
+
+      // Use chunked download
+      // const totalSize = files[0].file.size;
+      // const media = await getMediaChunked(result.mediaId as string, totalSize);
+      // console.log('Media data retrieved (chunked)', { Ok: media });
+    } else {
+      setError('Upload failed: Unexpected response');
+    }
   };
 
   return (
@@ -163,7 +204,7 @@ export const UploadFile = ({
           <li>
             <section>
               <div {...getRootProps({ style })}>
-                <input {...getInputProps()} />
+                <input {...getInputProps()} disabled={isUploadLoading} />
                 <p>Drag 'n' drop some files here, or click to select files</p>
               </div>
             </section>
@@ -181,14 +222,61 @@ export const UploadFile = ({
         {!!files.length && (
           <button
             className="metaportal_fn_button full cursor"
-            disabled={files.length === 0}
-            style={{ border: 'none', marginBottom: 24, zIndex: 1 }}
+            disabled={files.length === 0 || isUploadLoading}
+            style={{
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: isUploadLoading ? 'not-allowed' : 'pointer',
+            }}
             onClick={handleUploadFile}
           >
-            <span>Upload file</span>
+            <Box
+              mx={2}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              width={100}
+              position="relative"
+            >
+              <span>Upload</span>
+              {isUploadLoading && (
+                <Box
+                  display={'flex'}
+                  position="absolute"
+                  left="100%"
+                  top="50%"
+                  sx={{ transform: 'translate(-50%, -50%)' }}
+                >
+                  <CircularProgress size={24} />
+                </Box>
+              )}
+            </Box>
           </button>
         )}
-
+        {uploadErrors.length > 0 && (
+          <Box
+            my={2}
+            display={'flex'}
+            flexDirection={'column'}
+            justifyContent="center"
+            alignItems="center"
+          >
+            {uploadErrors.map((err, index) => (
+              <p
+                key={index}
+                style={{
+                  color: 'red',
+                  margin: 0,
+                  textAlign: 'left',
+                }}
+              >
+                {err?.message}
+              </p>
+            ))}
+          </Box>
+        )}
         <ul style={{ marginTop: '200px' }}>
           <li>
             <button
@@ -197,6 +285,7 @@ export const UploadFile = ({
                 border: 'none',
                 zIndex: 1,
               }}
+              disabled={isUploadLoading}
               onClick={onBack}
             >
               <span>Back</span>
@@ -205,12 +294,12 @@ export const UploadFile = ({
           <li>
             <button
               className="metaportal_fn_button full cursor"
-              disabled={files.length === 0}
               style={{
                 border: 'none',
                 zIndex: 1,
                 marginBottom: 24,
               }}
+              disabled={files.length === 0 || isUploadLoading || !mediaUrl}
               onClick={onNext}
             >
               <span>Next</span>

@@ -111,6 +111,7 @@ pub struct EncryptedMetadataPayload {
     pub name: Option<String>,                  // Optional name for the NFT
     pub description: Option<String>,           // Optional description
     pub file_type: Option<String>,             // MIME type, optional
+    pub media_id: Option<String>,              // ID of the media file, if any
     pub media_url: Option<String>,             // URL to encrypted media
     pub attributes: Option<serde_json::Value>, // Arbitrary user key-values
 }
@@ -631,11 +632,12 @@ fn upload_media_chunk(
     media_id: String,
     chunk_index: u32,
     chunk: Vec<u8>,
-) -> Result<(), ChronoError> {
+) -> Result<u32, ChronoError> {
     const MAX_CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2MB
     if chunk.len() > MAX_CHUNK_SIZE {
         return Err(ChronoError::InvalidInput(format!("Chunk size exceeds 2MB")));
     }
+    let chunk_len = chunk.len() as u32;
     MEDIA_UPLOADS.with(|uploads| {
         let mut uploads = uploads.borrow_mut();
         let mut entry = uploads
@@ -657,7 +659,7 @@ fn upload_media_chunk(
         entry.received_chunks += 1;
 
         uploads.insert(media_id, entry);
-        Ok(())
+        Ok(chunk_len)
     })
 }
 
@@ -707,13 +709,25 @@ fn finish_media_upload(media_id: String) -> Result<String, ChronoError> {
 }
 
 #[query]
-fn get_media(media_id: String) -> Result<Vec<u8>, ChronoError> {
+fn get_media_chunk(media_id: String, offset: u32, length: u32) -> Result<Vec<u8>, ChronoError> {
     MEDIA_FILES.with(|media| {
-        media
-            .borrow()
-            .get(&media_id)
-            .map(|v| v.clone())
-            .ok_or(ChronoError::TokenNotFound)
+        if let Some(data) = media.borrow().get(&media_id) {
+            let start = offset as usize;
+            let end = std::cmp::min(start + length as usize, data.len());
+            ic_cdk::println!(
+                "Returning chunk: start={}, end={}, length={}",
+                start,
+                end,
+                end - start
+            );
+            if start >= data.len() {
+                ic_cdk::println!("Offset exceeds data length, returning empty chunk");
+                return Ok(vec![]); // Return empty chunk if offset exceeds data length
+            }
+            Ok(data[start..end].to_vec()) // Return the requested slice
+        } else {
+            Err(ChronoError::TokenNotFound) // Return error if media_id is invalid
+        }
     })
 }
 

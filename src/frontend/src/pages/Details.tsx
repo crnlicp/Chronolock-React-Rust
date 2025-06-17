@@ -1,27 +1,38 @@
 import { useState } from 'react';
 
 interface IDetailsProps {
+  name: string;
+  title: string;
+  description: string;
+  attributes: { key: string; value: string }[];
+  setAttributes: (attributes: { key: string; value: string }[]) => void;
+  onChangeName: (name: string) => void;
+  onChangeTitle: (title: string) => void;
+  onChangeDescription: (description: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export const Details = ({ onNext, onBack }: IDetailsProps) => {
-  const [properties, setProperties] = useState<
-    { key: string; value: string }[]
-  >([]);
-
-  const [title, setTitle] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [name, setName] = useState<string>('');
-
+export const Details = ({
+  name,
+  title,
+  description,
+  attributes,
+  setAttributes,
+  onChangeName,
+  onChangeTitle,
+  onChangeDescription,
+  onNext,
+  onBack,
+}: IDetailsProps) => {
   const handleAddProperty = () => {
-    setProperties([...properties, { key: '', value: '' }]);
+    setAttributes([...attributes, { key: '', value: '' }]);
   };
 
   const handleRemoveRecipient = (index: number) => {
-    const newProperties = [...properties];
+    const newProperties = [...attributes];
     newProperties.splice(index, 1);
-    setProperties(newProperties);
+    setAttributes(newProperties);
   };
 
   return (
@@ -32,19 +43,19 @@ export const Details = ({ onNext, onBack }: IDetailsProps) => {
             <input
               type="text"
               placeholder="Name *"
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => onChangeName(e.target.value)}
             />
             <input
               type="text"
               placeholder="Description *"
               style={{ marginTop: '24px' }}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => onChangeDescription(e.target.value)}
             />
             <input
               type="text"
               placeholder="Title (Displayed before Unlock) *"
               style={{ marginTop: '24px' }}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => onChangeTitle(e.target.value)}
             />
           </li>
           <li
@@ -58,7 +69,7 @@ export const Details = ({ onNext, onBack }: IDetailsProps) => {
             >
               <span>Add More Properties (key-value)</span>
             </button>
-            {properties.map((property, index) => (
+            {attributes.map((property, index) => (
               <div key={index} style={{ display: 'flex' }}>
                 <ul>
                   <li style={{ marginBottom: 24 }}>
@@ -68,9 +79,9 @@ export const Details = ({ onNext, onBack }: IDetailsProps) => {
                       placeholder="Key *"
                       value={property.key}
                       onChange={(e) => {
-                        const newProperties = [...properties];
+                        const newProperties = [...attributes];
                         newProperties[index].key = e.target.value;
-                        setProperties(newProperties);
+                        setAttributes(newProperties);
                       }}
                     />
                   </li>
@@ -81,9 +92,9 @@ export const Details = ({ onNext, onBack }: IDetailsProps) => {
                       placeholder="Value *"
                       value={property.value}
                       onChange={(e) => {
-                        const newProperties = [...properties];
+                        const newProperties = [...attributes];
                         newProperties[index].value = e.target.value;
-                        setProperties(newProperties);
+                        setAttributes(newProperties);
                       }}
                     />
                   </li>
@@ -130,7 +141,7 @@ export const Details = ({ onNext, onBack }: IDetailsProps) => {
               }}
               onClick={onNext}
               disabled={
-                properties.some((p) => p.key === '' || p.value === '') ||
+                attributes.some((p) => p.key === '' || p.value === '') ||
                 !name ||
                 !description ||
                 !title

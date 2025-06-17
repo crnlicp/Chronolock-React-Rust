@@ -534,16 +534,27 @@ fn test_upload_and_get_media() {
     let media_url = media_url_result.expect("Failed to upload media");
     let media_id_from_url = media_url.split('/').last().unwrap().to_string();
 
-    let get_response = pic
-        .query_call(
-            backend_canister,
-            Principal::anonymous(),
-            "get_media",
-            encode_args((media_id_from_url.clone(),)).unwrap(),
-        )
-        .expect("Failed to query get_media");
-    let retrieved_data_result: Result<Vec<u8>, ChronoError> = decode_one(&get_response).unwrap();
-    let retrieved_data = retrieved_data_result.expect("Failed to get media");
+    // Use chunked retrieval
+    let mut retrieved_data = vec![];
+    let chunk_size = 10;
+    let mut offset = 0;
+    loop {
+        let get_response = pic
+            .query_call(
+                backend_canister,
+                Principal::anonymous(),
+                "get_media_chunk",
+                encode_args((media_id_from_url.clone(), offset as u32, chunk_size as u32)).unwrap(),
+            )
+            .expect("Failed to query get_media_chunk");
+        let chunk_result: Result<Vec<u8>, ChronoError> = decode_one(&get_response).unwrap();
+        let chunk = chunk_result.expect("Failed to get media chunk");
+        if chunk.is_empty() {
+            break;
+        }
+        retrieved_data.extend_from_slice(&chunk);
+        offset += chunk.len();
+    }
     assert_eq!(retrieved_data, file_data);
 
     let http_request = HttpRequest {

@@ -356,6 +356,7 @@ body:after {
   -webkit-filter: blur(150px);
   -o-filter: blur(150px);
   filter: blur(150px);
+  z-index: -100;
 }
 body:before {
   content: '';

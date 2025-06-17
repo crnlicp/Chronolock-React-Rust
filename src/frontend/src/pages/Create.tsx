@@ -5,24 +5,49 @@ import { PickerValue } from '@mui/x-date-pickers/internals';
 import { UploadFile } from '../components/create/UploadFile';
 import { Details } from './Details';
 import { useAuth } from '../hooks/useAuth';
+import { useChronolock } from '../hooks/useChronolock';
 
 export type FileWithPreview = { file: File; preview: string };
 
 export const Create = () => {
   const { isAuthenticated } = useAuth();
+  const { generateKey } = useChronolock();
 
+  const [name, setName] = useState<string>('');
+  const [title, setTitle] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [attributes, setAttributes] = useState<
+    { key: string; value: string }[]
+  >([]);
+  const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
   const [activeStep, setActiveStep] = useState(0);
-  const [lockTime, setLockTime] = useState<PickerValue | null>(null);
+  const [lockTime, setLockTime] = useState<number | null>(null);
   const [recipients, setRecipients] = useState<string[]>([]);
   const [files, setFiles] = useState<FileWithPreview[]>([]);
-  const [_mediaUrl, setMediaUrl] = useState<string | null>(null);
-  // const targetDate = new Date();
-  // targetDate.setHours(targetDate.getHours() + 2325);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaId, setMediaId] = useState<string | null>(null);
 
-  console.log(files, 'files in create page');
+  console.log({
+    name,
+    title,
+    description,
+    attributes,
+    lockTime,
+    recipients,
+    files,
+    mediaId,
+    mediaUrl,
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    generateKey()
+      .then((generatedKey) => {
+        setCryptoKey(generatedKey);
+      })
+      .catch((error) => {
+        console.error('Error generating key:', error);
+      });
   }, []);
 
   const handleNext = () => {
@@ -32,7 +57,7 @@ export const Create = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  const handleDateChange = (date: PickerValue | null): void => {
+  const handleDateChange = (date: number | null): void => {
     setLockTime(date);
   };
 
@@ -42,6 +67,22 @@ export const Create = () => {
 
   const handleMediaUrlChange = (url: string): void => {
     setMediaUrl(url);
+  };
+
+  const handleChangeName = (name: string): void => {
+    setName(name);
+  };
+
+  const handleChangeTitle = (title: string): void => {
+    setTitle(title);
+  };
+
+  const handleChangeDescription = (description: string): void => {
+    setDescription(description);
+  };
+
+  const handleSetMediaId = (id: string): void => {
+    setMediaId(id);
   };
 
   if (!isAuthenticated) {
@@ -70,13 +111,29 @@ export const Create = () => {
       {activeStep === 1 && (
         <UploadFile
           files={files}
+          mediaUrl={mediaUrl}
+          cryptoKey={cryptoKey}
           setFiles={setFiles}
+          onSetMediaId={handleSetMediaId}
           onNext={handleNext}
           onBack={handleBack}
           onUrlChange={handleMediaUrlChange}
         />
       )}
-      {activeStep === 2 && <Details onNext={handleNext} onBack={handleBack} />}
+      {activeStep === 2 && (
+        <Details
+          name={name}
+          title={title}
+          description={description}
+          attributes={attributes}
+          setAttributes={setAttributes}
+          onChangeName={handleChangeName}
+          onChangeTitle={handleChangeTitle}
+          onChangeDescription={handleChangeDescription}
+          onBack={handleBack}
+          onNext={handleNext}
+        />
+      )}
     </div>
   );
 };
