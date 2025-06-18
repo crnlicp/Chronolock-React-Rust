@@ -8,7 +8,6 @@ import {
   IbeIdentity,
   IbeSeed,
 } from '@dfinity/vetkeys';
-import { Principal } from '@dfinity/principal';
 
 interface IReviewAndCreate {
   name: string | undefined;
