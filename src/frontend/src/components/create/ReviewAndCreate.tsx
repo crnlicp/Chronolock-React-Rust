@@ -41,13 +41,13 @@ const ReviewAndCreate = ({
   const {
     getVetkdPublicKey,
     createChronolock,
-    createChronolockLoading,
+    isCreateChronolockLoading,
     isGetVetkdPublicKeyLoading,
   } = useChronolock();
 
   const notEnoughCrnl = parseFloat(balanceData) < 20;
   const showCreditError = notEnoughCrnl && mediaUrl && mediaUrl;
-  const isLoading = createChronolockLoading || isGetVetkdPublicKeyLoading;
+  const isLoading = isCreateChronolockLoading || isGetVetkdPublicKeyLoading;
 
   const handleCreate = async () => {
     if (cryptoKey) {

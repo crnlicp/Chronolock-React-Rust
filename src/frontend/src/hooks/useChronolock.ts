@@ -7,7 +7,7 @@ interface IUseChronolock {
   isGetMediaLoading: boolean;
   isGetVetkdPublicKeyLoading: boolean;
   getMediaError?: Error;
-  createChronolockLoading?: boolean;
+  isCreateChronolockLoading?: boolean;
   createChronolockError?: Error;
   createChronolock: (
     eventOrReplaceArgs?:
@@ -76,7 +76,7 @@ export const useChronolock = (): IUseChronolock => {
 
   const {
     call: createChronolock,
-    loading: createChronolockLoading,
+    loading: isCreateChronolockLoading,
     error: createChronolockError,
   } = chronolockUpdateCall({
     functionName: 'create_chronolock' as any,
@@ -181,7 +181,7 @@ export const useChronolock = (): IUseChronolock => {
     isGetMediaLoading,
     isGetVetkdPublicKeyLoading,
     getMediaError,
-    createChronolockLoading,
+    isCreateChronolockLoading,
     createChronolockError,
     createChronolock,
     upload,
