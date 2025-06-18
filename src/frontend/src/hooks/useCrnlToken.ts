@@ -24,7 +24,9 @@ export interface IUseCrnlToken {
   claimReferralData: unknown;
   isClaimReferralLoading: boolean;
   claimReferralError: Error | undefined;
+  isCreateMediaChronolockLoading: boolean;
   claimReferral: () => Promise<unknown>;
+  createMediaChronolock: () => Promise<unknown>;
   getRefrrealCode: () => Promise<unknown>;
   getFee: () => Promise<unknown>;
   registerUser: () => Promise<unknown>;
@@ -92,6 +94,13 @@ export const useCrnlToken = (): IUseCrnlToken => {
   } = crnlQueryCall({
     refetchOnMount: true,
     functionName: 'icrc1_fee' as any,
+  });
+
+  const {
+    call: createMediaChronolock,
+    loading: isCreateMediaChronolockLoading,
+  } = crnlUpdateCall({
+    functionName: 'create_media_chronolock' as any,
   });
 
   const {
@@ -192,13 +201,6 @@ export const useCrnlToken = (): IUseCrnlToken => {
   }, [principal]);
 
   console.log('balanceData', balance, balanceData);
-  console.log('transferData', transferData);
-  console.log('feeData', feeData);
-  console.log('referralCode', referralCode);
-  console.log('location.pathname', location.pathname);
-  console.log('location.search', location.search);
-  console.log('referrerCode', referrerCode);
-  console.log('claimReferralData', claimReferralData);
 
   return {
     isLoading,
@@ -220,6 +222,8 @@ export const useCrnlToken = (): IUseCrnlToken => {
     claimReferralData,
     isClaimReferralLoading,
     claimReferralError,
+    isCreateMediaChronolockLoading,
+    createMediaChronolock,
     claimReferral,
     getRefrrealCode,
     getFee,

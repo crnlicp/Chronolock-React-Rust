@@ -150,7 +150,7 @@ export const useChronolock = (): IUseChronolock => {
     [getMediaChunk],
   );
 
-  const generateKey = async () => {
+  const generateKey = useCallback(async () => {
     const generatedKey = await window.crypto.subtle.generateKey(
       {
         name: 'AES-GCM',
@@ -161,7 +161,7 @@ export const useChronolock = (): IUseChronolock => {
     );
     console.log('Crypto Key Generated!');
     return generatedKey;
-  };
+  }, []);
 
   const isUploadLoading =
     startMediaUploadLoading ||

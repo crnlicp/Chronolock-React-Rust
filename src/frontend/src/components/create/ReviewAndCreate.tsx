@@ -8,6 +8,8 @@ import {
   IbeIdentity,
   IbeSeed,
 } from '@dfinity/vetkeys';
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
 
 interface IReviewAndCreate {
   name: string | undefined;
@@ -36,17 +38,31 @@ const ReviewAndCreate = ({
   onBack,
 }: IReviewAndCreate) => {
   const date = lockTime ? moment(lockTime * 1000) : null;
-  const { balanceData } = useCrnlToken();
+  const {
+    balanceData,
+    checkBalance,
+    createMediaChronolock,
+    isCreateMediaChronolockLoading,
+  } = useCrnlToken();
   const {
     getVetkdPublicKey,
     createChronolock,
     isCreateChronolockLoading,
     isGetVetkdPublicKeyLoading,
   } = useChronolock();
+  const navigate = useNavigate();
 
   const notEnoughCrnl = parseFloat(balanceData) < 20;
-  const showCreditError = notEnoughCrnl && mediaUrl && mediaUrl;
-  const isLoading = isCreateChronolockLoading || isGetVetkdPublicKeyLoading;
+  const isMediaChronolock = mediaUrl && mediaId && fileType;
+  const showCreditError = notEnoughCrnl && isMediaChronolock;
+  const isLoading =
+    isCreateChronolockLoading ||
+    isGetVetkdPublicKeyLoading ||
+    isCreateMediaChronolockLoading;
+
+  const [createdChronolockId, setCreatedChronolockId] = useState<string | null>(
+    null,
+  );
 
   const handleCreate = async () => {
     if (cryptoKey) {
@@ -136,18 +152,30 @@ const ReviewAndCreate = ({
 
       const unsecureMetaDataBase64 = btoa(JSON.stringify(unsecretMetaData));
       setTimeout(async () => {
-        const chronolock = await createChronolock([unsecureMetaDataBase64]);
-        console.log(
-          'Creating Chronolock',
-          unsecretMetaData,
+        const chronolockObject = await createChronolock([
           unsecureMetaDataBase64,
-          chronolock,
-        );
+        ]);
+        if (isMediaChronolock) {
+          await createMediaChronolock();
+          await checkBalance();
+        }
+        const chronolockId = (chronolockObject as { Ok: string }).Ok;
+        if (chronolockId) {
+          setCreatedChronolockId(chronolockId);
+          console.log('Chronolock created successfully:', {
+            unsecretMetaData,
+            unsecureMetaDataBase64,
+          });
+        }
       }, 0);
     } else {
       console.error('Crypto key is not defined');
       return;
     }
+  };
+
+  const handleFinish = () => {
+    navigate('/');
   };
 
   return (
@@ -256,64 +284,92 @@ const ReviewAndCreate = ({
             </h5>
           </Box>
         )}
-        <ul style={{ marginTop: '100px' }}>
-          <li>
-            <button
-              className="metaportal_fn_button full cursor"
-              style={{
-                border: 'none',
-                zIndex: 1,
+        <Box>
+          {createdChronolockId ? (
+            <Box
+              sx={{
+                padding: '24px',
+                borderRadius: '8px',
               }}
-              onClick={onBack}
             >
-              <span>Back</span>
-            </button>
-          </li>
-          <li>
-            <button
-              className="metaportal_fn_button full cursor"
-              style={{
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-              }}
-              disabled={
-                !name ||
-                !title ||
-                !description ||
-                !lockTime ||
-                !cryptoKey ||
-                isLoading ||
-                notEnoughCrnl
-              }
-              onClick={handleCreate}
-            >
-              <Box
-                mx={2}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                width={100}
-                position="relative"
-              >
-                <span>Create</span>
-                {isLoading && (
-                  <Box
-                    display={'flex'}
-                    position="absolute"
-                    left="100%"
-                    top="50%"
-                    sx={{ transform: 'translate(-50%, -50%)' }}
-                  >
-                    <CircularProgress size={24} />
-                  </Box>
-                )}
+              <Box my={2} sx={{ textAlign: 'center' }}>
+                <h4 style={{ color: 'green' }}>
+                  Chronolock created successfully with ID:{' '}
+                  <strong>{createdChronolockId}</strong>
+                </h4>
               </Box>
-            </button>
-          </li>
-        </ul>
+              <button
+                className="metaportal_fn_button full cursor"
+                style={{
+                  border: 'none',
+                  zIndex: 1,
+                }}
+                onClick={handleFinish}
+              >
+                <span>Back</span>
+              </button>
+            </Box>
+          ) : (
+            <ul style={{ marginTop: '100px' }}>
+              <li>
+                <button
+                  className="metaportal_fn_button full cursor"
+                  style={{
+                    border: 'none',
+                    zIndex: 1,
+                  }}
+                  onClick={onBack}
+                >
+                  <span>Back</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  className="metaportal_fn_button full cursor"
+                  style={{
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                  }}
+                  disabled={
+                    !name ||
+                    !title ||
+                    !description ||
+                    !lockTime ||
+                    !cryptoKey ||
+                    isLoading ||
+                    notEnoughCrnl
+                  }
+                  onClick={handleCreate}
+                >
+                  <Box
+                    mx={2}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    width={100}
+                    position="relative"
+                  >
+                    <span>Create</span>
+                    {isLoading && (
+                      <Box
+                        display={'flex'}
+                        position="absolute"
+                        left="100%"
+                        top="50%"
+                        sx={{ transform: 'translate(-50%, -50%)' }}
+                      >
+                        <CircularProgress size={24} />
+                      </Box>
+                    )}
+                  </Box>
+                </button>
+              </li>
+            </ul>
+          )}
+        </Box>
       </div>
     </div>
   );
