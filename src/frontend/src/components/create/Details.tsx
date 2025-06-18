@@ -23,11 +23,13 @@ export const Details = ({
   onNext,
   onBack,
 }: IDetailsProps) => {
-  const handleAddProperty = () => {
-    setAttributes([...attributes, { key: '', value: '' }]);
+  const handleAddAttribute = () => {
+    if (attributes.length < 10) {
+      setAttributes([...attributes, { key: '', value: '' }]);
+    }
   };
 
-  const handleRemoveRecipient = (index: number) => {
+  const handleRemoveAttribute = (index: number) => {
     const newProperties = [...attributes];
     newProperties.splice(index, 1);
     setAttributes(newProperties);
@@ -41,18 +43,21 @@ export const Details = ({
             <input
               type="text"
               placeholder="Name *"
+              value={name}
               onChange={(e) => onChangeName(e.target.value)}
             />
             <input
               type="text"
               placeholder="Description *"
               style={{ marginTop: '24px' }}
+              value={description}
               onChange={(e) => onChangeDescription(e.target.value)}
             />
             <input
               type="text"
               placeholder="Title (Displayed before Unlock) *"
               style={{ marginTop: '24px' }}
+              value={title}
               onChange={(e) => onChangeTitle(e.target.value)}
             />
           </li>
@@ -63,9 +68,9 @@ export const Details = ({
             <button
               className="metaportal_fn_button full cursor"
               style={{ border: 'none', marginBottom: 24, zIndex: 1 }}
-              onClick={handleAddProperty}
+              onClick={handleAddAttribute}
             >
-              <span>Add More Properties (key-value)</span>
+              <span>Add More Attributes (key-value)</span>
             </button>
             {attributes.map((property, index) => (
               <div key={index} style={{ display: 'flex' }}>
@@ -107,7 +112,7 @@ export const Details = ({
                     cursor: 'pointer',
                     marginLeft: 24,
                   }}
-                  onClick={() => handleRemoveRecipient(index)}
+                  onClick={() => handleRemoveAttribute(index)}
                 >
                   -
                 </div>
@@ -116,7 +121,7 @@ export const Details = ({
           </li>
         </ul>
 
-        <ul style={{ marginTop: '200px' }}>
+        <ul style={{ marginTop: '100px' }}>
           <li>
             <button
               className="metaportal_fn_button full cursor"

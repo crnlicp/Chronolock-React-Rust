@@ -5,12 +5,22 @@ interface IUseChronolock {
   isUploadLoading: boolean;
   uploadErrors: (Error | undefined)[];
   isGetMediaLoading: boolean;
+  isGetVetkdPublicKeyLoading: boolean;
   getMediaError?: Error;
+  createChronolockLoading?: boolean;
+  createChronolockError?: Error;
+  createChronolock: (
+    eventOrReplaceArgs?:
+      | unknown[]
+      | React.MouseEvent<Element, MouseEvent>
+      | undefined,
+  ) => Promise<unknown>;
   upload: (media: ArrayBuffer) => Promise<unknown>;
   getMediaChunked: (
     mediaId: string,
     totalSize: number,
   ) => Promise<Uint8Array<ArrayBuffer>>;
+  getVetkdPublicKey: () => Promise<unknown>;
   generateKey: () => Promise<CryptoKey>;
 }
 
@@ -24,6 +34,12 @@ export const useChronolock = (): IUseChronolock => {
       useUpdateCall: chronolockUpdateCall,
     },
   } = useActor();
+
+  const { call: getVetkdPublicKey, loading: isGetVetkdPublicKeyLoading } =
+    chronolockQueryCall({
+      refetchOnMount: false,
+      functionName: 'ibe_encryption_key' as any,
+    });
 
   const {
     call: getMediaChunk,
@@ -56,6 +72,14 @@ export const useChronolock = (): IUseChronolock => {
     error: finishMediaUploadError,
   } = chronolockUpdateCall({
     functionName: 'finish_media_upload' as any,
+  });
+
+  const {
+    call: createChronolock,
+    loading: createChronolockLoading,
+    error: createChronolockError,
+  } = chronolockUpdateCall({
+    functionName: 'create_chronolock' as any,
   });
 
   const upload = useCallback(
@@ -135,14 +159,15 @@ export const useChronolock = (): IUseChronolock => {
       true,
       ['encrypt', 'decrypt'],
     );
-    console.log('Generated key:', generatedKey);
+    console.log('Crypto Key Generated!');
     return generatedKey;
   };
 
   const isUploadLoading =
     startMediaUploadLoading ||
     uploadMediaChunkLoading ||
-    finishMediaUploadLoading;
+    finishMediaUploadLoading ||
+    isGetVetkdPublicKeyLoading;
 
   const uploadErrors = [
     startMediaUploadError,
@@ -154,9 +179,14 @@ export const useChronolock = (): IUseChronolock => {
     isUploadLoading,
     uploadErrors,
     isGetMediaLoading,
+    isGetVetkdPublicKeyLoading,
     getMediaError,
+    createChronolockLoading,
+    createChronolockError,
+    createChronolock,
     upload,
     getMediaChunked,
     generateKey,
+    getVetkdPublicKey,
   };
 };

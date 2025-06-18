@@ -42,18 +42,14 @@ export const SendTokenModal = ({
       console.error('Invalid amount');
       return;
     }
-    // Convert to smallest unit and string for Nat
-    const natAmount = (parsedAmount * 1e8).toLocaleString('fullwide', {
-      useGrouping: false,
-    });
 
     try {
-      console.log('Sending token to:', address, 'Amount:', natAmount);
       const parsedAmount = parseFloat(amount);
       await transfer({
         to: Principal.fromText(address),
         amount: BigInt(Math.round(parsedAmount * 1e8)),
       });
+      console.log(`Sent ${parsedAmount} to ${address}`);
       setTimeout(() => {
         setAddress('');
         setAmount('');
@@ -63,9 +59,6 @@ export const SendTokenModal = ({
       console.error('Error sending token:', error);
     }
   };
-
-  console.log(amount, 'amount');
-  console.log(isLoading, 'isLoading');
 
   useEffect(() => {
     if (open) {
@@ -110,7 +103,7 @@ export const SendTokenModal = ({
               style={{ fontSize: '14px', color: 'lightgray' }}
             />
             {Number(amount) <= Number(readableFeeData) && (
-              <Typography variant="caption" color="error" mt={-3}>
+              <Typography variant="caption" color="pink" mt={-2}>
                 Amount must be greater than the fee.
               </Typography>
             )}

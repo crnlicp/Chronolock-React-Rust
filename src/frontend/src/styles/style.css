@@ -2448,6 +2448,10 @@ a.metaportal_fn_videobutton:hover .fn__svg,
   margin-left: -40px;
   flex-wrap: wrap;
 }
+.fn_cs_contact_form input::placeholder {
+  color: rgb(163, 157, 157); 
+  opacity: 1; 
+}
 .fn_cs_contact_form input[type='text'] {
   height: 80px;
   padding: 0 27px;

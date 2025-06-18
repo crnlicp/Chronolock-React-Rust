@@ -4,17 +4,6 @@ import { FileWithPreview } from '../../pages/Create';
 import { useChronolock } from '../../hooks/useChronolock';
 import { Box, CircularProgress } from '@mui/material';
 
-interface IUploadFileProps {
-  files: FileWithPreview[];
-  mediaUrl: string | null;
-  cryptoKey: CryptoKey | null;
-  setFiles: React.Dispatch<React.SetStateAction<FileWithPreview[]>>;
-  onNext: () => void;
-  onBack: () => void;
-  onSetMediaId: (mediaId: string) => void;
-  onUrlChange: (url: string) => void;
-}
-
 const baseStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
@@ -72,11 +61,23 @@ const img: React.CSSProperties = {
   height: '85%',
 };
 
+interface IUploadFileProps {
+  files: FileWithPreview[];
+  mediaUrl: string | undefined;
+  cryptoKey: CryptoKey | undefined;
+  setFiles: React.Dispatch<React.SetStateAction<FileWithPreview[]>>;
+  setFileType: React.Dispatch<React.SetStateAction<string | undefined>>;
+  onNext: () => void;
+  onBack: () => void;
+  onSetMediaId: (mediaId: string) => void;
+  onUrlChange: (url: string) => void;
+}
+
 export const UploadFile = ({
   files,
-  mediaUrl,
   cryptoKey,
   setFiles,
+  setFileType,
   onNext,
   onBack,
   onSetMediaId,
@@ -95,6 +96,12 @@ export const UploadFile = ({
             preview: URL.createObjectURL(file),
           })),
         );
+        if (acceptedFiles.length > 0) {
+          const fileType = acceptedFiles[0].type;
+          setFileType(fileType);
+        } else {
+          setFileType(undefined);
+        }
         fileRejections.forEach(({ errors }) => {
           errors.forEach(({ message }) => {
             setError(message);
@@ -112,8 +119,13 @@ export const UploadFile = ({
       preview: URL.createObjectURL(file.file),
     }));
     setFiles(filesWithPreview);
+    setFileType(filesWithPreview[0]?.file.type);
     return () => {
-      files.forEach(({ preview }) => URL.revokeObjectURL(preview));
+      files.forEach(({ preview }) => {
+        if (preview) {
+          URL.revokeObjectURL(preview);
+        }
+      });
     };
   }, []);
 
@@ -167,12 +179,18 @@ export const UploadFile = ({
       cryptoKey,
       arrayBuffer,
     );
+    const concatenatedArray = new Uint8Array(
+      iv.length + encryptedBuffer.byteLength,
+    );
+    concatenatedArray.set(iv, 0);
+    concatenatedArray.set(new Uint8Array(encryptedBuffer), iv.length);
+    const concatenatedBuffer = concatenatedArray.buffer;
     console.log('file encrypted', {
       iv: iv,
-      encryptedBuffer: Array.from(new Uint8Array(encryptedBuffer)),
+      concatenatedArray,
     });
+    const result = await upload(concatenatedBuffer);
 
-    const result = await upload(encryptedBuffer);
     if (
       result &&
       typeof result === 'object' &&
@@ -276,7 +294,23 @@ export const UploadFile = ({
             ))}
           </Box>
         )}
-        <ul style={{ marginTop: '200px' }}>
+        <Box
+          sx={{
+            backgroundColor: '#f0f0f0',
+            padding: '24px',
+            borderRadius: '8px',
+          }}
+          my={2}
+        >
+          <h5 style={{ color: 'green', margin: '0', lineHeight: '1.5' }}>
+            Note: Changing the file requires re-uploading. If the changed file
+            is not uploaded, the previously selected file will be used. Files
+            are encrypted and securely uploaded. Please verify the file's
+            accuracy before proceeding. You can skip this step if you want to
+            create Text Chronolock.
+          </h5>
+        </Box>
+        <ul style={{ marginTop: '100px' }}>
           <li>
             <button
               className="metaportal_fn_button full cursor"
@@ -298,7 +332,7 @@ export const UploadFile = ({
                 zIndex: 1,
                 marginBottom: 24,
               }}
-              disabled={files.length === 0 || isUploadLoading || !mediaUrl}
+              disabled={isUploadLoading}
               onClick={onNext}
             >
               <span>Next</span>

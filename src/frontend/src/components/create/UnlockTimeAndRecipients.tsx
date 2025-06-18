@@ -1,11 +1,12 @@
 import { renderTimeViewClock, StaticDateTimePicker } from '@mui/x-date-pickers';
 import { PickerValue } from '@mui/x-date-pickers/internals';
 import { useState } from 'react';
+import moment from 'moment';
 
 interface IUnlockTimeAndRecipientsProps {
-  lockTime: number | null;
+  lockTime: number | undefined;
   recipients: string[];
-  onDateChange: (date: number | null) => void;
+  onDateChange: (date: number | undefined) => void;
   onRecipientsChange: (recipients: string[]) => void;
   onNext: () => void;
 }
@@ -17,19 +18,22 @@ export const UnlockTimeAndRecipients = ({
   onDateChange,
   onRecipientsChange,
 }: IUnlockTimeAndRecipientsProps) => {
-  const [picker, setPicker] = useState<PickerValue | null>(null);
+  const [picker, setPicker] = useState<PickerValue | null>(
+    lockTime ? moment(lockTime * 1000) : moment(Date.now()),
+  );
 
   const handleDateChange = (newValue: any) => {
     setPicker(newValue);
     if (newValue) {
       const unixTimestamp = Math.floor(new Date(newValue).getTime() / 1000); // Convert to seconds
-      console.log('Unix Timestamp:', unixTimestamp); // Log the Unix timestamp
       onDateChange(unixTimestamp);
     }
   };
 
   const handleAddRecipient = () => {
-    onRecipientsChange([...recipients, '']);
+    if (recipients.length < 20) {
+      onRecipientsChange([...recipients, '']);
+    }
   };
 
   const handleRecipientChange = (index: number, value: string) => {
@@ -53,7 +57,11 @@ export const UnlockTimeAndRecipients = ({
               id="name"
               type="text"
               placeholder="Unlock time*"
-              value={lockTime?.toString().slice(0, 25) ?? ''}
+              value={
+                lockTime
+                  ? moment(lockTime * 1000).format('YYYY-MM-DD HH:mm:ss')
+                  : ''
+              }
               style={{ fontSize: '24px' }}
               readOnly
             />

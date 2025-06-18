@@ -2,9 +2,10 @@ import CustomizedSteppers from '../components/create/Stepper';
 import { useEffect, useState } from 'react';
 import { UnlockTimeAndRecipients } from '../components/create/UnlockTimeAndRecipients';
 import { UploadFile } from '../components/create/UploadFile';
-import { Details } from './Details';
+import { Details } from '../components/create/Details';
 import { useAuth } from '../hooks/useAuth';
 import { useChronolock } from '../hooks/useChronolock';
+import ReviewAndCreate from '../components/create/ReviewAndCreate';
 
 export type FileWithPreview = { file: File; preview: string };
 
@@ -18,25 +19,14 @@ export const Create = () => {
   const [attributes, setAttributes] = useState<
     { key: string; value: string }[]
   >([]);
-  const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
+  const [cryptoKey, setCryptoKey] = useState<CryptoKey | undefined>(undefined);
   const [activeStep, setActiveStep] = useState(0);
-  const [lockTime, setLockTime] = useState<number | null>(null);
+  const [lockTime, setLockTime] = useState<number | undefined>(undefined);
   const [recipients, setRecipients] = useState<string[]>([]);
   const [files, setFiles] = useState<FileWithPreview[]>([]);
-  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
-  const [mediaId, setMediaId] = useState<string | null>(null);
-
-  console.log({
-    name,
-    title,
-    description,
-    attributes,
-    lockTime,
-    recipients,
-    files,
-    mediaId,
-    mediaUrl,
-  });
+  const [fileType, setFileType] = useState<string | undefined>(undefined);
+  const [mediaUrl, setMediaUrl] = useState<string | undefined>(undefined);
+  const [mediaId, setMediaId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -56,7 +46,7 @@ export const Create = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  const handleDateChange = (date: number | null): void => {
+  const handleDateChange = (date: number | undefined): void => {
     setLockTime(date);
   };
 
@@ -113,6 +103,7 @@ export const Create = () => {
           mediaUrl={mediaUrl}
           cryptoKey={cryptoKey}
           setFiles={setFiles}
+          setFileType={setFileType}
           onSetMediaId={handleSetMediaId}
           onNext={handleNext}
           onBack={handleBack}
@@ -131,6 +122,21 @@ export const Create = () => {
           onChangeDescription={handleChangeDescription}
           onBack={handleBack}
           onNext={handleNext}
+        />
+      )}
+      {activeStep === 3 && (
+        <ReviewAndCreate
+          name={name}
+          title={title}
+          description={description}
+          attributes={attributes}
+          mediaUrl={mediaUrl}
+          fileType={fileType}
+          lockTime={lockTime}
+          recipients={recipients}
+          cryptoKey={cryptoKey}
+          mediaId={mediaId}
+          onBack={handleBack}
         />
       )}
     </div>

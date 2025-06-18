@@ -191,14 +191,14 @@ export const useCrnlToken = (): IUseCrnlToken => {
     }
   }, [principal]);
 
-  console.log(balance, balanceData, 'balanceData');
-  console.log(transferData, 'transferData');
-  console.log(feeData, 'feeData');
-  console.log(referralCode, 'referralCode');
-  console.log(location.pathname, 'location.pathname');
-  console.log(location.search, 'location.search');
-  console.log(referrerCode, 'referrerCode');
-  console.log(claimReferralData, 'claimReferralData');
+  console.log('balanceData', balance, balanceData);
+  console.log('transferData', transferData);
+  console.log('feeData', feeData);
+  console.log('referralCode', referralCode);
+  console.log('location.pathname', location.pathname);
+  console.log('location.search', location.search);
+  console.log('referrerCode', referrerCode);
+  console.log('claimReferralData', claimReferralData);
 
   return {
     isLoading,
