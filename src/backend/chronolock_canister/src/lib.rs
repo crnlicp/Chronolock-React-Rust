@@ -1,7 +1,7 @@
 // src/backend/chronolock/src/lib.rs
 
+use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Principal};
-use hex;
 use ic_cdk::api::time;
 use ic_cdk::caller;
 use ic_cdk_macros::{init, query, update};
@@ -495,8 +495,9 @@ async fn get_time_decryption_key(
         return Err(ChronoError::TimeLocked);
     }
 
-    let derivation_id = hex::decode(&unlock_time_hex)
-        .map_err(|e| ChronoError::InvalidInput(format!("Invalid hex: {}", e)))?;
+    // Use IBE identity format for VetKD derivation to ensure compatibility
+    // For public chronolocks, IBE identity is just the decimal time string
+    let derivation_id = unlock_time.to_string().into_bytes();
 
     call_vetkd_derive_key(derivation_id, encryption_public_key).await
 }
@@ -528,7 +529,9 @@ async fn get_user_time_decryption_key(
         return Err(ChronoError::TimeLocked);
     }
 
-    let combined_id = format!("{}:{}", unlock_time_hex, user_id);
+    // Use IBE identity format for VetKD derivation to ensure compatibility
+    // For private chronolocks, IBE identity is "user_id:decimal_time"
+    let combined_id = format!("{}:{}", user_id, unlock_time);
     call_vetkd_derive_key(combined_id.into_bytes(), encryption_public_key).await
 }
 
@@ -768,6 +771,202 @@ fn http_request(request: HttpRequest) -> HttpResponse {
             body: b"Not found".to_vec(),
         }
     }
+}
+
+// Function to get total count of all chronolocks
+#[query]
+fn get_total_chronolocks_count() -> u64 {
+    CHRONOLOCKS.with(|locks| locks.borrow().len() as u64)
+}
+
+// Function to get total count of owner's chronolocks
+#[query]
+fn get_owner_chronolocks_count(owner: Principal) -> u64 {
+    OWNER_TO_TOKENS.with(|owner_to_tokens| {
+        owner_to_tokens
+            .borrow()
+            .get(&owner)
+            .map(|list| list.tokens.len() as u64)
+            .unwrap_or(0)
+    })
+}
+
+// Function to get total count of user accessible chronolocks
+#[query]
+fn get_user_accessible_chronolocks_count(user: Principal) -> u64 {
+    let current_time = time();
+    let user_text = user.to_text();
+
+    CHRONOLOCKS.with(|locks| {
+        locks
+            .borrow()
+            .iter()
+            .filter(|(_, chronolock)| {
+                // Parse the base64-encoded metadata
+                if let Ok(metadata_bytes) = general_purpose::STANDARD.decode(&chronolock.metadata) {
+                    if let Ok(metadata_str) = String::from_utf8(metadata_bytes) {
+                        if let Ok(metadata_value) =
+                            serde_json::from_str::<serde_json::Value>(&metadata_str)
+                        {
+                            // Extract lockTime and userKeys from the parsed JSON
+                            if let (Some(lock_time), Some(user_keys_array)) = (
+                                metadata_value.get("lockTime").and_then(|v| v.as_u64()),
+                                metadata_value.get("userKeys").and_then(|v| v.as_array()),
+                            ) {
+                                let unlock_time_ns = lock_time * 1_000_000_000;
+
+                                // Check if the unlock time has passed
+                                if current_time >= unlock_time_ns {
+                                    // Check if user has access
+                                    for user_key_obj in user_keys_array {
+                                        if let Some(user_key_user) =
+                                            user_key_obj.get("user").and_then(|v| v.as_str())
+                                        {
+                                            // Check if it's a public chronolock
+                                            if user_key_user == "public" {
+                                                return true;
+                                            }
+
+                                            // Check if user matches directly
+                                            if user_key_user == user_text {
+                                                return true;
+                                            }
+
+                                            // Check for user:unlock_time format (which is used by the frontend)
+                                            let user_time_key =
+                                                format!("{}:{}", user_text, lock_time);
+                                            if user_key_user == user_time_key {
+                                                return true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                false
+            })
+            .count() as u64
+    })
+}
+
+// Function to get all chronolocks paginated
+#[query]
+fn get_all_chronolocks_paginated(offset: u64, limit: u64) -> Result<Vec<Chronolock>, ChronoError> {
+    let max_limit = 100; // Limit to prevent excessive data transfer
+    let actual_limit = std::cmp::min(limit, max_limit);
+
+    Ok(CHRONOLOCKS.with(|locks| {
+        locks
+            .borrow()
+            .iter()
+            .skip(offset as usize)
+            .take(actual_limit as usize)
+            .map(|(_, chronolock)| chronolock.clone())
+            .collect()
+    }))
+}
+
+// Function to get the owner's created chronolocks paginated
+#[query]
+fn get_owner_chronolocks_paginated(
+    owner: Principal,
+    offset: u64,
+    limit: u64,
+) -> Result<Vec<Chronolock>, ChronoError> {
+    let max_limit = 100; // Limit to prevent excessive data transfer
+    let actual_limit = std::cmp::min(limit, max_limit);
+
+    OWNER_TO_TOKENS.with(|owner_to_tokens| {
+        let token_list = owner_to_tokens
+            .borrow()
+            .get(&owner)
+            .map(|list| list.clone())
+            .unwrap_or(TokenList { tokens: vec![] });
+
+        let chronolocks: Vec<Chronolock> = token_list
+            .tokens
+            .into_iter()
+            .skip(offset as usize)
+            .take(actual_limit as usize)
+            .filter_map(|token_id| {
+                CHRONOLOCKS.with(|locks| locks.borrow().get(&token_id).map(|lock| lock.clone()))
+            })
+            .collect();
+
+        Ok(chronolocks)
+    })
+}
+
+// Function to get chronolocks that can be opened and decrypted by a user
+#[query]
+fn get_user_accessible_chronolocks_paginated(
+    user: Principal,
+    offset: u64,
+    limit: u64,
+) -> Result<Vec<Chronolock>, ChronoError> {
+    let max_limit = 100; // Limit to prevent excessive data transfer
+    let actual_limit = std::cmp::min(limit, max_limit);
+    let current_time = time();
+    let user_text = user.to_text();
+
+    let accessible_chronolocks: Vec<Chronolock> = CHRONOLOCKS.with(|locks| {
+        locks
+            .borrow()
+            .iter()
+            .filter_map(|(_, chronolock)| {
+                // Parse the base64-encoded metadata
+                if let Ok(metadata_bytes) = general_purpose::STANDARD.decode(&chronolock.metadata) {
+                    if let Ok(metadata_str) = String::from_utf8(metadata_bytes) {
+                        if let Ok(metadata_value) =
+                            serde_json::from_str::<serde_json::Value>(&metadata_str)
+                        {
+                            // Extract lockTime and userKeys from the parsed JSON
+                            if let (Some(lock_time), Some(user_keys_array)) = (
+                                metadata_value.get("lockTime").and_then(|v| v.as_u64()),
+                                metadata_value.get("userKeys").and_then(|v| v.as_array()),
+                            ) {
+                                let unlock_time_ns = lock_time * 1_000_000_000;
+
+                                // Check if the unlock time has passed
+                                if current_time >= unlock_time_ns {
+                                    // Check if user has access
+                                    for user_key_obj in user_keys_array {
+                                        if let Some(user_key_user) =
+                                            user_key_obj.get("user").and_then(|v| v.as_str())
+                                        {
+                                            // Check if it's a public chronolock
+                                            if user_key_user == "public" {
+                                                return Some(chronolock.clone());
+                                            }
+
+                                            // Check if user matches directly
+                                            if user_key_user == user_text {
+                                                return Some(chronolock.clone());
+                                            }
+
+                                            // Check for user:unlock_time format (which is used by the frontend)
+                                            let user_time_key =
+                                                format!("{}:{}", user_text, lock_time);
+                                            if user_key_user == user_time_key {
+                                                return Some(chronolock.clone());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                None
+            })
+            .skip(offset as usize)
+            .take(actual_limit as usize)
+            .collect()
+    });
+
+    Ok(accessible_chronolocks)
 }
 
 ic_cdk::export_candid!();

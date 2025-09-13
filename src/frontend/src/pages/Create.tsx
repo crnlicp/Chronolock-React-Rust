@@ -27,6 +27,7 @@ export const Create = () => {
   const [fileType, setFileType] = useState<string | undefined>(undefined);
   const [mediaUrl, setMediaUrl] = useState<string | undefined>(undefined);
   const [mediaId, setMediaId] = useState<string | undefined>(undefined);
+  const [mediaSize, setMediaSize] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -104,6 +105,7 @@ export const Create = () => {
           cryptoKey={cryptoKey}
           setFiles={setFiles}
           setFileType={setFileType}
+          setMediaSize={setMediaSize}
           onSetMediaId={handleSetMediaId}
           onNext={handleNext}
           onBack={handleBack}
@@ -136,6 +138,7 @@ export const Create = () => {
           recipients={recipients}
           cryptoKey={cryptoKey}
           mediaId={mediaId}
+          mediaSize={mediaSize}
           onBack={handleBack}
         />
       )}

@@ -18,6 +18,7 @@ interface IReviewAndCreate {
   attributes: { key: string; value: string }[] | undefined;
   mediaUrl: string | undefined;
   mediaId: string | undefined;
+  mediaSize: number | undefined;
   fileType: string | undefined;
   lockTime: number | null | undefined;
   recipients: string[] | undefined;
@@ -31,6 +32,7 @@ const ReviewAndCreate = ({
   attributes,
   mediaUrl,
   mediaId,
+  mediaSize,
   fileType,
   lockTime,
   recipients,
@@ -73,6 +75,7 @@ const ReviewAndCreate = ({
         fileType,
         mediaUrl,
         mediaId,
+        mediaSize,
         attributes,
       };
       const encodedMetaData = new TextEncoder().encode(
@@ -108,6 +111,7 @@ const ReviewAndCreate = ({
       const rawKey = await window.crypto.subtle.exportKey('raw', cryptoKey);
       const rawKeyUint8 = new Uint8Array(rawKey);
       const vetkdPublicKeyObject = await getVetkdPublicKey();
+      console.log(vetkdPublicKeyObject);
       const vetkdPublicKeyBuffer = (
         vetkdPublicKeyObject as { Ok: { public_key: ArrayBuffer } }
       ).Ok.public_key;
@@ -234,6 +238,10 @@ const ReviewAndCreate = ({
           <li>
             <h2>Media ID</h2>
             <p>{mediaId}</p>
+          </li>
+          <li>
+            <h2>Media Size</h2>
+            <p>{mediaSize ? `${mediaSize} bytes` : 'Not set'}</p>
           </li>
           <li>
             <h2>Lock Time</h2>

@@ -111,7 +111,6 @@ const Clock: React.FC<CountdownClockProps> = ({ targetDate, className }) => {
 
   return (
     <div className={'lock-container' + (className ? ` ${className}` : '')}>
-      {/* <img src="assets/img/lock.png" className="lock" /> */}
       <div className="clock-container">
         <div className="clock-digital">
           <div className="round-border"></div>

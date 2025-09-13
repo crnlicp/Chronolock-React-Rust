@@ -1,0 +1,136 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  CircularProgress,
+  Grid,
+  Pagination,
+  Button,
+} from '@mui/material';
+import { useAuth } from '../../hooks/useAuth';
+import { useChronolock, Chronolock } from '../../hooks/useChronolock';
+import { ChronolockCard } from './ChronolockCard';
+
+export const MyChronolocks: React.FC = () => {
+  const { principal } = useAuth();
+  const {
+    getOwnerChronolocksPaginated,
+    getOwnerChronolocksCount,
+    isGetOwnerChronolocksLoading,
+    isGetOwnerChronolocksCountLoading,
+  } = useChronolock();
+  const [chronolocks, setChronolocks] = useState<Chronolock[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 12;
+
+  // Fetch chronolocks when page or principal changes
+  useEffect(() => {
+    if (!principal) return;
+
+    const fetchChronolocks = async () => {
+      try {
+        const offset = (page - 1) * itemsPerPage;
+        const result = await getOwnerChronolocksPaginated(
+          principal,
+          offset,
+          itemsPerPage,
+        );
+        console.log('MyChronolocks: Raw result:', result);
+        const chronolocksData = (result as { Ok?: Chronolock[] })?.Ok || [];
+        console.log('MyChronolocks: Parsed chronolocks:', chronolocksData);
+        setChronolocks(chronolocksData);
+      } catch (error) {
+        console.error('Error fetching my chronolocks:', error);
+      }
+    };
+
+    fetchChronolocks();
+  }, [page, principal]); // Only depend on page and principal
+
+  // Fetch count when principal changes
+  useEffect(() => {
+    if (!principal) return;
+
+    const fetchCount = async () => {
+      try {
+        const result = await getOwnerChronolocksCount(principal);
+        const count = result as number;
+        setTotalCount(count);
+      } catch (error) {
+        console.error('Error fetching my chronolocks count:', error);
+      }
+    };
+
+    fetchCount();
+  }, [principal]); // Only depend on principal
+
+  const totalPages = Math.ceil(Number(totalCount) / itemsPerPage);
+
+  if (!principal) {
+    return (
+      <Box textAlign="center" py={4}>
+        <Typography variant="body1" color="white">
+          Please log in to view your chronolocks
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isGetOwnerChronolocksLoading || isGetOwnerChronolocksCountLoading) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        My Chronolocks ({String(totalCount ?? 0)} total)
+      </Typography>
+
+      {chronolocks.length === 0 ? (
+        <Box textAlign="center" py={4}>
+          <Typography variant="body1" color="white">
+            You haven't created any chronolocks yet
+          </Typography>
+          <Button
+            variant="contained"
+            sx={{ mt: 2 }}
+            onClick={() => (window.location.href = '/create')}
+          >
+            Create Your First Chronolock
+          </Button>
+        </Box>
+      ) : (
+        <>
+          <Grid container spacing={3}>
+            {chronolocks.map((chronolock) => (
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={chronolock.id}>
+                <ChronolockCard chronolock={chronolock} />
+              </Grid>
+            ))}
+          </Grid>
+
+          {totalPages > 1 && (
+            <Box display="flex" justifyContent="center" mt={4}>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={(_, newPage) => setPage(newPage)}
+                color="primary"
+              />
+            </Box>
+          )}
+        </>
+      )}
+    </Box>
+  );
+};

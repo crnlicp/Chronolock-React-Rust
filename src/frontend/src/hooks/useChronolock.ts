@@ -1,5 +1,12 @@
 import { useCallback } from 'react';
 import { useActor } from '../ActorContextProvider';
+import { Principal } from '@dfinity/principal';
+
+export interface Chronolock {
+  id: string;
+  owner: string;
+  metadata: string;
+}
 
 interface IUseChronolock {
   isUploadLoading: boolean;
@@ -22,6 +29,43 @@ interface IUseChronolock {
   ) => Promise<Uint8Array<ArrayBuffer>>;
   getVetkdPublicKey: () => Promise<unknown>;
   generateKey: () => Promise<CryptoKey>;
+  // Decryption functions
+  getTimeDecryptionKey: (
+    unlockTimeHex: string,
+    transportPublicKey: number[],
+  ) => Promise<unknown>;
+  getUserTimeDecryptionKey: (
+    unlockTimeHex: string,
+    userId: string,
+    transportPublicKey: number[],
+  ) => Promise<unknown>;
+  // New pagination functions
+  getAllChronolocksCount: () => Promise<unknown>;
+  getOwnerChronolocksCount: (owner: string) => Promise<unknown>;
+  getUserAccessibleChronolocksCount: (user: string) => Promise<unknown>;
+  getAllChronolocksPaginated: (
+    offset: number,
+    limit: number,
+  ) => Promise<unknown>;
+  getOwnerChronolocksPaginated: (
+    owner: string,
+    offset: number,
+    limit: number,
+  ) => Promise<unknown>;
+  getUserAccessibleChronolocksPaginated: (
+    user: string,
+    offset: number,
+    limit: number,
+  ) => Promise<unknown>;
+  // Loading states for new functions
+  isGetTimeDecryptionKeyLoading: boolean;
+  isGetUserTimeDecryptionKeyLoading: boolean;
+  isGetAllChronolocksLoading: boolean;
+  isGetOwnerChronolocksLoading: boolean;
+  isGetUserAccessibleChronolocksLoading: boolean;
+  isGetAllChronolocksCountLoading: boolean;
+  isGetOwnerChronolocksCountLoading: boolean;
+  isGetUserAccessibleChronolocksCountLoading: boolean;
 }
 
 const UPLOAD_CHUNK_SIZE = 1.95 * 1024 * 1024; // 2MB
@@ -40,6 +84,18 @@ export const useChronolock = (): IUseChronolock => {
       refetchOnMount: false,
       functionName: 'ibe_encryption_key' as any,
     });
+
+  const { call: getTimeDecryptionKey, loading: isGetTimeDecryptionKeyLoading } =
+    chronolockUpdateCall({
+      functionName: 'get_time_decryption_key' as any,
+    });
+
+  const {
+    call: getUserTimeDecryptionKey,
+    loading: isGetUserTimeDecryptionKeyLoading,
+  } = chronolockUpdateCall({
+    functionName: 'get_user_time_decryption_key' as any,
+  });
 
   const {
     call: getMediaChunk,
@@ -81,6 +137,96 @@ export const useChronolock = (): IUseChronolock => {
   } = chronolockUpdateCall({
     functionName: 'create_chronolock' as any,
   });
+
+  const {
+    call: getAllChronolocksCount,
+    loading: isGetAllChronolocksCountLoading,
+  } = chronolockQueryCall({
+    refetchOnMount: false,
+    functionName: 'get_total_chronolocks_count' as any,
+  });
+
+  const {
+    call: getOwnerChronolocksCountCall,
+    loading: isGetOwnerChronolocksCountLoading,
+  } = chronolockQueryCall({
+    refetchOnMount: false,
+    functionName: 'get_owner_chronolocks_count' as any,
+  });
+
+  const {
+    call: getUserAccessibleChronolocksCountCall,
+    loading: isGetUserAccessibleChronolocksCountLoading,
+  } = chronolockQueryCall({
+    refetchOnMount: false,
+    functionName: 'get_user_accessible_chronolocks_count' as any,
+  });
+
+  const {
+    call: getAllChronolocksPaginatedCall,
+    loading: isGetAllChronolocksLoading,
+  } = chronolockQueryCall({
+    refetchOnMount: false,
+    functionName: 'get_all_chronolocks_paginated' as any,
+  });
+
+  const {
+    call: getOwnerChronolocksPaginatedCall,
+    loading: isGetOwnerChronolocksLoading,
+  } = chronolockQueryCall({
+    refetchOnMount: false,
+    functionName: 'get_owner_chronolocks_paginated' as any,
+  });
+
+  const {
+    call: getUserAccessibleChronolocksPaginatedCall,
+    loading: isGetUserAccessibleChronolocksLoading,
+  } = chronolockQueryCall({
+    refetchOnMount: false,
+    functionName: 'get_user_accessible_chronolocks_paginated' as any,
+  });
+
+  const getOwnerChronolocksCount = useCallback(
+    (owner: string) => {
+      const principalOwner = Principal.fromText(owner);
+      return getOwnerChronolocksCountCall([principalOwner]);
+    },
+    [getOwnerChronolocksCountCall],
+  );
+
+  const getUserAccessibleChronolocksCount = useCallback(
+    (user: string) => {
+      const principalUser = Principal.fromText(user);
+      return getUserAccessibleChronolocksCountCall([principalUser]);
+    },
+    [getUserAccessibleChronolocksCountCall],
+  );
+
+  const getAllChronolocksPaginated = useCallback(
+    (offset: number, limit: number) =>
+      getAllChronolocksPaginatedCall([offset, limit]),
+    [getAllChronolocksPaginatedCall],
+  );
+
+  const getOwnerChronolocksPaginated = useCallback(
+    (owner: string, offset: number, limit: number) => {
+      const principalOwner = Principal.fromText(owner);
+      return getOwnerChronolocksPaginatedCall([principalOwner, offset, limit]);
+    },
+    [getOwnerChronolocksPaginatedCall],
+  );
+
+  const getUserAccessibleChronolocksPaginated = useCallback(
+    (user: string, offset: number, limit: number) => {
+      const principalUser = Principal.fromText(user);
+      return getUserAccessibleChronolocksPaginatedCall([
+        principalUser,
+        offset,
+        limit,
+      ]);
+    },
+    [getUserAccessibleChronolocksPaginatedCall],
+  );
 
   const upload = useCallback(
     async (media: ArrayBuffer) => {
@@ -163,6 +309,24 @@ export const useChronolock = (): IUseChronolock => {
     return generatedKey;
   }, []);
 
+  const getTimeDecryptionKeyWrapped = useCallback(
+    (unlockTimeHex: string, transportPublicKey: number[]) => {
+      return getTimeDecryptionKey([unlockTimeHex, transportPublicKey]);
+    },
+    [getTimeDecryptionKey],
+  );
+
+  const getUserTimeDecryptionKeyWrapped = useCallback(
+    (unlockTimeHex: string, userId: string, transportPublicKey: number[]) => {
+      return getUserTimeDecryptionKey([
+        unlockTimeHex,
+        userId,
+        transportPublicKey,
+      ]);
+    },
+    [getUserTimeDecryptionKey],
+  );
+
   const isUploadLoading =
     startMediaUploadLoading ||
     uploadMediaChunkLoading ||
@@ -188,5 +352,24 @@ export const useChronolock = (): IUseChronolock => {
     getMediaChunked,
     generateKey,
     getVetkdPublicKey,
+    // Decryption functions
+    getTimeDecryptionKey: getTimeDecryptionKeyWrapped,
+    getUserTimeDecryptionKey: getUserTimeDecryptionKeyWrapped,
+    // New pagination functions
+    getAllChronolocksCount,
+    getOwnerChronolocksCount,
+    getUserAccessibleChronolocksCount,
+    getAllChronolocksPaginated,
+    getOwnerChronolocksPaginated,
+    getUserAccessibleChronolocksPaginated,
+    // Loading states for new functions
+    isGetTimeDecryptionKeyLoading,
+    isGetUserTimeDecryptionKeyLoading,
+    isGetAllChronolocksLoading,
+    isGetOwnerChronolocksLoading,
+    isGetUserAccessibleChronolocksLoading,
+    isGetAllChronolocksCountLoading,
+    isGetOwnerChronolocksCountLoading,
+    isGetUserAccessibleChronolocksCountLoading,
   };
 };

@@ -67,6 +67,7 @@ interface IUploadFileProps {
   cryptoKey: CryptoKey | undefined;
   setFiles: React.Dispatch<React.SetStateAction<FileWithPreview[]>>;
   setFileType: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setMediaSize: React.Dispatch<React.SetStateAction<number | undefined>>;
   onNext: () => void;
   onBack: () => void;
   onSetMediaId: (mediaId: string) => void;
@@ -75,9 +76,11 @@ interface IUploadFileProps {
 
 export const UploadFile = ({
   files,
+  mediaUrl,
   cryptoKey,
   setFiles,
   setFileType,
+  setMediaSize,
   onNext,
   onBack,
   onSetMediaId,
@@ -204,6 +207,7 @@ export const UploadFile = ({
       console.log('File uploaded successfully:', { Ok: mediaUrl });
       onUrlChange(mediaUrl as string);
       onSetMediaId(result.mediaId as string);
+      setMediaSize(files[0].file.size);
 
       // Use chunked download
       // const totalSize = files[0].file.size;
@@ -332,7 +336,7 @@ export const UploadFile = ({
                 zIndex: 1,
                 marginBottom: 24,
               }}
-              disabled={isUploadLoading}
+              disabled={isUploadLoading || (!!files.length && !mediaUrl)}
               onClick={onNext}
             >
               <span>Next</span>
