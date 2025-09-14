@@ -81,7 +81,7 @@ export const MainNavigation = ({
                 </NavLink>
               </li>
               <li>
-                <NavLink to="/#collection" className="creative_link">
+                <NavLink to="/collection" className="creative_link">
                   Collection
                 </NavLink>
               </li>

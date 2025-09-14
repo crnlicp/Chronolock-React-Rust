@@ -63,7 +63,7 @@ const img: React.CSSProperties = {
 
 interface IUploadFileProps {
   files: FileWithPreview[];
-  mediaUrl: string | undefined;
+  mediaId: string | undefined;
   cryptoKey: CryptoKey | undefined;
   setFiles: React.Dispatch<React.SetStateAction<FileWithPreview[]>>;
   setFileType: React.Dispatch<React.SetStateAction<string | undefined>>;
@@ -71,12 +71,11 @@ interface IUploadFileProps {
   onNext: () => void;
   onBack: () => void;
   onSetMediaId: (mediaId: string) => void;
-  onUrlChange: (url: string) => void;
 }
 
 export const UploadFile = ({
   files,
-  mediaUrl,
+  mediaId,
   cryptoKey,
   setFiles,
   setFileType,
@@ -84,7 +83,6 @@ export const UploadFile = ({
   onNext,
   onBack,
   onSetMediaId,
-  onUrlChange: onUrlChange,
 }: IUploadFileProps) => {
   const { upload, isUploadLoading, uploadErrors } = useChronolock();
   const [error, setError] = useState<string | null>(null);
@@ -205,7 +203,6 @@ export const UploadFile = ({
     ) {
       const mediaUrl = (result.urlObject as { Ok: string }).Ok;
       console.log('File uploaded successfully:', { Ok: mediaUrl });
-      onUrlChange(mediaUrl as string);
       onSetMediaId(result.mediaId as string);
       setMediaSize(files[0].file.size);
 
@@ -336,7 +333,7 @@ export const UploadFile = ({
                 zIndex: 1,
                 marginBottom: 24,
               }}
-              disabled={isUploadLoading || (!!files.length && !mediaUrl)}
+              disabled={isUploadLoading || (!!files.length && !mediaId)}
               onClick={onNext}
             >
               <span>Next</span>

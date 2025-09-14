@@ -190,7 +190,7 @@ thread_local! {
         StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1))))
     );
     static MAX_METADATA_SIZE: RefCell<StableCell<u64, Memory>> = RefCell::new(
-        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(2))), 1024)
+        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(2))), 51200)
         .unwrap_or_else(|e| panic!("Failed to initialize MAX_METADATA_SIZE: {:?}", e))
     );
     static LAST_TIMESTAMP: RefCell<StableCell<u64, Memory>> = RefCell::new(

@@ -122,7 +122,7 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
             fullWidth
             onClick={handleClickDecrypt}
           >
-            {!isDecryptable ? 'Locked' : 'Decrypt'}
+            {!isDecryptable ? 'Locked for you' : 'Decrypt'}
           </Button>
         </CardActions>
       ) : (

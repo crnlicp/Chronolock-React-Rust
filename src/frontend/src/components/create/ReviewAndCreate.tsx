@@ -16,7 +16,6 @@ interface IReviewAndCreate {
   title: string | undefined;
   description: string | undefined;
   attributes: { key: string; value: string }[] | undefined;
-  mediaUrl: string | undefined;
   mediaId: string | undefined;
   mediaSize: number | undefined;
   fileType: string | undefined;
@@ -30,7 +29,6 @@ const ReviewAndCreate = ({
   title,
   description,
   attributes,
-  mediaUrl,
   mediaId,
   mediaSize,
   fileType,
@@ -55,7 +53,7 @@ const ReviewAndCreate = ({
   const navigate = useNavigate();
 
   const notEnoughCrnl = parseFloat(balanceData) < 20;
-  const isMediaChronolock = mediaUrl && mediaId && fileType;
+  const isMediaChronolock = mediaId && fileType;
   const showCreditError = notEnoughCrnl && isMediaChronolock;
   const isLoading =
     isCreateChronolockLoading ||
@@ -73,7 +71,6 @@ const ReviewAndCreate = ({
         name,
         description,
         fileType,
-        mediaUrl,
         mediaId,
         mediaSize,
         attributes,
@@ -153,16 +150,15 @@ const ReviewAndCreate = ({
           key: encryptedKeyBase64,
         });
       }
-
       const unsecureMetaDataBase64 = btoa(JSON.stringify(unsecretMetaData));
+
       setTimeout(async () => {
         const chronolockObject = await createChronolock([
           unsecureMetaDataBase64,
         ]);
-        if (isMediaChronolock) {
-          await createMediaChronolock();
-          await checkBalance();
-        }
+        console.log('Reviewing metadata:', {
+          chronolockObject,
+        });
         const chronolockId = (chronolockObject as { Ok: string }).Ok;
         if (chronolockId) {
           setCreatedChronolockId(chronolockId);
@@ -170,6 +166,10 @@ const ReviewAndCreate = ({
             unsecretMetaData,
             unsecureMetaDataBase64,
           });
+          if (isMediaChronolock) {
+            await createMediaChronolock();
+            await checkBalance();
+          }
         }
       }, 0);
     } else {
@@ -229,11 +229,6 @@ const ReviewAndCreate = ({
           <li>
             <h2>Description</h2>
             <p>{description}</p>
-          </li>
-
-          <li>
-            <h2>Media URL</h2>
-            <p>{mediaUrl}</p>
           </li>
           <li>
             <h2>Media ID</h2>

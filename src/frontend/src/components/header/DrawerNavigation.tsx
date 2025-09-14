@@ -87,7 +87,7 @@ export const DrawerNavigation = ({
                 </NavLink>
               </li>
               <li>
-                <NavLink to="/#collection" onClick={handleClick}>
+                <NavLink to="/collection" onClick={handleClick}>
                   <span className="creative_link">
                     Collection
                     <img src="/svg/down.svg" alt="" className="fn__svg" />

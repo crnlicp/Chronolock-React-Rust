@@ -25,7 +25,6 @@ export const Create = () => {
   const [recipients, setRecipients] = useState<string[]>([]);
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [fileType, setFileType] = useState<string | undefined>(undefined);
-  const [mediaUrl, setMediaUrl] = useState<string | undefined>(undefined);
   const [mediaId, setMediaId] = useState<string | undefined>(undefined);
   const [mediaSize, setMediaSize] = useState<number | undefined>(undefined);
 
@@ -53,10 +52,6 @@ export const Create = () => {
 
   const handleRecipientChange = (recipients: string[]): void => {
     setRecipients(recipients);
-  };
-
-  const handleMediaUrlChange = (url: string): void => {
-    setMediaUrl(url);
   };
 
   const handleChangeName = (name: string): void => {
@@ -101,7 +96,7 @@ export const Create = () => {
       {activeStep === 1 && (
         <UploadFile
           files={files}
-          mediaUrl={mediaUrl}
+          mediaId={mediaId}
           cryptoKey={cryptoKey}
           setFiles={setFiles}
           setFileType={setFileType}
@@ -109,7 +104,6 @@ export const Create = () => {
           onSetMediaId={handleSetMediaId}
           onNext={handleNext}
           onBack={handleBack}
-          onUrlChange={handleMediaUrlChange}
         />
       )}
       {activeStep === 2 && (
@@ -132,7 +126,6 @@ export const Create = () => {
           title={title}
           description={description}
           attributes={attributes}
-          mediaUrl={mediaUrl}
           fileType={fileType}
           lockTime={lockTime}
           recipients={recipients}
