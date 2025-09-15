@@ -42,15 +42,14 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
     }
   }, [chronolock.metadata]);
 
+  const isPublic = metadata?.userKeys?.[0]?.user === 'public';
+
   const isLocked = metadata?.lockTime
     ? Date.now() / 1000 < metadata.lockTime
     : true;
 
-  const isPublic = metadata?.userKeys?.[0]?.user === 'public';
-
   const isDecryptable = metadata?.userKeys
-    ? (metadata.userKeys.some((uk) => uk.user === principal) || isPublic) &&
-      !isLocked
+    ? metadata.userKeys.some((uk) => uk.user === principal) || isPublic
     : false;
 
   const ownerStr = (() => {
@@ -95,7 +94,13 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
           {metadata?.userKeys && metadata.userKeys.length > 0 && (
             <Chip
               label={
-                isPublic ? 'public' : `${metadata.userKeys.length} recipient(s)`
+                isPublic
+                  ? 'Public'
+                  : isDecryptable
+                  ? metadata.userKeys.length > 1
+                    ? `You + ${metadata.userKeys.length - 1} recipient(s)`
+                    : 'Only You'
+                  : `${metadata.userKeys.length} recipient(s)`
               }
               variant="outlined"
               size="small"
@@ -106,7 +111,15 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
       </CardContent>
 
       <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
-        <img src="assets/img/lock.png" width={'100%'} height={'100%'} />
+        <img
+          src={
+            !isDecryptable || isLocked
+              ? `assets/img/lock.png`
+              : `assets/img/unlocked.png`
+          }
+          width={'100%'}
+          height={'100%'}
+        />
         <Clock
           targetDate={new Date((metadata?.lockTime ?? 0) * 1000)}
           className="abs_img"
@@ -118,11 +131,15 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
             size="small"
             variant="outlined"
             color={'success'}
-            disabled={!isDecryptable}
+            disabled={!isDecryptable || isLocked}
             fullWidth
             onClick={handleClickDecrypt}
           >
-            {!isDecryptable ? 'Locked for you' : 'Decrypt'}
+            {!isDecryptable
+              ? 'Not available to you'
+              : isLocked
+              ? 'Locked'
+              : 'Decrypt'}
           </Button>
         </CardActions>
       ) : (
