@@ -148,7 +148,7 @@ export const MobileNavigation = ({
             <li>
               <NavLink
                 className="creative_link"
-                to="/#collection"
+                to="/collection"
                 onClick={handleMobileMenuToggle}
               >
                 Collection

@@ -64,7 +64,12 @@ export const MainNavigation = ({
             </div>
             <div className="logo">
               <NavLink to="/">
-                <img src="assets/img/logo.png" alt="" />
+                <img
+                  src="assets/img/logo.gif"
+                  alt=""
+                  height={'95%'}
+                  style={{ position: 'absolute', top: 0, left: 100 }}
+                />
               </NavLink>
             </div>
           </div>
@@ -81,7 +86,7 @@ export const MainNavigation = ({
                 </NavLink>
               </li>
               <li>
-                <NavLink to="/#collection" className="creative_link">
+                <NavLink to="/collection" className="creative_link">
                   Collection
                 </NavLink>
               </li>

@@ -20,6 +20,9 @@ importers:
       '@dfinity/principal':
         specifier: ^2.4.1
         version: 2.4.1
+      '@dfinity/vetkeys':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@emotion/react':
         specifier: ^11.14.0
         version: 11.14.0(@types/react@18.3.23)(react@18.3.1)
@@ -247,6 +250,9 @@ packages:
 
   '@dfinity/principal@2.4.1':
     resolution: {integrity: sha512-Cz6XQVOwq0TXDBClPbcidDd4SqK1lfr1/Kn34ruDD13xVQ4iaP1iCntzS9O97+vGpY/6jwDtKd32Gn5YJ9BQNw==}
+
+  '@dfinity/vetkeys@0.2.0':
+    resolution: {integrity: sha512-H+3ND3/lNArCoPboDBq5Dh3Bzk/bdARzRH9L1RUIGn8z9KV16MZPxtYzmpIpTXIxE9E6M0BxzuRKRMZHUvFikw==}
 
   '@emotion/babel-plugin@11.13.5':
     resolution: {integrity: sha512-pxHCpT2ex+0q+HH91/zsdHkw/lXd468DIN2zvfvLtPKLLMo6gQj7oLObq8PhkrxOZb/gGCq03S3Z7PDhS8pduQ==}
@@ -1635,6 +1641,9 @@ packages:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
     engines: {node: '>=0.10.0'}
 
+  idb-keyval@6.2.2:
+    resolution: {integrity: sha512-yjD9nARJ/jb1g+CvD0tlhUHOrJ9Sy0P8T9MF3YaLlHnSRpwPfpTX0XIvpmw3gAJUmEu3FiICLBDPXVwyEvrleg==}
+
   idb@7.1.1:
     resolution: {integrity: sha512-gchesWBzyvGHRO9W8tzUWFDycow5gwjvFKfyV9FF32Y7F50yZMp7mP+T2mJIWFx49zicqyC4uefHM17o6xKIVQ==}
 
@@ -3002,6 +3011,13 @@ snapshots:
   '@dfinity/principal@2.4.1':
     dependencies:
       '@noble/hashes': 1.8.0
+
+  '@dfinity/vetkeys@0.2.0':
+    dependencies:
+      '@dfinity/agent': 2.4.1(@dfinity/candid@2.4.1(@dfinity/principal@2.4.1))(@dfinity/principal@2.4.1)
+      '@dfinity/candid': 2.4.1(@dfinity/principal@2.4.1)
+      '@dfinity/principal': 2.4.1
+      idb-keyval: 6.2.2
 
   '@emotion/babel-plugin@11.13.5':
     dependencies:
@@ -4467,6 +4483,8 @@ snapshots:
   iconv-lite@0.6.3:
     dependencies:
       safer-buffer: 2.1.2
+
+  idb-keyval@6.2.2: {}
 
   idb@7.1.1: {}
 

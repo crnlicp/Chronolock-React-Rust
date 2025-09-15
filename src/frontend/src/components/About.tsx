@@ -26,8 +26,8 @@ export const About = () => {
         </div>
         <div className="right_part">
           <div className="right_in">
-            <h3 className="fn__maintitle" data-text="The Rise of Legends">
-              The Rise of Legends
+            <h3 className="fn__maintitle" data-text="The Rise of Chronolock">
+              The Rise of Chronolock
             </h3>
             <div className="fn_cs_divider">
               <div className="divider">
@@ -37,41 +37,39 @@ export const About = () => {
             </div>
             <div className="desc">
               <p>
-                As the first hero of the Meta Legends, collection has over 9,999
-                unique skins drawn from the different missions and challenges he
-                faced throughout his life.
+                Chronolock is built to make digital asset management secure and
+                easy for everyone. Using the Internet Computer blockchain, our
+                platform lets users create “chronolocks”—time-locked assets that
+                are protected by advanced blockchain technology. With a simple
+                interface and powerful features, Chronolock helps you control
+                when and how your assets are released, giving you peace of mind
+                and flexibility.
               </p>
               <p>
-                The artwork has been hand-drawned by Robert Green in the
-                traditional anime style and composited by Layla Efiyo.
+                Security is at the heart of Chronolock. We use vetKD encryption,
+                a cutting-edge technology on the Internet Computer, to keep your
+                chronolocks safe and private. This means your assets are not
+                only protected by the blockchain’s transparency and reliability,
+                but also by strong encryption that prevents unauthorized access.
+                Our team is dedicated to staying ahead in security, so you can
+                trust Chronolock with your most important digital assets.
               </p>
               <p>
-                Curabitur pharetra velit eget dignissim varius. In vulputate
-                elit at tortor pellentesque, non pulvinar neque consequat.
-                Aenean tristique odio in libero tincidunt maximus. Nulla
-                pharetra viverra dolor ut blandit. Cras finibus vel tortor eget
-                lacinia. Pellentesque interdum elit non lacinia faucibus. Morbi
-                nec felis auctor, tincidunt lacus sit amet, iaculis ipsum.
-                Phasellus tempus sit amet justo et feugiat. Duis blandit semper
-                lorem, egestas euismod ligula pharetra ac. Sed porta lorem eget
-                neque bibendum, eget euismod justo mollis.
-              </p>
-              <p>
-                Donec tristique porttitor sem, eget fermentum elit varius nec.
-                Donec ut orci ipsum. Morbi efficitur felis eget dapibus
-                fermentum. Phasellus sed tellus volutpat, hendrerit leo non,
-                sollicitudin neque. Etiam ac lacus quam. Vivamus suscipit nisl
-                tellus, at congue odio commodo at. Cras ante enim, sodales at
-                pretium et, tempus at libero.
+                At Chronolock, we believe in making blockchain technology
+                accessible and useful for everyone. Whether you’re a developer,
+                business, or everyday user, our mission is to help you take
+                advantage of secure time-locking and encrypted asset management.
+                Join us and experience the future of digital security with the
+                Internet Computer and vetKD encryption.
               </p>
             </div>
             <NavLink
-              to="https://discord.com/"
+              to="https://oc.app/"
               className="metaportal_fn_button"
               target="_blank"
               rel="noreferrer"
             >
-              <span>Find us On Discord</span>
+              <span>Find us On OpenChat</span>
             </NavLink>
           </div>
         </div>
@@ -81,8 +79,11 @@ export const About = () => {
         {/* Mint Shortcode */}
         <div className="fn_cs_mint">
           <div className="left_part">
-            <h3 className="fn__maintitle" data-text="How to Mint">
-              How to Mint
+            <h3
+              className="fn__maintitle"
+              data-text="How to Create a Chronolock"
+            >
+              How to Create a Chronolock
             </h3>
             <div className="fn_cs_divider">
               <div className="divider">
@@ -92,32 +93,41 @@ export const About = () => {
             </div>
             <div className="desc">
               <p>
-                As the first hero of the Meta Legends, collection has over 9,999
-                unique skins drawn from the different missions and challenges he
-                faced throughout his life.
+                To get started with creating a chronolock, first log in using
+                your Internet Identity. This secure authentication method
+                ensures your account and assets are protected on the Internet
+                Computer blockchain. Once logged in, navigate to the “Create”
+                page from the main menu.
               </p>
               <p>
-                The artwork has been hand-drawned by Robert Green in the
-                traditional anime style and composited by Layla Efiyo.
+                On the Create page, you’ll be able to select your recipients and
+                set the lock time for your chronolock. This determines who will
+                receive the asset and when it will be unlocked. You can also
+                choose to include a media file, such as an image or document, to
+                personalize your chronolock.
               </p>
               <p>
-                Curabitur pharetra velit eget dignissim varius. In vulputate
-                elit at tortor pellentesque, non pulvinar neque consequat.
-                Aenean tristique odio in libero tincidunt maximus. Nulla
-                pharetra viverra dolor ut blandit. Cras finibus vel tortor eget
-                lacinia. Pellentesque interdum elit non lacinia faucibus. Morbi
-                nec felis auctor, tincidunt lacus sit amet, iaculis ipsum.
-                Phasellus tempus sit amet justo et feugiat. Duis blandit semper
-                lorem, egestas euismod ligula pharetra ac. Sed porta lorem eget
-                neque bibendum, eget euismod justo mollis.
+                After you’ve entered all the details, review your chronolock
+                information carefully. When you’re ready, click “Create” to
+                finalize and submit your chronolock to the blockchain. Once
+                created, you can explore all your chronolocks in the Collection
+                page, where you’ll find a complete overview of your time-locked
+                assets and their status.
               </p>
               <p>
-                Donec tristique porttitor sem, eget fermentum elit varius nec.
-                Donec ut orci ipsum. Morbi efficitur felis eget dapibus
-                fermentum. Phasellus sed tellus volutpat, hendrerit leo non,
-                sollicitudin neque. Etiam ac lacus quam. Vivamus suscipit nisl
-                tellus, at congue odio commodo at. Cras ante enim, sodales at
-                pretium et, tempus at libero.
+                After creating your chronolock, you can easily explore and
+                manage your time-locked assets in the Collection page. The
+                Collection page features tabs such as “Chronolocks” for all
+                available assets, “My Chronolocks” for those you have created,
+                and “Encrypted for You” for chronolocks where you are the
+                recipient. This organized layout helps you quickly find and
+                track your assets, ensuring you have access to important details
+                and encrypted files whenever you need them.
+              </p>
+              <p>
+                If you have any questions or need assistance, feel free to reach
+                out to our support team on OpenChat. We're here to help you make
+                the most of your Chronolock experience.
               </p>
             </div>
             <NavLink to="/Create" className="metaportal_fn_button full">
@@ -132,7 +142,7 @@ export const About = () => {
                   <div className="item">
                     <div className="item_in">
                       <h3 className="fn__gradient_title">01</h3>
-                      <p>Connect your Wallet</p>
+                      <p>Login with Internet Identity</p>
                     </div>
                   </div>
                 </li>
@@ -140,7 +150,7 @@ export const About = () => {
                   <div className="item">
                     <div className="item_in">
                       <h3 className="fn__gradient_title">02</h3>
-                      <p>Select Your Quantity</p>
+                      <p>Navigate to Create page</p>
                     </div>
                   </div>
                 </li>
@@ -148,7 +158,7 @@ export const About = () => {
                   <div className="item">
                     <div className="item_in">
                       <h3 className="fn__gradient_title">03</h3>
-                      <p>Confirm The Transaction</p>
+                      <p>Select Your Recipients and lock time</p>
                     </div>
                   </div>
                 </li>
@@ -156,7 +166,23 @@ export const About = () => {
                   <div className="item">
                     <div className="item_in">
                       <h3 className="fn__gradient_title">04</h3>
-                      <p>Receive Your NFT’s</p>
+                      <p>Select any media file to include</p>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div className="item">
+                    <div className="item_in">
+                      <h3 className="fn__gradient_title">05</h3>
+                      <p>Review your Chronolock and Create</p>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div className="item">
+                    <div className="item_in">
+                      <h3 className="fn__gradient_title">06</h3>
+                      <p>Explore Chronolocks in Collection page</p>
                     </div>
                   </div>
                 </li>

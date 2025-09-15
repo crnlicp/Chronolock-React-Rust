@@ -2,11 +2,13 @@ import { Box, CircularProgress, IconButton } from '@mui/material';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import LogoutIcon from '@mui/icons-material/Logout';
+import LockClockIcon from '@mui/icons-material/LockClock';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import SyncIcon from '@mui/icons-material/Sync';
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { IUseCrnlToken } from '../../hooks/useCrnlToken';
+import { NavLink } from 'react-router';
 
 interface IUserMenuProps {
   crnlTokenHook: IUseCrnlToken;
@@ -64,6 +66,10 @@ export const UserMenu = ({
   function handleOpenSendTokenModal() {
     onCloseMenu();
     onOpenSendTokenModal();
+  }
+
+  function handleClickCreate() {
+    onCloseMenu();
   }
 
   return (
@@ -208,6 +214,18 @@ export const UserMenu = ({
           <Box mx={2}>Logout</Box>
           <LogoutIcon />
         </button>
+      </Box>
+      <Box>
+        <NavLink
+          to="/Create"
+          className="metaportal_fn_button "
+          onClick={handleClickCreate}
+        >
+          <Box mx={2} display={'flex'} alignItems={'center'}>
+            Create Chronolock
+            <LockClockIcon sx={{ ml: 1 }} />
+          </Box>
+        </NavLink>
       </Box>
     </Box>
   );

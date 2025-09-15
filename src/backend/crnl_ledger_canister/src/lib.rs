@@ -727,26 +727,28 @@ async fn icrc1_transfer_from(
 }
 
 #[update]
-fn create_media_chronolock(caller: Account) -> Result<String, LedgerError> {
-    let metadata = METADATA.with(|m| m.borrow().get(&0).unwrap().clone());
+fn create_media_chronolock() -> Result<String, LedgerError> {
+    let caller = caller();
+    let account = Account {
+        owner: caller.clone(),
+        subaccount: None, // or get from an optional argument if needed
+    };
     let creation_fee = 2_000_000_000; // 20 $CRNL
-    let balance = BALANCES.with(|b| b.borrow().get(&caller).unwrap_or(0));
+    let balance = BALANCES.with(|b| b.borrow().get(&account).unwrap_or(0));
     if balance < creation_fee {
         return Err(LedgerError::InsufficientBalance);
     }
     BALANCES.with(|b| {
         b.borrow_mut()
-            .insert(caller.clone(), balance - creation_fee)
+            .insert(account.clone(), balance - creation_fee)
     });
     process_fee(creation_fee)?;
     log_event(
         "MediaChronoLockCreated",
-        format!("Caller: {}, Fee: {}", caller.owner, creation_fee),
+        format!("Caller: {}, Fee: {}", account.owner, creation_fee),
     );
-    Ok(format!(
-        "Media ChronoLock created for 20 {}",
-        metadata.symbol
-    ))
+
+    Ok("Media ChronoLock created for 20 CRNL".to_string())
 }
 
 #[update]

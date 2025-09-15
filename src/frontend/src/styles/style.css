@@ -356,6 +356,7 @@ body:after {
   -webkit-filter: blur(150px);
   -o-filter: blur(150px);
   filter: blur(150px);
+  z-index: -100;
 }
 body:before {
   content: '';
@@ -2446,6 +2447,10 @@ a.metaportal_fn_videobutton:hover .fn__svg,
   margin: 0;
   margin-left: -40px;
   flex-wrap: wrap;
+}
+.fn_cs_contact_form input::placeholder {
+  color: rgb(163, 157, 157); 
+  opacity: 1; 
 }
 .fn_cs_contact_form input[type='text'] {
   height: 80px;

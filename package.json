@@ -20,6 +20,7 @@
     "@dfinity/auth-client": "^2.4.1",
     "@dfinity/candid": "^2.4.1",
     "@dfinity/principal": "^2.4.1",
+    "@dfinity/vetkeys": "^0.2.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@ic-reactor/core": "^1.16.0",

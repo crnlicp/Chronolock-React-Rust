@@ -2,14 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FileWithPreview } from '../../pages/Create';
 import { useChronolock } from '../../hooks/useChronolock';
-
-interface IUploadFileProps {
-  files: FileWithPreview[];
-  setFiles: React.Dispatch<React.SetStateAction<FileWithPreview[]>>;
-  onNext: () => void;
-  onBack: () => void;
-  onUrlChange: (url: string) => void;
-}
+import { Box, CircularProgress } from '@mui/material';
 
 const baseStyle: React.CSSProperties = {
   flex: 1,
@@ -68,14 +61,30 @@ const img: React.CSSProperties = {
   height: '85%',
 };
 
+interface IUploadFileProps {
+  files: FileWithPreview[];
+  mediaId: string | undefined;
+  cryptoKey: CryptoKey | undefined;
+  setFiles: React.Dispatch<React.SetStateAction<FileWithPreview[]>>;
+  setFileType: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setMediaSize: React.Dispatch<React.SetStateAction<number | undefined>>;
+  onNext: () => void;
+  onBack: () => void;
+  onSetMediaId: (mediaId: string) => void;
+}
+
 export const UploadFile = ({
   files,
+  mediaId,
+  cryptoKey,
   setFiles,
+  setFileType,
+  setMediaSize,
   onNext,
   onBack,
-  onUrlChange: _onUrlChange,
+  onSetMediaId,
 }: IUploadFileProps) => {
-  const { upload } = useChronolock();
+  const { upload, isUploadLoading, uploadErrors } = useChronolock();
   const [error, setError] = useState<string | null>(null);
 
   const { getRootProps, getInputProps, isFocused, isDragAccept, isDragReject } =
@@ -88,6 +97,12 @@ export const UploadFile = ({
             preview: URL.createObjectURL(file),
           })),
         );
+        if (acceptedFiles.length > 0) {
+          const fileType = acceptedFiles[0].type;
+          setFileType(fileType);
+        } else {
+          setFileType(undefined);
+        }
         fileRejections.forEach(({ errors }) => {
           errors.forEach(({ message }) => {
             setError(message);
@@ -105,8 +120,13 @@ export const UploadFile = ({
       preview: URL.createObjectURL(file.file),
     }));
     setFiles(filesWithPreview);
+    setFileType(filesWithPreview[0]?.file.type);
     return () => {
-      files.forEach(({ preview }) => URL.revokeObjectURL(preview));
+      files.forEach(({ preview }) => {
+        if (preview) {
+          URL.revokeObjectURL(preview);
+        }
+      });
     };
   }, []);
 
@@ -147,13 +167,52 @@ export const UploadFile = ({
   ));
 
   const handleUploadFile = async () => {
-    if (files.length === 0) {
-      setError('Please upload a file');
+    if (files.length === 0 || !cryptoKey) {
+      setError(
+        'Some error occurred: No files selected or crypto key is missing',
+      );
       return;
     }
     const arrayBuffer = await files[0].file.arrayBuffer();
-    const res = await upload(arrayBuffer);
-    console.log(res, 'File uploaded successfully');
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encryptedBuffer = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      arrayBuffer,
+    );
+    const concatenatedArray = new Uint8Array(
+      iv.length + encryptedBuffer.byteLength,
+    );
+    concatenatedArray.set(iv, 0);
+    concatenatedArray.set(new Uint8Array(encryptedBuffer), iv.length);
+    const concatenatedBuffer = concatenatedArray.buffer;
+    console.log('file encrypted', {
+      iv: iv,
+      concatenatedArray,
+    });
+    const result = await upload(concatenatedBuffer);
+
+    if (
+      result &&
+      typeof result === 'object' &&
+      'urlObject' in result &&
+      'mediaId' in result &&
+      typeof result.urlObject === 'object' &&
+      'Ok' in (result.urlObject as { Ok: string }) &&
+      typeof result.mediaId === 'string'
+    ) {
+      const mediaUrl = (result.urlObject as { Ok: string }).Ok;
+      console.log('File uploaded successfully:', { Ok: mediaUrl });
+      onSetMediaId(result.mediaId as string);
+      setMediaSize(files[0].file.size);
+
+      // Use chunked download
+      // const totalSize = files[0].file.size;
+      // const media = await getMediaChunked(result.mediaId as string, totalSize);
+      // console.log('Media data retrieved (chunked)', { Ok: media });
+    } else {
+      setError('Upload failed: Unexpected response');
+    }
   };
 
   return (
@@ -163,7 +222,7 @@ export const UploadFile = ({
           <li>
             <section>
               <div {...getRootProps({ style })}>
-                <input {...getInputProps()} />
+                <input {...getInputProps()} disabled={isUploadLoading} />
                 <p>Drag 'n' drop some files here, or click to select files</p>
               </div>
             </section>
@@ -181,15 +240,78 @@ export const UploadFile = ({
         {!!files.length && (
           <button
             className="metaportal_fn_button full cursor"
-            disabled={files.length === 0}
-            style={{ border: 'none', marginBottom: 24, zIndex: 1 }}
+            disabled={files.length === 0 || isUploadLoading}
+            style={{
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: isUploadLoading ? 'not-allowed' : 'pointer',
+            }}
             onClick={handleUploadFile}
           >
-            <span>Upload file</span>
+            <Box
+              mx={2}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              width={100}
+              position="relative"
+            >
+              <span>Upload</span>
+              {isUploadLoading && (
+                <Box
+                  display={'flex'}
+                  position="absolute"
+                  left="100%"
+                  top="50%"
+                  sx={{ transform: 'translate(-50%, -50%)' }}
+                >
+                  <CircularProgress size={24} />
+                </Box>
+              )}
+            </Box>
           </button>
         )}
-
-        <ul style={{ marginTop: '200px' }}>
+        {uploadErrors.length > 0 && (
+          <Box
+            my={2}
+            display={'flex'}
+            flexDirection={'column'}
+            justifyContent="center"
+            alignItems="center"
+          >
+            {uploadErrors.map((err, index) => (
+              <p
+                key={index}
+                style={{
+                  color: 'red',
+                  margin: 0,
+                  textAlign: 'left',
+                }}
+              >
+                {err?.message}
+              </p>
+            ))}
+          </Box>
+        )}
+        <Box
+          sx={{
+            backgroundColor: '#f0f0f0',
+            padding: '24px',
+            borderRadius: '8px',
+          }}
+          my={2}
+        >
+          <h5 style={{ color: 'green', margin: '0', lineHeight: '1.5' }}>
+            Note: Changing the file requires re-uploading. If the changed file
+            is not uploaded, the previously selected file will be used. Files
+            are encrypted and securely uploaded. Please verify the file's
+            accuracy before proceeding. You can skip this step if you want to
+            create Text Chronolock.
+          </h5>
+        </Box>
+        <ul style={{ marginTop: '100px' }}>
           <li>
             <button
               className="metaportal_fn_button full cursor"
@@ -197,6 +319,7 @@ export const UploadFile = ({
                 border: 'none',
                 zIndex: 1,
               }}
+              disabled={isUploadLoading}
               onClick={onBack}
             >
               <span>Back</span>
@@ -205,12 +328,12 @@ export const UploadFile = ({
           <li>
             <button
               className="metaportal_fn_button full cursor"
-              disabled={files.length === 0}
               style={{
                 border: 'none',
                 zIndex: 1,
                 marginBottom: 24,
               }}
+              disabled={isUploadLoading || (!!files.length && !mediaId)}
               onClick={onNext}
             >
               <span>Next</span>

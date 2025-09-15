@@ -1,7 +1,15 @@
-import { Box, CircularProgress, Dialog, Typography } from '@mui/material';
+import {
+  Box,
+  CircularProgress,
+  Dialog,
+  IconButton,
+  Typography,
+} from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useCrnlToken } from '../../hooks/useCrnlToken';
 import { Principal } from '@dfinity/principal';
+import { useAuth } from '../../hooks/useAuth';
+import SyncIcon from '@mui/icons-material/Sync';
 
 interface ISendTokenModalProps {
   open: boolean;
@@ -15,7 +23,15 @@ export const SendTokenModal = ({
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('');
 
-  const { transfer, isLoading, feeData, isTransferLoading } = useCrnlToken();
+  const { principal } = useAuth();
+  const {
+    transfer,
+    isLoading,
+    feeData,
+    isTransferLoading,
+    balanceData,
+    checkBalance,
+  } = useCrnlToken();
 
   const readableFeeData = feeData
     ? (Number(feeData) / 1e8).toLocaleString(undefined, {
@@ -42,18 +58,14 @@ export const SendTokenModal = ({
       console.error('Invalid amount');
       return;
     }
-    // Convert to smallest unit and string for Nat
-    const natAmount = (parsedAmount * 1e8).toLocaleString('fullwide', {
-      useGrouping: false,
-    });
 
     try {
-      console.log('Sending token to:', address, 'Amount:', natAmount);
       const parsedAmount = parseFloat(amount);
       await transfer({
         to: Principal.fromText(address),
         amount: BigInt(Math.round(parsedAmount * 1e8)),
       });
+      console.log(`Sent ${parsedAmount} to ${address}`);
       setTimeout(() => {
         setAddress('');
         setAmount('');
@@ -64,8 +76,11 @@ export const SendTokenModal = ({
     }
   };
 
-  console.log(amount, 'amount');
-  console.log(isLoading, 'isLoading');
+  function handleChekcBalance() {
+    if (principal) {
+      checkBalance();
+    }
+  }
 
   useEffect(() => {
     if (open) {
@@ -107,13 +122,43 @@ export const SendTokenModal = ({
               className="input"
               onChange={handleChangeAmount}
               disabled={isLoading}
+              max={balanceData || ''}
               style={{ fontSize: '14px', color: 'lightgray' }}
             />
-            {Number(amount) <= Number(readableFeeData) && (
-              <Typography variant="caption" color="error" mt={-3}>
-                Amount must be greater than the fee.
-              </Typography>
-            )}
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              sx={{ mt: -2 }}
+            >
+              <Box>
+                {Number(amount) <= Number(readableFeeData) && (
+                  <Typography variant="caption" color="pink">
+                    Amount must be greater than the fee.
+                  </Typography>
+                )}
+                {Number(amount) > Number(balanceData || 0) && (
+                  <Typography variant="caption" color="pink">
+                    Insufficient balance.
+                  </Typography>
+                )}
+              </Box>
+              <Box>
+                {Number(balanceData) > 0 && (
+                  <>
+                    <Typography variant="caption" color="pink">
+                      available balance: {String(balanceData)} CRNL
+                    </Typography>
+                    <IconButton
+                      sx={{ color: 'lightGray', width: 24, height: 24, ml: 1 }}
+                      onClick={handleChekcBalance}
+                    >
+                      <SyncIcon />
+                    </IconButton>
+                  </>
+                )}
+              </Box>
+            </Box>
             {feeData ? (
               <Box>
                 <Box
@@ -168,7 +213,9 @@ export const SendTokenModal = ({
             !address ||
             !amount ||
             Number(amount) <= 0 ||
-            Number(amount) <= Number(readableFeeData)
+            Number(amount) <= Number(readableFeeData) ||
+            isTransferLoading ||
+            Number(amount) > Number(balanceData || 0)
           }
           onClick={handleSendToken}
         >

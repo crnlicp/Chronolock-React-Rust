@@ -33,9 +33,20 @@ export const DrawerNavigation = ({
           <span />
         </NavLink>
         <div className="navbox">
-          {/* <div className="list_holder">
+          <div className="list_holder">
             <ul className="metaportal_fn_items">
               <li>
+                <div className="item">
+                  <img
+                    src="assets/img/logo.gif"
+                    alt=""
+                    height={150}
+                    style={{ margin: 20 }}
+                  />
+                  <span className="text">Chronolock</span>
+                </div>
+              </li>
+              {/* <li>
                 <div className="item">
                   <a
                     to="https://opensea.io/"
@@ -47,8 +58,8 @@ export const DrawerNavigation = ({
                   </span>
                   <span className="text">Opensea</span>
                 </div>
-              </li>
-              <li>
+              </li> */}
+              {/* <li>
                 <div className="item">
                   <a
                     to="https://discord.com/"
@@ -60,9 +71,9 @@ export const DrawerNavigation = ({
                   </span>
                   <span className="text">Discord</span>
                 </div>
-              </li>
+              </li> */}
             </ul>
-          </div> */}
+          </div>
           <div className="nav_holder">
             {/* For JS */}
             <span className="icon">
@@ -87,7 +98,7 @@ export const DrawerNavigation = ({
                 </NavLink>
               </li>
               <li>
-                <NavLink to="/#collection" onClick={handleClick}>
+                <NavLink to="/collection" onClick={handleClick}>
                   <span className="creative_link">
                     Collection
                     <img src="/svg/down.svg" alt="" className="fn__svg" />

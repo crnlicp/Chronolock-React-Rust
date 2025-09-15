@@ -1,5 +1,6 @@
 // src/backend/chronolock/tests/canister_tests.rs
 
+use base64::{engine::general_purpose, Engine as _};
 use candid::{decode_one, encode_args, CandidType, Principal};
 use ic_vetkd_utils::TransportSecretKey;
 use pocket_ic::PocketIc;
@@ -534,16 +535,27 @@ fn test_upload_and_get_media() {
     let media_url = media_url_result.expect("Failed to upload media");
     let media_id_from_url = media_url.split('/').last().unwrap().to_string();
 
-    let get_response = pic
-        .query_call(
-            backend_canister,
-            Principal::anonymous(),
-            "get_media",
-            encode_args((media_id_from_url.clone(),)).unwrap(),
-        )
-        .expect("Failed to query get_media");
-    let retrieved_data_result: Result<Vec<u8>, ChronoError> = decode_one(&get_response).unwrap();
-    let retrieved_data = retrieved_data_result.expect("Failed to get media");
+    // Use chunked retrieval
+    let mut retrieved_data = vec![];
+    let chunk_size = 10;
+    let mut offset = 0;
+    loop {
+        let get_response = pic
+            .query_call(
+                backend_canister,
+                Principal::anonymous(),
+                "get_media_chunk",
+                encode_args((media_id_from_url.clone(), offset as u32, chunk_size as u32)).unwrap(),
+            )
+            .expect("Failed to query get_media_chunk");
+        let chunk_result: Result<Vec<u8>, ChronoError> = decode_one(&get_response).unwrap();
+        let chunk = chunk_result.expect("Failed to get media chunk");
+        if chunk.is_empty() {
+            break;
+        }
+        retrieved_data.extend_from_slice(&chunk);
+        offset += chunk.len();
+    }
     assert_eq!(retrieved_data, file_data);
 
     let http_request = HttpRequest {
@@ -1099,4 +1111,482 @@ fn test_create_and_unlock_multi_user_chronolock() {
         .expect("Failed to query icrc7_token_metadata");
     let returned_metadata: Option<String> = decode_one(&metadata_response).unwrap();
     assert_eq!(returned_metadata, Some(metadata.to_string()));
+}
+
+// New tests for pagination functions
+
+#[test]
+fn test_get_total_chronolocks_count() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    // Initially should be 0
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_total_chronolocks_count",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to query get_total_chronolocks_count");
+    let count: u64 = decode_one(&response).unwrap();
+    assert_eq!(count, 0, "Initial count should be 0");
+
+    // Create a few chronolocks
+    for i in 0..3 {
+        let metadata = format!("metadata_{}", i);
+        pic.update_call(
+            backend_canister,
+            admin,
+            "create_chronolock",
+            encode_args((metadata,)).unwrap(),
+        )
+        .expect("Failed to create chronolock");
+    }
+
+    // Check count again
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_total_chronolocks_count",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to query get_total_chronolocks_count");
+    let count: u64 = decode_one(&response).unwrap();
+    assert_eq!(count, 3, "Count should be 3 after creating 3 chronolocks");
+}
+
+#[test]
+fn test_get_owner_chronolocks_count() {
+    let (pic, backend_canister, _, admin) = setup();
+    let user1 = Principal::self_authenticating(&[1, 2, 3]);
+    let user2 = Principal::self_authenticating(&[4, 5, 6]);
+
+    // Initially should be 0 for all users
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_owner_chronolocks_count",
+            encode_args((admin,)).unwrap(),
+        )
+        .expect("Failed to query get_owner_chronolocks_count");
+    let count: u64 = decode_one(&response).unwrap();
+    assert_eq!(count, 0, "Initial count should be 0 for admin");
+
+    // Create chronolocks for admin
+    for i in 0..2 {
+        let metadata = format!("admin_metadata_{}", i);
+        pic.update_call(
+            backend_canister,
+            admin,
+            "create_chronolock",
+            encode_args((metadata,)).unwrap(),
+        )
+        .expect("Failed to create chronolock for admin");
+    }
+
+    // Create chronolocks for user1
+    for i in 0..3 {
+        let metadata = format!("user1_metadata_{}", i);
+        pic.update_call(
+            backend_canister,
+            user1,
+            "create_chronolock",
+            encode_args((metadata,)).unwrap(),
+        )
+        .expect("Failed to create chronolock for user1");
+    }
+
+    // Check counts
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_owner_chronolocks_count",
+            encode_args((admin,)).unwrap(),
+        )
+        .expect("Failed to query admin count");
+    let admin_count: u64 = decode_one(&response).unwrap();
+    assert_eq!(admin_count, 2, "Admin should have 2 chronolocks");
+
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_owner_chronolocks_count",
+            encode_args((user1,)).unwrap(),
+        )
+        .expect("Failed to query user1 count");
+    let user1_count: u64 = decode_one(&response).unwrap();
+    assert_eq!(user1_count, 3, "User1 should have 3 chronolocks");
+
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_owner_chronolocks_count",
+            encode_args((user2,)).unwrap(),
+        )
+        .expect("Failed to query user2 count");
+    let user2_count: u64 = decode_one(&response).unwrap();
+    assert_eq!(user2_count, 0, "User2 should have 0 chronolocks");
+}
+
+#[test]
+fn test_get_all_chronolocks_paginated() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    // Create 5 chronolocks
+    let mut created_ids = Vec::new();
+    for i in 0..5 {
+        let metadata = format!("metadata_{}", i);
+        let create_response = pic
+            .update_call(
+                backend_canister,
+                admin,
+                "create_chronolock",
+                encode_args((metadata,)).unwrap(),
+            )
+            .expect("Failed to create chronolock");
+        let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
+        let token_id = token_id_result.expect("Failed to create chronolock");
+        created_ids.push(token_id);
+    }
+
+    // Test pagination
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_all_chronolocks_paginated",
+            encode_args((0u64, 3u64)).unwrap(),
+        )
+        .expect("Failed to query paginated chronolocks");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(chronolocks.len(), 3, "Should return 3 chronolocks");
+
+    // Test second page
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_all_chronolocks_paginated",
+            encode_args((3u64, 3u64)).unwrap(),
+        )
+        .expect("Failed to query paginated chronolocks");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(
+        chronolocks.len(),
+        2,
+        "Should return 2 chronolocks on second page"
+    );
+
+    // Test limit enforcement (max 100)
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_all_chronolocks_paginated",
+            encode_args((0u64, 150u64)).unwrap(),
+        )
+        .expect("Failed to query paginated chronolocks");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(
+        chronolocks.len(),
+        5,
+        "Should respect max limit and return all 5"
+    );
+}
+
+#[test]
+fn test_get_owner_chronolocks_paginated() {
+    let (pic, backend_canister, _, admin) = setup();
+    let user1 = Principal::self_authenticating(&[1, 2, 3]);
+
+    // Create chronolocks for user1
+    let mut created_ids = Vec::new();
+    for i in 0..4 {
+        let metadata = format!("user1_metadata_{}", i);
+        let create_response = pic
+            .update_call(
+                backend_canister,
+                user1,
+                "create_chronolock",
+                encode_args((metadata,)).unwrap(),
+            )
+            .expect("Failed to create chronolock");
+        let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
+        let token_id = token_id_result.expect("Failed to create chronolock");
+        created_ids.push(token_id);
+    }
+
+    // Create some chronolocks for admin to ensure filtering works
+    pic.update_call(
+        backend_canister,
+        admin,
+        "create_chronolock",
+        encode_args(("admin_metadata".to_string(),)).unwrap(),
+    )
+    .expect("Failed to create admin chronolock");
+
+    // Test pagination for user1
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_owner_chronolocks_paginated",
+            encode_args((user1, 0u64, 2u64)).unwrap(),
+        )
+        .expect("Failed to query owner chronolocks");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(
+        chronolocks.len(),
+        2,
+        "Should return 2 chronolocks for user1"
+    );
+
+    // Verify all returned chronolocks belong to user1
+    for chronolock in &chronolocks {
+        assert_eq!(
+            chronolock.owner, user1,
+            "All chronolocks should belong to user1"
+        );
+    }
+
+    // Test second page
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_owner_chronolocks_paginated",
+            encode_args((user1, 2u64, 2u64)).unwrap(),
+        )
+        .expect("Failed to query owner chronolocks");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(
+        chronolocks.len(),
+        2,
+        "Should return 2 chronolocks on second page"
+    );
+
+    // Test empty result for user with no chronolocks
+    let user2 = Principal::self_authenticating(&[7, 8, 9]);
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_owner_chronolocks_paginated",
+            encode_args((user2, 0u64, 10u64)).unwrap(),
+        )
+        .expect("Failed to query owner chronolocks");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(
+        chronolocks.len(),
+        0,
+        "Should return empty for user with no chronolocks"
+    );
+}
+
+#[test]
+fn test_get_user_accessible_chronolocks_functions() {
+    let (pic, backend_canister, _, admin) = setup();
+    let user1 = Principal::self_authenticating(&[1, 2, 3]);
+
+    // Get current time and set unlock times
+    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let past_time = current_time - 3600; // 1 hour ago
+    let future_time = current_time + 3600; // 1 hour in future
+
+    // Create public chronolock (accessible to everyone after unlock)
+    let public_metadata = serde_json::json!({
+        "title": "Public Chronolock",
+        "lockTime": past_time,
+        "userKeys": [{"user": "public", "key": "public_key"}],
+        "encryptedMetaData": "public_encrypted_data"
+    })
+    .to_string();
+    let public_metadata_b64 = general_purpose::STANDARD.encode(public_metadata);
+
+    let create_response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "create_chronolock",
+            encode_args((public_metadata_b64,)).unwrap(),
+        )
+        .expect("Failed to create public chronolock");
+    let _public_token_id: Result<String, ChronoError> = decode_one(&create_response).unwrap();
+
+    // Create user-specific chronolock (accessible only to user1 after unlock)
+    let user_metadata = serde_json::json!({
+        "title": "User Specific Chronolock",
+        "lockTime": past_time,
+        "userKeys": [{"user": format!("{}:{}", user1.to_text(), past_time), "key": "user_key"}],
+        "encryptedMetaData": "user_encrypted_data"
+    })
+    .to_string();
+    let user_metadata_b64 = general_purpose::STANDARD.encode(user_metadata);
+
+    let create_response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "create_chronolock",
+            encode_args((user_metadata_b64,)).unwrap(),
+        )
+        .expect("Failed to create user chronolock");
+    let _user_token_id: Result<String, ChronoError> = decode_one(&create_response).unwrap();
+
+    // Create locked chronolock (not yet unlockable)
+    let locked_metadata = serde_json::json!({
+        "title": "Locked Chronolock",
+        "lockTime": future_time,
+        "userKeys": [{"user": "public", "key": "locked_key"}],
+        "encryptedMetaData": "locked_encrypted_data"
+    })
+    .to_string();
+    let locked_metadata_b64 = general_purpose::STANDARD.encode(locked_metadata);
+
+    let create_response = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "create_chronolock",
+            encode_args((locked_metadata_b64,)).unwrap(),
+        )
+        .expect("Failed to create locked chronolock");
+    let _locked_token_id: Result<String, ChronoError> = decode_one(&create_response).unwrap();
+
+    // Test count function
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_user_accessible_chronolocks_count",
+            encode_args((user1,)).unwrap(),
+        )
+        .expect("Failed to query accessible count");
+    let count: u64 = decode_one(&response).unwrap();
+    assert_eq!(
+        count, 2,
+        "User1 should have access to 2 chronolocks (public + user-specific)"
+    );
+
+    // Test pagination function
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_user_accessible_chronolocks_paginated",
+            encode_args((user1, 0u64, 10u64)).unwrap(),
+        )
+        .expect("Failed to query accessible chronolocks");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let accessible_chronolocks = result.expect("Failed to get accessible chronolocks");
+    assert_eq!(
+        accessible_chronolocks.len(),
+        2,
+        "Should return 2 accessible chronolocks"
+    );
+
+    // Test with a different user (should only see public chronolock)
+    let user2 = Principal::self_authenticating(&[4, 5, 6]);
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_user_accessible_chronolocks_count",
+            encode_args((user2,)).unwrap(),
+        )
+        .expect("Failed to query accessible count for user2");
+    let count: u64 = decode_one(&response).unwrap();
+    assert_eq!(
+        count, 1,
+        "User2 should only have access to 1 chronolock (public)"
+    );
+
+    // Test pagination with limit
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_user_accessible_chronolocks_paginated",
+            encode_args((user1, 0u64, 1u64)).unwrap(),
+        )
+        .expect("Failed to query accessible chronolocks with limit");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let accessible_chronolocks = result.expect("Failed to get accessible chronolocks");
+    assert_eq!(
+        accessible_chronolocks.len(),
+        1,
+        "Should return only 1 chronolock due to limit"
+    );
+}
+
+#[test]
+fn test_pagination_edge_cases() {
+    let (pic, backend_canister, _, admin) = setup();
+
+    // Test with no chronolocks
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_all_chronolocks_paginated",
+            encode_args((0u64, 10u64)).unwrap(),
+        )
+        .expect("Failed to query empty pagination");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(
+        chronolocks.len(),
+        0,
+        "Should return empty array when no chronolocks exist"
+    );
+
+    // Create one chronolock
+    pic.update_call(
+        backend_canister,
+        admin,
+        "create_chronolock",
+        encode_args(("test_metadata".to_string(),)).unwrap(),
+    )
+    .expect("Failed to create chronolock");
+
+    // Test offset beyond available items
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_all_chronolocks_paginated",
+            encode_args((10u64, 5u64)).unwrap(),
+        )
+        .expect("Failed to query with large offset");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(
+        chronolocks.len(),
+        0,
+        "Should return empty when offset exceeds available items"
+    );
+
+    // Test zero limit
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_all_chronolocks_paginated",
+            encode_args((0u64, 0u64)).unwrap(),
+        )
+        .expect("Failed to query with zero limit");
+    let result: Result<Vec<Chronolock>, ChronoError> = decode_one(&response).unwrap();
+    let chronolocks = result.expect("Failed to get chronolocks");
+    assert_eq!(chronolocks.len(), 0, "Should return empty when limit is 0");
 }
