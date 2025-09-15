@@ -132,10 +132,22 @@ export const Collection = () => {
         </div>
         <div className="fn_cs_desc">
           <p>
-            Meta Legends represent a collection of 17,000 legends categorized by
-            level of rarity and generated with hundreds of elements. The Legends
-            are stored as ERC-721 tokens on the Ethereum blockchain and hosted
-            on IPFS.
+            The Collections page lets you easily manage and explore all your
+            chronolocks on the Internet Computer blockchain. Each chronolock is
+            organized by tabs, showing assets you’ve created and those encrypted
+            for you as a recipient. Chronolocks use the ICRC-7 protocol, which
+            provides secure, standardized management of non-fungible tokens
+            (NFTs), ensuring each asset is uniquely tracked and interoperable
+            across the Internet Computer ecosystem.
+          </p>
+          <p>
+            To further protect your assets, Chronolock leverages VetKD
+            encryption. This advanced technology keeps your chronolocks and any
+            included media files private and secure, so only authorized
+            recipients can access them. With the combination of ICRC-7 and
+            VetKD, you can confidently manage your time-locked assets, knowing
+            they are safeguarded by industry-leading blockchain and encryption
+            standards.
           </p>
           <NavLink to="/collection" className="metaportal_fn_button">
             <span>See Collection</span>

@@ -287,10 +287,13 @@ export const HeroSlider = () => {
               {/* Description */}
               <div className="fn_cs_desc">
                 <p>
-                  Meta Legends represent a collection of 17,000 legends
-                  categorized by level of rarity and generated with hundreds of
-                  elements. The Legends are stored as ERC-721 tokens on the
-                  Ethereum blockchain and hosted on IPFS.
+                  Chronolock makes it easy to lock and manage your digital
+                  assets using the Internet Computer blockchain. With our
+                  platform, you can set up secure time-lock assets and keep them
+                  safe—all with a simple and user-friendly interface. Whether
+                  you are new to blockchain or an experienced user, Chronolock
+                  helps you protect and control your assets with advanced
+                  technology and reliable security.
                 </p>
               </div>
               {/* !Description */}

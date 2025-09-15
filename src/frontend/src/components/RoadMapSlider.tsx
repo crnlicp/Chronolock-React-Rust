@@ -24,13 +24,13 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 01</span>
                     <div className="item_in">
-                      <p className="date">October 09, 2022</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
+                      <p className="date">Jan 2025</p>
+                      <h3 className="title">Project Kickoff</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Begin with team formation, requirements gathering, and
+                        initial planning. Define the project scope, objectives,
+                        and success criteria. Establish communication channels
+                        and set up the development environment.
                       </p>
                     </div>
                   </div>
@@ -40,13 +40,14 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 02</span>
                     <div className="item_in">
-                      <p className="date">October 17, 2022</p>
-                      <h3 className="title">New Set #12 is Coming Up</h3>
+                      <p className="date">Feb 2025</p>
+                      <h3 className="title">Architecture & Design</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Design the system architecture, including backend
+                        canisters, frontend structure, and integration points.
+                        Create wireframes, technical documentation, and select
+                        core technologies. Ensure scalability and security are
+                        considered from the start.
                       </p>
                     </div>
                   </div>
@@ -56,13 +57,13 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 03</span>
                     <div className="item_in">
-                      <p className="date">October 28, 2022</p>
-                      <h3 className="title">Metaverse 3.0 Launch</h3>
+                      <p className="date">March 2025</p>
+                      <h3 className="title">Core Backend Development</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Develop the main backend canisters in Rust, focusing on
+                        essential business logic, data models, and APIs.
+                        Implement initial smart contract functionality and set
+                        up local testing environments.
                       </p>
                     </div>
                   </div>
@@ -72,13 +73,13 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 04</span>
                     <div className="item_in">
-                      <p className="date">November 11, 2022</p>
-                      <h3 className="title">Female Set #20 is Coming Up</h3>
+                      <p className="date">Aug 2025</p>
+                      <h3 className="title">Frontend MVP</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Build a minimum viable product (MVP) for the frontend
+                        using React and TypeScript. Integrate basic UI
+                        components, connect to backend canisters, and enable
+                        core user flows for early feedback.
                       </p>
                     </div>
                   </div>
@@ -88,13 +89,12 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 05</span>
                     <div className="item_in">
-                      <p className="date">November 23, 2022</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
+                      <p className="date">Sep 2025</p>
+                      <h3 className="title">Identity & Authentication</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Implement robust identity management and authentication
+                        mechanisms. Integrate with Internet Identity to ensure
+                        user data protection and seamless onboarding.
                       </p>
                     </div>
                   </div>
@@ -104,13 +104,12 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 06</span>
                     <div className="item_in">
-                      <p className="date">December 02, 2022</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
+                      <p className="date">Future plan</p>
+                      <h3 className="title">Feature Expansion</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Add advanced features and additional canister
+                        interactions. Enhance the frontend with new pages,
+                        improved UX, and responsive design.
                       </p>
                     </div>
                   </div>
@@ -120,13 +119,13 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 07</span>
                     <div className="item_in">
-                      <p className="date">January 14, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
+                      <p className="date">Future plan</p>
+                      <h3 className="title">Testing & QA</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Conduct thorough unit, integration, and end-to-end
+                        testing across backend and frontend. Address bugs,
+                        optimize performance, and ensure reliability. Prepare
+                        for external beta testing.
                       </p>
                     </div>
                   </div>
@@ -136,13 +135,12 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 08</span>
                     <div className="item_in">
-                      <p className="date">January 28, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
+                      <p className="date">Future plan</p>
+                      <h3 className="title">Beta Launch</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Release a beta version to a select group of users.
+                        Gather feedback, monitor system performance, and iterate
+                        on features and UI based on real-world usage.
                       </p>
                     </div>
                   </div>
@@ -152,13 +150,13 @@ export const RoadMapSlider = () => {
                     <span className="icon" />
                     <span className="phase">Phase 09</span>
                     <div className="item_in">
-                      <p className="date">February 12, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
+                      <p className="date">Future plan</p>
+                      <h3 className="title">Security Audit & Optimization</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Perform comprehensive security audits of smart contracts
+                        and application code. Optimize for scalability,
+                        cost-efficiency, and robustness. Address any
+                        vulnerabilities and finalize documentation.
                       </p>
                     </div>
                   </div>
@@ -166,95 +164,15 @@ export const RoadMapSlider = () => {
                 <SwiperSlide className="swiper-slide">
                   <div className="item">
                     <span className="icon" />
-                    <span className="phase">Phase 09</span>
+                    <span className="phase">Phase 10</span>
                     <div className="item_in">
-                      <p className="date">February 12, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
+                      <p className="date">Future plan</p>
+                      <h3 className="title">Production Release</h3>
                       <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
-                      </p>
-                    </div>
-                  </div>
-                </SwiperSlide>
-                <SwiperSlide className="swiper-slide">
-                  <div className="item">
-                    <span className="icon" />
-                    <span className="phase">Phase 09</span>
-                    <div className="item_in">
-                      <p className="date">February 12, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
-                      <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
-                      </p>
-                    </div>
-                  </div>
-                </SwiperSlide>
-                <SwiperSlide className="swiper-slide">
-                  <div className="item">
-                    <span className="icon" />
-                    <span className="phase">Phase 09</span>
-                    <div className="item_in">
-                      <p className="date">February 12, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
-                      <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
-                      </p>
-                    </div>
-                  </div>
-                </SwiperSlide>
-                <SwiperSlide className="swiper-slide">
-                  <div className="item">
-                    <span className="icon" />
-                    <span className="phase">Phase 09</span>
-                    <div className="item_in">
-                      <p className="date">February 12, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
-                      <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
-                      </p>
-                    </div>
-                  </div>
-                </SwiperSlide>
-                <SwiperSlide className="swiper-slide">
-                  <div className="item">
-                    <span className="icon" />
-                    <span className="phase">Phase 09</span>
-                    <div className="item_in">
-                      <p className="date">February 12, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
-                      <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
-                      </p>
-                    </div>
-                  </div>
-                </SwiperSlide>
-                <SwiperSlide className="swiper-slide">
-                  <div className="item">
-                    <span className="icon" />
-                    <span className="phase">Phase 09</span>
-                    <div className="item_in">
-                      <p className="date">February 12, 2023</p>
-                      <h3 className="title">Mini Game Lounch For Community</h3>
-                      <p className="desc">
-                        Morbi non dignissim erat, a blandit felis. Suspendisse
-                        nec lorem vel orci varius congue ut vitae est. Nam quis
-                        tempus nisl. Fusce posuere nibh a mi molestie, sit amet
-                        ornare lectus interdum.
+                        Launch the fully functional, production-ready product.
+                        Deploy on mainnet, provide user support, and initiate
+                        marketing campaigns. Continue monitoring, maintenance,
+                        and plan for future updates.
                       </p>
                     </div>
                   </div>
