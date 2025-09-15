@@ -186,29 +186,23 @@ export const HeroSlider = () => {
                         <div className="item_in">
                           <div
                             className="img"
-                            data-bg-img="assets/img/slider/2.jpg"
-                          />
+                            data-bg-img="assets/img/lock.png"
+                          >
+                            <Clock targetDate={targetDate} />
+                          </div>
                         </div>
                       </div>
                     </li>
                     <li className="next" data-index={3}>
-                      <div className="item has_video">
+                      <div className="item">
                         <img src="assets/img/1x1.jpg" alt="" />
-                        <NavLink
-                          className="popup-youtube metaportal_fn_videobutton"
-                          to="https://www.youtube.com/embed/7e90gBu4pas"
-                        >
-                          <img
-                            src="assets/svg/play.svg"
-                            alt=""
-                            className="fn__svg"
-                          />
-                        </NavLink>
                         <div className="item_in">
                           <div
                             className="img"
-                            data-bg-img="assets/img/slider/3.jpg"
-                          />
+                            data-bg-img="assets/img/lock.png"
+                          >
+                            <Clock targetDate={targetDate} />
+                          </div>
                         </div>
                       </div>
                     </li>
@@ -218,8 +212,10 @@ export const HeroSlider = () => {
                         <div className="item_in">
                           <div
                             className="img"
-                            data-bg-img="assets/img/slider/4.jpg"
-                          />
+                            data-bg-img="assets/img/lock.png"
+                          >
+                            <Clock targetDate={targetDate} />
+                          </div>
                         </div>
                       </div>
                     </li>
@@ -229,8 +225,10 @@ export const HeroSlider = () => {
                         <div className="item_in">
                           <div
                             className="img"
-                            data-bg-img="assets/img/slider/5.jpg"
-                          />
+                            data-bg-img="assets/img/lock.png"
+                          >
+                            <Clock targetDate={targetDate} />
+                          </div>
                         </div>
                       </div>
                     </li>
@@ -240,8 +238,10 @@ export const HeroSlider = () => {
                         <div className="item_in">
                           <div
                             className="img"
-                            data-bg-img="assets/img/slider/6.jpg"
-                          />
+                            data-bg-img="assets/img/lock.png"
+                          >
+                            <Clock targetDate={targetDate} />
+                          </div>
                         </div>
                       </div>
                     </li>
@@ -251,8 +251,10 @@ export const HeroSlider = () => {
                         <div className="item_in">
                           <div
                             className="img"
-                            data-bg-img="assets/img/slider/7.jpg"
-                          />
+                            data-bg-img="assets/img/lock.png"
+                          >
+                            <Clock targetDate={targetDate} />
+                          </div>
                         </div>
                       </div>
                     </li>
