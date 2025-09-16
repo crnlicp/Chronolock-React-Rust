@@ -36,15 +36,8 @@ The script will ask you to choose:
 # 1. Setup (already done above)
 pnpm run setup  # Choose option 1
 
-# 2. Start local replica
-dfx start --clean --background
-
-# 3. Create and deploy canisters
-dfx canister create --all
-dfx deploy
-
-# 4. Start frontend
-pnpm start
+# 2. Start frontend
+pnpm run frontend
 ```
 
 #### **For IC Mainnet:**
@@ -52,10 +45,7 @@ pnpm start
 # 1. Setup (already done above)
 pnpm run setup  # Choose option 2, enter production VetKD ID
 
-# 2. Build frontend
-pnpm run build
-
-# 3. Deploy to IC mainnet
+# 2. Deploy to IC mainnet
 dfx deploy --network ic crnl_ledger_canister
 dfx deploy --network ic chronolock_canister
 dfx deploy --network ic frontend
