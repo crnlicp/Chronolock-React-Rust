@@ -61,6 +61,122 @@ The platform solves the problem of creating truly immutable time-locked content 
 - Pagination support for large datasets
 - Real-time statistics and monitoring
 
+## 🛠️ Tech Stack and Architecture 
+
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for build tooling and development server
+- **Material-UI (MUI)** for component library
+- **React Router** for navigation
+- **IC-Reactor** for Internet Computer integration
+- **Moment.js** for date handling
+
+### Backend
+- **Rust** with IC CDK (Canister Development Kit)
+- **Internet Computer** blockchain platform
+- **VetKD** (Verifiable Encrypted Threshold Key Derivation) for cryptography
+- **ICRC-7** NFT standard compliance
+- **ICRC-1 and ICRC2** token standard for CRNL tokens
+
+### Development Tools
+- **DFX** - Internet Computer SDK
+- **pnpm** - Package manager
+- **Candid** - Interface definition language
+- **Pocket IC** - Testing framework
+
+## 📁 Project Structure
+
+```Chronolock-React-Rust/
+├── src/
+│   ├── frontend/                 # React application
+│   │   ├── main.tsx              # Application entry point
+│   │   ├── src/
+│   │   │   ├── App.tsx           # Main app component with routing
+│   │   │   ├── ActorContextProvider.tsx  # IC canister context
+│   │   │   ├── components/       # Reusable UI components
+│   │   │   ├── hooks/            # Custom React hooks
+│   │   │   ├── pages/            # Route components
+│   │   │   ├── styles/           # CSS/SCSS files
+│   │   │   └── utils/            # Utility functions
+│   │   ├── vite.config.ts        # Vite configuration
+│   │   └── tsconfig.json         # TypeScript configuration
+│   └── backend/                  # Rust canisters
+│       ├── chronolock_canister/  # Main NFT logic
+│       ├── crnl_ledger_canister/ # Token ledger
+│       └── chainkey_testing_canister/  # Testing utilities
+├── dfx.json                      # DFX configuration
+├── Cargo.toml                    # Rust workspace configuration
+├── package.json                  # Node.js dependencies
+└── setup-backend.sh              # Backend setup script
+```
+## 🔑 Key Components & Entry Points
+
+### Frontend Entry Points
+1. **src/frontend/main.tsx** - Application bootstrap with React root
+2. **src/frontend/src/App.tsx** - Main routing and layout
+3. **src/frontend/src/ActorContextProvider.tsx** - IC canister integration
+
+### Backend Entry Points
+1. **src/backend/chronolock_canister/src/lib.rs** - Main NFT canister logic
+2. **src/backend/crnl_ledger_canister/src/lib.rs** - Token ledger implementation
+3. **dfx.json** - Canister deployment configuration
+
+### Core Pages
+- **Home (/)** - Landing page and platform overview
+- **Create (/create)** - Time-locked NFT creation interface
+- **Collection (/collection)** - User's NFT collection
+
+
+## 🎯 Development Patterns
+### 1. IC-Reactor Pattern
+The app uses IC-Reactor for seamless Internet Computer integration:
+```
+// ActorContextProvider wraps the entire app
+<AgentProvider host={host}>
+  <ActorContext.Provider value={actor}>
+    <CrnlLedgerActorProvider>
+      <ChronolockActorProvider>
+        {children}
+      </ChronolockActorProvider>
+    </CrnlLedgerActorProvider>
+  </ActorContext.Provider>
+</AgentProvider>
+```
+### 2. Custom Hooks Architecture
+- **useActorReact.ts** - IC canister actor management
+- **useAuth.ts** - Internet Identity authentication
+- **useChronolock.ts** - NFT-specific operations
+- **useCrnlToken.ts** - Token operations
+
+### 3. Rust Canister Structure
+```
+// Stable storage with memory management
+thread_local! {
+    static CHRONOLOCKS: RefCell<StableBTreeMap<String, Chronolock, Memory>> = ...;
+    static OWNER_TO_TOKENS: RefCell<StableBTreeMap<Principal, TokenList, Memory>> = ...;
+}
+
+// ICRC-7 compliant functions
+#[query] fn icrc7_balance_of(account: Principal) -> u64
+#[update] fn icrc7_transfer(token_id: String, to: Principal) -> Result<(), ChronoError>
+```
+### 4. VetKD Integration
+Time-based and User-time-based encryption using Internet Computer's VetKD system:
+```
+async fn get_time_decryption_key(
+    unlock_time_hex: String,
+    encryption_public_key: Vec<u8>,
+) -> Result<VetKDDeriveKeyReply, ChronoError>
+```
+```
+async fn get_user_time_decryption_key(
+    unlock_time_hex: String,
+    user_id: String,
+    encryption_public_key: Vec<u8>,
+) -> Result<VetKDDeriveKeyReply, ChronoError>
+```
+
+
 ## 🛠️ Installation
 
 ### Prerequisites
