@@ -41,3 +41,7 @@ dist-ssr
 
 target
 canister_ids.json
+
+# Network-specific dfx.json templates (keep templates, ignore active dfx.json changes)
+# dfx.local.json and dfx.ic.json are templates - keep them in git
+# dfx.json is the active config - changes are managed by generate_init_args.sh
