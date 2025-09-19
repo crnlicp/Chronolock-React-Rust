@@ -38,7 +38,7 @@ export const DrawerNavigation = ({
               <li>
                 <div className="item">
                   <img
-                    src="assets/img/logo.gif"
+                    src="assets/img/logo.png"
                     alt=""
                     height={150}
                     style={{ margin: 20 }}
@@ -126,19 +126,6 @@ export const DrawerNavigation = ({
           <div className="info_holder">
             <div className="copyright">
               <p>Copyright 2025 - Chronolock</p>
-            </div>
-            <div className="social_icons">
-              <ul>
-                <li>
-                  <NavLink to="#">
-                    <img
-                      src="/svg/social/twitter-1.svg"
-                      alt=""
-                      className="fn__svg"
-                    />
-                  </NavLink>
-                </li>
-              </ul>
             </div>
           </div>
         </div>

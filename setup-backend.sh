@@ -5,6 +5,7 @@ bash manage_identities.sh &&
 cargo install candid-extractor &&
 cargo clean && 
 dfx canister create --all &&
+rustup target add wasm32-unknown-unknown &&
 bash generate_init_args.sh &&
 cargo build --target wasm32-unknown-unknown --release &&
 candid-extractor target/wasm32-unknown-unknown/release/crnl_ledger_canister.wasm > src/backend/crnl_ledger_canister/crnl_ledger_canister.did &&
