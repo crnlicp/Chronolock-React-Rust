@@ -15,6 +15,7 @@ echo ""
 # bash manage_identities.sh &&
 cargo install candid-extractor &&
 cargo clean && 
+export DFX_WARNING=-mainnet_plaintext_identity &&
 dfx canister create --all &&
 rustup target add wasm32-unknown-unknown &&
 
