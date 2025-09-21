@@ -29,7 +29,7 @@ struct Account {
 }
 
 impl Storable for Account {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -83,7 +83,7 @@ struct Metadata {
 }
 
 impl Storable for Metadata {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -101,7 +101,7 @@ struct LogEntry {
 }
 
 impl Storable for LogEntry {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -120,7 +120,7 @@ struct AllowanceKey {
 }
 
 impl Storable for AllowanceKey {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -145,7 +145,7 @@ struct TransactionEvent {
 }
 
 impl Storable for TransactionEvent {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {

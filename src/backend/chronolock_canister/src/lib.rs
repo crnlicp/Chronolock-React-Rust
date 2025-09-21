@@ -87,9 +87,6 @@ pub struct VetKDDeriveKeyReply {
     pub encrypted_key: Vec<u8>,
 }
 
-#[derive(CandidType, Deserialize)]
-struct ByteBuf(Vec<u8>);
-
 #[derive(CandidType, Deserialize, Clone)]
 struct Chronolock {
     id: String,
@@ -117,7 +114,7 @@ pub struct EncryptedMetadataPayload {
 }
 
 impl Storable for Chronolock {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).expect("Failed to encode Chronolock"))
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -134,7 +131,7 @@ struct LogEntry {
 }
 
 impl Storable for LogEntry {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).expect("Failed to encode LogEntry"))
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -152,7 +149,7 @@ struct TokenList {
 }
 
 impl Storable for TokenList {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(&self.tokens).expect("Failed to encode TokenList"))
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -171,7 +168,7 @@ struct MediaUploadState {
 }
 
 impl Storable for MediaUploadState {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).expect("Failed to encode MediaUploadState"))
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {

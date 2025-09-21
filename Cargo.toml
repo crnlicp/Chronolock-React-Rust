@@ -5,3 +5,8 @@ members = [
     "src/backend/crnl_ledger_canister",
 ]
 resolver = "2"
+
+[profile.release]
+lto = true
+opt-level = 'z'
+panic = 'abort'
