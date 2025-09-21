@@ -9,9 +9,9 @@ export const Counter = ({ end, decimals }: ICounterProps) => {
 
   return (
     <CountUp
-      end={end ? end : 100}
+      end={end !== undefined ? end : 0}
       duration={3}
-      decimals={decimals ? decimals : 0}
+      decimals={decimals !== undefined ? decimals : 0}
       start={inView ? undefined : 0}
     >
       {({ countUpRef }) => (
