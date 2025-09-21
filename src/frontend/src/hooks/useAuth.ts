@@ -23,7 +23,6 @@ export const useAuth = () => {
         maxTimeToLive: BigInt(7 * 24 * 60 * 60 * 1000 * 1000 * 1000),
         identityProvider: provider,
         onSuccess: () => {
-          console.log('Login successful');
           const identity = authClient.getIdentity();
           setIsAuthenticated(true);
           setPrincipal(identity.getPrincipal().toText());

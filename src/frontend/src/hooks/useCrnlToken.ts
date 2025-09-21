@@ -25,13 +25,23 @@ export interface IUseCrnlToken {
   isClaimReferralLoading: boolean;
   claimReferralError: Error | undefined;
   isCreateMediaChronolockLoading: boolean;
+  // New statistics functions
+  totalSupplyData: unknown;
+  isTotalSupplyLoading: boolean;
+  totalSupplyError: Error | undefined;
+  totalBurnedData: unknown;
+  isTotalBurnedLoading: boolean;
+  totalBurnedError: Error | undefined;
   claimReferral: () => Promise<unknown>;
-  createMediaChronolock: () => Promise<unknown>;
+  createMediaChronolock: (account?: { owner: Principal; subaccount: number[] }) => Promise<unknown>;
   getRefrrealCode: () => Promise<unknown>;
   getFee: () => Promise<unknown>;
   registerUser: () => Promise<unknown>;
   checkBalance: () => Promise<unknown>;
   transfer: (transferArgs: ITransferArgs) => Promise<unknown>;
+  // New statistics functions
+  getTotalSupply: () => Promise<unknown>;
+  getTotalBurned: () => Promise<unknown>;
 }
 
 interface ITransferArgs {
@@ -97,11 +107,39 @@ export const useCrnlToken = (): IUseCrnlToken => {
   });
 
   const {
-    call: createMediaChronolock,
+    call: getTotalSupply,
+    loading: isTotalSupplyLoading,
+    data: totalSupplyData,
+    error: totalSupplyError,
+  } = crnlQueryCall({
+    refetchOnMount: true,
+    functionName: 'icrc1_total_supply' as any,
+  });
+
+  const {
+    call: getTotalBurned,
+    loading: isTotalBurnedLoading,
+    data: totalBurnedData,
+    error: totalBurnedError,
+  } = crnlQueryCall({
+    refetchOnMount: true,
+    functionName: 'get_total_burned' as any,
+  });
+
+  const {
+    call: createMediaChronolockCall,
     loading: isCreateMediaChronolockLoading,
   } = crnlUpdateCall({
     functionName: 'create_media_chronolock' as any,
   });
+
+  const createMediaChronolock = (account?: { owner: Principal; subaccount: number[] }) => {
+    const accountToUse = account || {
+      owner: Principal.fromText(principal ?? 'aaaaa-aa'),
+      subaccount: [],
+    };
+    return createMediaChronolockCall([accountToUse]);
+  };
 
   const {
     call: transferCall,
@@ -165,7 +203,9 @@ export const useCrnlToken = (): IUseCrnlToken => {
     isTransferLoading ||
     isFeeLoading ||
     isReferralLoading ||
-    isClaimReferralLoading;
+    isClaimReferralLoading ||
+    isTotalSupplyLoading ||
+    isTotalBurnedLoading;
 
   useEffect(() => {
     if (principal) {
@@ -200,8 +240,6 @@ export const useCrnlToken = (): IUseCrnlToken => {
     }
   }, [principal]);
 
-  console.log('balanceData', balance, balanceData);
-
   return {
     isLoading,
     balanceData,
@@ -223,6 +261,13 @@ export const useCrnlToken = (): IUseCrnlToken => {
     isClaimReferralLoading,
     claimReferralError,
     isCreateMediaChronolockLoading,
+    // New statistics data
+    totalSupplyData,
+    isTotalSupplyLoading,
+    totalSupplyError,
+    totalBurnedData,
+    isTotalBurnedLoading,
+    totalBurnedError,
     createMediaChronolock,
     claimReferral,
     getRefrrealCode,
@@ -230,5 +275,8 @@ export const useCrnlToken = (): IUseCrnlToken => {
     registerUser,
     checkBalance,
     transfer,
+    // New statistics functions
+    getTotalSupply,
+    getTotalBurned,
   };
 };

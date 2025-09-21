@@ -186,10 +186,7 @@ export const UploadFile = ({
     concatenatedArray.set(iv, 0);
     concatenatedArray.set(new Uint8Array(encryptedBuffer), iv.length);
     const concatenatedBuffer = concatenatedArray.buffer;
-    console.log('file encrypted', {
-      iv: iv,
-      concatenatedArray,
-    });
+
     const result = await upload(concatenatedBuffer);
 
     if (
@@ -201,15 +198,8 @@ export const UploadFile = ({
       'Ok' in (result.urlObject as { Ok: string }) &&
       typeof result.mediaId === 'string'
     ) {
-      const mediaUrl = (result.urlObject as { Ok: string }).Ok;
-      console.log('File uploaded successfully:', { Ok: mediaUrl });
       onSetMediaId(result.mediaId as string);
       setMediaSize(files[0].file.size);
-
-      // Use chunked download
-      // const totalSize = files[0].file.size;
-      // const media = await getMediaChunked(result.mediaId as string, totalSize);
-      // console.log('Media data retrieved (chunked)', { Ok: media });
     } else {
       setError('Upload failed: Unexpected response');
     }

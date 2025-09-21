@@ -66,7 +66,7 @@ export const UnlockTimeAndRecipients = ({
               readOnly
             />
             <StaticDateTimePicker
-              // disablePast
+              disablePast
               ampm={false}
               orientation="landscape"
               views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}

@@ -42,6 +42,7 @@ service : (principal, opt principal, opt text) -> {
     ) query;
   get_time_decryption_key : (text, blob) -> (Result_5);
   get_total_chronolocks_count : () -> (nat64) query;
+  get_unique_creators_count : () -> (nat64) query;
   get_user_accessible_chronolocks_count : (principal) -> (nat64) query;
   get_user_accessible_chronolocks_paginated : (principal, nat64, nat64) -> (
       Result_2,

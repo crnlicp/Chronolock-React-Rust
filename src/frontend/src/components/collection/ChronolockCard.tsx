@@ -12,6 +12,7 @@ import { Chronolock } from '../../hooks/useChronolock';
 import Clock from '../Clock';
 import { useAuth } from '../../hooks/useAuth';
 import { DecryptModal } from './DecryptModal';
+import { useLockTimer } from '../../hooks/useLockTimer';
 
 interface ChronolockMetadata {
   title?: string;
@@ -31,6 +32,9 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
   const [decryptModalOpen, setDecryptModalOpen] = useState(false);
   const { principal } = useAuth();
 
+  // Use the lock timer hook for efficient real-time updates
+  const isLocked = useLockTimer(metadata?.lockTime, chronolock.id);
+
   useEffect(() => {
     try {
       // Decode base64 metadata
@@ -43,10 +47,6 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
   }, [chronolock.metadata]);
 
   const isPublic = metadata?.userKeys?.[0]?.user === 'public';
-
-  const isLocked = metadata?.lockTime
-    ? Date.now() / 1000 < metadata.lockTime
-    : true;
 
   const isDecryptable = metadata?.userKeys
     ? metadata.userKeys.some((uk) => uk.user === principal) || isPublic

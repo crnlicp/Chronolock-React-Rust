@@ -65,7 +65,6 @@ export const SendTokenModal = ({
         to: Principal.fromText(address),
         amount: BigInt(Math.round(parsedAmount * 1e8)),
       });
-      console.log(`Sent ${parsedAmount} to ${address}`);
       setTimeout(() => {
         setAddress('');
         setAmount('');

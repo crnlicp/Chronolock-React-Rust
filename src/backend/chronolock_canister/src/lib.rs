@@ -779,6 +779,14 @@ fn get_total_chronolocks_count() -> u64 {
     CHRONOLOCKS.with(|locks| locks.borrow().len() as u64)
 }
 
+// Function to get total count of unique creators
+#[query]
+fn get_unique_creators_count() -> u64 {
+    OWNER_TO_TOKENS.with(|owner_to_tokens| {
+        owner_to_tokens.borrow().len() as u64
+    })
+}
+
 // Function to get total count of owner's chronolocks
 #[query]
 fn get_owner_chronolocks_count(owner: Principal) -> u64 {

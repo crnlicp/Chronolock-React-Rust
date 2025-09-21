@@ -108,7 +108,6 @@ const ReviewAndCreate = ({
       const rawKey = await window.crypto.subtle.exportKey('raw', cryptoKey);
       const rawKeyUint8 = new Uint8Array(rawKey);
       const vetkdPublicKeyObject = await getVetkdPublicKey();
-      console.log(vetkdPublicKeyObject);
       const vetkdPublicKeyBuffer = (
         vetkdPublicKeyObject as { Ok: { public_key: ArrayBuffer } }
       ).Ok.public_key;
@@ -156,16 +155,11 @@ const ReviewAndCreate = ({
         const chronolockObject = await createChronolock([
           unsecureMetaDataBase64,
         ]);
-        console.log('Reviewing metadata:', {
-          chronolockObject,
-        });
+
         const chronolockId = (chronolockObject as { Ok: string }).Ok;
         if (chronolockId) {
           setCreatedChronolockId(chronolockId);
-          console.log('Chronolock created successfully:', {
-            unsecretMetaData,
-            unsecureMetaDataBase64,
-          });
+
           if (isMediaChronolock) {
             await createMediaChronolock();
             await checkBalance();

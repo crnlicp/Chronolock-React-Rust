@@ -83,9 +83,9 @@ cat <<EOF > src/backend/crnl_ledger_canister/ledger_init_args.did
 (
   "Chronolock",
   "CRNL",
-  100000000000000000000 : nat,
+  10000000000000000 : nat,
   31536000 : nat64,
-  100000 : nat,
+  10000 : nat,
   principal "$ADMIN_PRINCIPAL"
 )
 EOF
