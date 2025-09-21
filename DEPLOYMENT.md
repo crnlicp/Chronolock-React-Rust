@@ -6,8 +6,8 @@ This guide explains how to deploy Chronolock to both local development and IC ma
 
 Chronolock uses a smart configuration system that automatically adapts to your deployment target:
 
-- **Local Development**: Includes `chainkey_testing_canister` for VetKD testing
-- **IC Mainnet**: Excludes test canisters and uses production VetKD
+- **Local Development**: Uses management canister for vetKD (with `dfx_test_key`)
+- **IC Mainnet**: Uses production vetKD system via management canister (with `test_key_1`)
 
 ## 📋 **Configuration Files**
 
@@ -19,6 +19,7 @@ Chronolock uses a smart configuration system that automatically adapts to your d
 ## 🔧 **Setup Process**
 
 ### **Step 1: Run Setup Script**
+
 ```bash
 pnpm run setup
 # or directly:
@@ -26,12 +27,14 @@ pnpm run setup
 ```
 
 The script will ask you to choose:
-1. **Local development** - Uses chainkey_testing_canister
-2. **IC Mainnet** - Requires production VetKD canister ID
+
+1. **Local development** - Uses management canister with local vetKD (`dfx_test_key`)
+2. **IC Mainnet** - Uses management canister with production vetKD (`test_key_1`)
 
 ### **Step 2: Follow Network-Specific Instructions**
 
 #### **For Local Development:**
+
 ```bash
 # 1. Setup (already done above)
 pnpm run setup  # Choose option 1
@@ -41,9 +44,10 @@ pnpm run frontend
 ```
 
 #### **For IC Mainnet:**
+
 ```bash
 # 1. Setup (already done above)
-pnpm run setup  # Choose option 2, enter production VetKD ID
+pnpm run setup  # Choose option 2
 
 # 2. Deploy to IC mainnet
 dfx deploy --network ic crnl_ledger_canister
@@ -54,11 +58,13 @@ dfx deploy --network ic frontend
 ## 🔄 **Switching Networks**
 
 To switch between networks, simply run the setup script again:
+
 ```bash
 ./generate_init_args.sh
 ```
 
 The script will:
+
 - Update `dfx.json` with the correct canister configuration
 - Generate appropriate initialization arguments
 - Provide network-specific deployment instructions
@@ -66,55 +72,60 @@ The script will:
 ## 🎯 **What Happens During Setup**
 
 ### **Local Development Mode:**
+
 - ✅ Copies `dfx.local.json` → `dfx.json`
-- ✅ Includes `chainkey_testing_canister` in configuration
-- ✅ Uses chainkey_testing_canister ID as VetKD canister
+- ✅ Configures chronolock_canister to use `dfx_test_key`
+- ✅ All vetKD calls go directly to management canister
 - ✅ Sets network to "local"
 
 ### **IC Mainnet Mode:**
+
 - ✅ Copies `dfx.ic.json` → `dfx.json`
-- ✅ Excludes `chainkey_testing_canister` from configuration
-- ✅ Uses production VetKD canister ID (user-provided)
+- ✅ Configures chronolock_canister to use `test_key_1`
+- ✅ All vetKD calls go directly to management canister
 - ✅ Sets network to "ic"
 
 ## ⚠️ **Important Notes**
 
-### **Production VetKD Canister ID**
-For IC mainnet deployment, you need the official VetKD canister ID from DFINITY:
-- Check DFINITY documentation
-- Contact DFINITY support
-- **Do not use** the hardcoded test ID in production
+### **VetKD Integration**
+
+- **All Environments**: Uses management canister directly (no separate vetKD canister)
+- **Local**: Automatically uses `dfx_test_key` for local testing
+- **IC Mainnet**: Automatically uses `test_key_1` for production testing
+- **Key Selection**: Network-aware key selection handled automatically in Rust code
 
 ### **Canister Dependencies**
-- **Local**: Frontend depends on `chainkey_testing_canister`
-- **IC**: Frontend excludes test canisters for production
+
+- **All Networks**: Frontend only depends on core canisters (no vetKD canister dependency)
+- **VetKD Calls**: All go through management canister for proper routing
 
 ### **Environment Variables**
+
 DFX automatically sets environment variables based on the active `dfx.json`:
-- `CANISTER_ID_CHAINKEY_TESTING_CANISTER` (local only)
+
 - `CANISTER_ID_CHRONOLOCK_CANISTER`
 - `CANISTER_ID_CRNL_LEDGER_CANISTER`
+- `CANISTER_ID_INTERNET_IDENTITY`
 - `DFX_NETWORK`
 
 ## 🔍 **Troubleshooting**
 
-### **"Could not retrieve chainkey_testing_canister canister ID"**
+### **"VetKD configuration error"**
+
 ```bash
-# Make sure you've created canisters first
-dfx canister create --all
+# Ensure dfx.json is properly configured
+./generate_init_args.sh
 ```
 
-### **"VetKD canister ID is required for mainnet"**
-- You must provide a valid production VetKD canister ID
-- Contact DFINITY for the correct mainnet VetKD canister ID
-
 ### **Frontend can't find canister declarations**
+
 ```bash
 # Regenerate declarations after network switch
 dfx generate
 ```
 
 ## 📚 **File Structure**
+
 ```
 Chronolock-React-Rust/
 ├── dfx.json              # Active config (auto-generated)
@@ -123,7 +134,6 @@ Chronolock-React-Rust/
 ├── generate_init_args.sh # Smart setup script
 └── src/
     ├── backend/
-    │   ├── chainkey_testing_canister/  # Local only
     │   ├── chronolock_canister/        # Both networks
     │   └── crnl_ledger_canister/       # Both networks
     └── frontend/                       # Both networks
@@ -132,6 +142,7 @@ Chronolock-React-Rust/
 ## ✅ **Deployment Checklist**
 
 ### **Local Development:**
+
 - [ ] Run `pnpm run setup` (choose local)
 - [ ] Start DFX: `dfx start --clean --background`
 - [ ] Create canisters: `dfx canister create --all`
@@ -139,8 +150,8 @@ Chronolock-React-Rust/
 - [ ] Start frontend: `pnpm start`
 
 ### **IC Mainnet:**
-- [ ] Get production VetKD canister ID from DFINITY
-- [ ] Run `pnpm run setup` (choose IC, enter VetKD ID)
+
+- [ ] Run `pnpm run setup` (choose IC)
 - [ ] Build frontend: `pnpm run build`
 - [ ] Deploy canisters: `dfx deploy --network ic`
 - [ ] Verify deployment and test functionality

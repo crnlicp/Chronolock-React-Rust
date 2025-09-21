@@ -29,7 +29,7 @@ type Result_6 = variant { Ok : VetKDPublicKeyReply; Err : ChronoError };
 type Result_7 = variant { Ok : nat32; Err : ChronoError };
 type VetKDDeriveKeyReply = record { encrypted_key : blob };
 type VetKDPublicKeyReply = record { public_key : blob };
-service : (principal, opt principal, opt text) -> {
+service : (principal, opt text) -> {
   burn_chronolock : (text) -> (Result);
   create_chronolock : (text) -> (Result_1);
   finish_media_upload : (text) -> (Result_1);

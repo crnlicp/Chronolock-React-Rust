@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "src/backend/chainkey_testing_canister",
     "src/backend/chronolock_canister",
     "src/backend/crnl_ledger_canister",
 ]

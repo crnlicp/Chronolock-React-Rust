@@ -2,6 +2,7 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use candid::{CandidType, Principal};
+use ic_cdk::api::call::call_with_payment;
 use ic_cdk::api::time;
 use ic_cdk::caller;
 use ic_cdk_macros::{init, query, update};
@@ -16,7 +17,6 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 
 type Memory = VirtualMemory<DefaultMemoryImpl>;
-const VETKD_CANISTER_ID_TEXT: &str = "s55qq-oqaaa-aaaaa-aaakq-cai";
 
 #[derive(CandidType, Deserialize)]
 enum ChronoError {
@@ -44,10 +44,23 @@ struct HttpResponse {
 }
 
 #[derive(CandidType, Deserialize)]
-struct VetkdPublicKeyArgs {
-    key_id: VetkdPublicKeyArgsKeyId,
-    context: Vec<u8>,
+struct VetKDPublicKeyArgs {
     canister_id: Option<Principal>,
+    context: Vec<u8>,
+    key_id: VetKDKeyId,
+}
+
+#[derive(CandidType, Deserialize)]
+struct VetKDKeyId {
+    curve: VetKDCurve,
+    name: String,
+}
+
+#[derive(CandidType, Deserialize)]
+enum VetKDCurve {
+    #[serde(rename = "bls12_381_g2")]
+    #[allow(non_camel_case_types)]
+    Bls12_381_G2,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -56,30 +69,11 @@ pub struct VetKDPublicKeyReply {
 }
 
 #[derive(CandidType, Deserialize)]
-struct VetkdPublicKeyArgsKeyId {
-    name: String,
-    curve: VetkdCurve,
-}
-
-#[derive(CandidType, Deserialize)]
-enum VetkdCurve {
-    #[serde(rename = "bls12_381_g2")]
-    #[allow(non_camel_case_types)]
-    Bls12_381_G2,
-}
-
-#[derive(CandidType, Deserialize)]
-struct VetkdDeriveEncryptedKeyArgs {
+struct VetKDDeriveKeyArgs {
     input: Vec<u8>,
     context: Vec<u8>,
     transport_public_key: Vec<u8>,
-    key_id: VetkdDeriveEncryptedKeyArgsKeyId,
-}
-
-#[derive(CandidType, Deserialize)]
-struct VetkdDeriveEncryptedKeyArgsKeyId {
-    name: String,
-    curve: VetkdCurve,
+    key_id: VetKDKeyId,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -207,9 +201,6 @@ thread_local! {
     static MEDIA_FILES: RefCell<StableBTreeMap<String, Vec<u8>, Memory>> = RefCell::new(
         StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(7))))
     );
-    static VETKD_CANISTER_ID: RefCell<Principal> = RefCell::new(
-        Principal::from_text(VETKD_CANISTER_ID_TEXT).unwrap()
-    );
     static NETWORK: RefCell<StableCell<Option<String>, Memory>> = RefCell::new(
         StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(8))), None)
             .unwrap_or_else(|e| panic!("Failed to initialize NETWORK: {:?}", e))
@@ -269,24 +260,36 @@ fn log_activity(activity: String) {
     });
 }
 
+fn get_vetkd_key_name() -> String {
+    match get_network().as_deref() {
+        Some("local") => "dfx_test_key".to_string(),
+        _ => "test_key_1".to_string(), // Use test_key_1 for IC mainnet
+    }
+}
+
 async fn call_vetkd_derive_key(
-    derivation_id: Vec<u8>,
-    encryption_public_key: Vec<u8>,
+    input: Vec<u8>,
+    context: Vec<u8>,
+    transport_public_key: Vec<u8>,
 ) -> Result<VetKDDeriveKeyReply, ChronoError> {
-    let args = VetkdDeriveEncryptedKeyArgs {
-        key_id: VetkdDeriveEncryptedKeyArgsKeyId {
-            name: "insecure_test_key_1".to_string(),
-            curve: VetkdCurve::Bls12_381_G2,
+    let args = VetKDDeriveKeyArgs {
+        key_id: VetKDKeyId {
+            name: get_vetkd_key_name(),
+            curve: VetKDCurve::Bls12_381_G2,
         },
-        input: derivation_id,
-        context: vec![], // Empty context is fine for testing
-        transport_public_key: encryption_public_key.clone(),
+        input,
+        context,
+        transport_public_key,
     };
 
-    let vetkd_canister_id = VETKD_CANISTER_ID.with(|id| *id.borrow());
+    let management_canister = Principal::management_canister();
+    
+    // VetKD operations require cycles to be sent with the call
+    // Based on the error message, approximately 26 billion cycles are needed
+    let cycles = 30_000_000_000u64; // 30 billion cycles for safety margin
 
     let (result,): (VetKDDeriveKeyReply,) =
-        ic_cdk::call(vetkd_canister_id, "vetkd_derive_key", (args,))
+        call_with_payment(management_canister, "vetkd_derive_key", (args,), cycles)
             .await
             .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
 
@@ -294,19 +297,10 @@ async fn call_vetkd_derive_key(
 }
 
 #[init]
-fn init(admin: Principal, vetkd_canister_id: Option<Principal>, network: Option<String>) {
+fn init(admin: Principal, network: Option<String>) {
     ADMINS.with(|admins| {
         admins.borrow_mut().insert(0, admin);
     });
-    if let Some(vetkd_id) = vetkd_canister_id {
-        VETKD_CANISTER_ID.with(|id| {
-            *id.borrow_mut() = vetkd_id;
-        });
-    }
-    let vetkd_str = match vetkd_canister_id {
-        Some(id) => id.to_string(),
-        None => "no VETKD canister ID".to_string(),
-    };
 
     if let Some(net) = network {
         NETWORK.with(|n| {
@@ -316,10 +310,7 @@ fn init(admin: Principal, vetkd_canister_id: Option<Principal>, network: Option<
         });
     }
 
-    log_activity(format!(
-        "Canister initialized with {} and {}",
-        admin, vetkd_str
-    ));
+    log_activity(format!("Canister initialized with admin: {}", admin));
 }
 
 fn is_admin(caller: Principal) -> bool {
@@ -448,19 +439,19 @@ fn icrc7_transfer(token_id: String, to: Principal) -> Result<(), ChronoError> {
 
 #[update]
 async fn ibe_encryption_key() -> Result<VetKDPublicKeyReply, ChronoError> {
-    let args = VetkdPublicKeyArgs {
-        key_id: VetkdPublicKeyArgsKeyId {
-            name: "insecure_test_key_1".to_string(),
-            curve: VetkdCurve::Bls12_381_G2,
+    let args = VetKDPublicKeyArgs {
+        key_id: VetKDKeyId {
+            name: get_vetkd_key_name(),
+            curve: VetKDCurve::Bls12_381_G2,
         },
-        context: vec![],
+        context: b"chronolock-encryption".to_vec(),
         canister_id: None,
     };
 
-    let vetkd_canister_id = VETKD_CANISTER_ID.with(|id| *id.borrow());
+    let management_canister = Principal::management_canister();
 
     let (result,): (VetKDPublicKeyReply,) =
-        ic_cdk::call(vetkd_canister_id, "vetkd_public_key", (args,))
+        ic_cdk::call(management_canister, "vetkd_public_key", (args,))
             .await
             .map_err(|e| ChronoError::InternalError(format!("Call failed: {:?}", e)))?;
 
@@ -470,11 +461,11 @@ async fn ibe_encryption_key() -> Result<VetKDPublicKeyReply, ChronoError> {
 #[update]
 async fn get_time_decryption_key(
     unlock_time_hex: String,
-    encryption_public_key: Vec<u8>,
+    transport_public_key: Vec<u8>,
 ) -> Result<VetKDDeriveKeyReply, ChronoError> {
-    if encryption_public_key.is_empty() {
+    if transport_public_key.is_empty() {
         return Err(ChronoError::InvalidInput(
-            "Encryption public key cannot be empty".to_string(),
+            "Transport public key cannot be empty".to_string(),
         ));
     }
     if unlock_time_hex.len() != 16 || !unlock_time_hex.chars().all(|c| c.is_ascii_hexdigit()) {
@@ -494,20 +485,21 @@ async fn get_time_decryption_key(
 
     // Use IBE identity format for VetKD derivation to ensure compatibility
     // For public chronolocks, IBE identity is just the decimal time string
-    let derivation_id = unlock_time.to_string().into_bytes();
+    let input = unlock_time.to_string().into_bytes();
+    let context = b"chronolock-encryption".to_vec();
 
-    call_vetkd_derive_key(derivation_id, encryption_public_key).await
+    call_vetkd_derive_key(input, context, transport_public_key).await
 }
 
 #[update]
 async fn get_user_time_decryption_key(
     unlock_time_hex: String,
     user_id: String,
-    encryption_public_key: Vec<u8>,
+    transport_public_key: Vec<u8>,
 ) -> Result<VetKDDeriveKeyReply, ChronoError> {
-    if encryption_public_key.is_empty() {
+    if transport_public_key.is_empty() {
         return Err(ChronoError::InvalidInput(
-            "Encryption public key cannot be empty".to_string(),
+            "Transport public key cannot be empty".to_string(),
         ));
     }
     let caller = caller();
@@ -529,7 +521,10 @@ async fn get_user_time_decryption_key(
     // Use IBE identity format for VetKD derivation to ensure compatibility
     // For private chronolocks, IBE identity is "user_id:decimal_time"
     let combined_id = format!("{}:{}", user_id, unlock_time);
-    call_vetkd_derive_key(combined_id.into_bytes(), encryption_public_key).await
+    let input = combined_id.into_bytes();
+    let context = b"chronolock-encryption".to_vec();
+
+    call_vetkd_derive_key(input, context, transport_public_key).await
 }
 
 #[update]

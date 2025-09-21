@@ -32,12 +32,7 @@ echo "Extracted crnl_ledger_canister.did" &&
 candid-extractor target/wasm32-unknown-unknown/release/chronolock_canister.wasm > src/backend/chronolock_canister/chronolock_canister.did &&
 echo "Extracted chronolock_canister.did" &&
 
-# Only extract chainkey_testing_canister.did for local network
-if [ "$NETWORK" = "local" ]; then
-  candid-extractor target/wasm32-unknown-unknown/release/chainkey_testing_canister.wasm > src/backend/chainkey_testing_canister/chainkey_testing_canister.did &&
-  echo "Extracted chainkey_testing_canister.did" &&
-  dfx generate chainkey_testing_canister
-fi &&
+# Generate declarations for remaining canisters
 
 dfx generate crnl_ledger_canister && dfx generate chronolock_canister &&
 
@@ -66,7 +61,7 @@ if [ "$NETWORK" = "ic" ]; then
   echo "   • crnl_ledger_canister"
   echo "   • chronolock_canister"
   echo "   • frontend"
-  echo "⚠️  chainkey_testing_canister excluded from IC deployment"
+  echo "✅ All canisters use management canister for vetKD"
 else
   echo ""
   echo "🏠 Deploying to local network (free cycles)..."
@@ -74,7 +69,6 @@ else
   echo ""
   echo "✅ Local deployment complete!"
   echo "🔗 Canisters deployed:"
-  echo "   • chainkey_testing_canister"
   echo "   • crnl_ledger_canister"
   echo "   • chronolock_canister"
   echo "   • frontend"
