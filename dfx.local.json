@@ -10,11 +10,6 @@
         }
       }
     },
-    "chainkey_testing_canister": {
-      "candid": "src/backend/chainkey_testing_canister/chainkey_testing_canister.did",
-      "package": "chainkey_testing_canister",
-      "type": "rust"
-    },
     "crnl_ledger_canister": {
       "candid": "src/backend/crnl_ledger_canister/crnl_ledger_canister.did",
       "package": "crnl_ledger_canister",
@@ -38,6 +33,13 @@
     }
   },
   "networks": {
+    "local": {
+      "bind": "127.0.0.1:4943",
+      "type": "ephemeral",
+      "replica": {
+        "subnet_type": "application"
+      }
+    },
     "ic": {
       "providers": ["https://ic0.app"],
       "type": "persistent"

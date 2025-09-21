@@ -17,4 +17,4 @@ sha2 = "0.10.9"
 futures = "0.3.31"
 
 [dev-dependencies]
-pocket-ic = "7.0.0"
+pocket-ic = "10.0.0"

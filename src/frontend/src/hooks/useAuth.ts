@@ -14,7 +14,7 @@ export const useAuth = () => {
     const authClient = await AuthClient.create();
     const isAuthenticated = await authClient.isAuthenticated();
     const provider =
-      process.env.CANISTER_ID_INTERNET_IDENTITY === 'ic'
+      process.env.DFX_NETWORK === 'ic'
         ? 'https://identity.ic0.app/?#authorize/'
         : `http://${process.env.CANISTER_ID_INTERNET_IDENTITY}.localhost:4943/?#authorize`;
 
@@ -23,7 +23,6 @@ export const useAuth = () => {
         maxTimeToLive: BigInt(7 * 24 * 60 * 60 * 1000 * 1000 * 1000),
         identityProvider: provider,
         onSuccess: () => {
-          console.log('Login successful');
           const identity = authClient.getIdentity();
           setIsAuthenticated(true);
           setPrincipal(identity.getPrincipal().toText());

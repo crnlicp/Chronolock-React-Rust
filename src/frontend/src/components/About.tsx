@@ -188,21 +188,8 @@ export const About = () => {
                 </li>
               </ul>
             </div>
-            {/* !Steps Shortcode */}
-            {/* Video Shortcode */}
-            {/* <div className="fn_cs_video">
-              <img src="assets/img/video/1.jpg" alt="" />
-              <a
-                className="popup-youtube"
-                href="https://www.youtube.com/embed/7e90gBu4pas"
-              >
-                <img src="assets/svg/play.svg" alt="" className="fn__svg" />
-              </a>
-            </div> */}
-            {/* /Video Shortcode */}
           </div>
         </div>
-        {/* !Mint Shortcode */}
       </div>
     </section>
   );

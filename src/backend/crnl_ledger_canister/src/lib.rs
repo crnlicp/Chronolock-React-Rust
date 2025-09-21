@@ -29,7 +29,7 @@ struct Account {
 }
 
 impl Storable for Account {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -83,7 +83,7 @@ struct Metadata {
 }
 
 impl Storable for Metadata {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -101,7 +101,7 @@ struct LogEntry {
 }
 
 impl Storable for LogEntry {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -120,7 +120,7 @@ struct AllowanceKey {
 }
 
 impl Storable for AllowanceKey {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -145,7 +145,7 @@ struct TransactionEvent {
 }
 
 impl Storable for TransactionEvent {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
@@ -727,28 +727,27 @@ async fn icrc1_transfer_from(
 }
 
 #[update]
-fn create_media_chronolock() -> Result<String, LedgerError> {
-    let caller = caller();
-    let account = Account {
-        owner: caller.clone(),
-        subaccount: None, // or get from an optional argument if needed
-    };
+fn create_media_chronolock(caller: Account) -> Result<String, LedgerError> {
     let creation_fee = 2_000_000_000; // 20 $CRNL
-    let balance = BALANCES.with(|b| b.borrow().get(&account).unwrap_or(0));
+    let balance = BALANCES.with(|b| b.borrow().get(&caller).unwrap_or(0));
     if balance < creation_fee {
         return Err(LedgerError::InsufficientBalance);
     }
     BALANCES.with(|b| {
         b.borrow_mut()
-            .insert(account.clone(), balance - creation_fee)
+            .insert(caller.clone(), balance - creation_fee)
     });
     process_fee(creation_fee)?;
     log_event(
         "MediaChronoLockCreated",
-        format!("Caller: {}, Fee: {}", account.owner, creation_fee),
+        format!("Caller: {}, Fee: {}", caller.owner, creation_fee),
     );
 
-    Ok("Media ChronoLock created for 20 CRNL".to_string())
+    let metadata = METADATA.with(|m| m.borrow().get(&0).unwrap().clone());
+    Ok(format!(
+        "Media ChronoLock created for 20 {}",
+        metadata.symbol
+    ))
 }
 
 #[update]

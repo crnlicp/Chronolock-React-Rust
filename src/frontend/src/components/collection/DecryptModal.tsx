@@ -204,7 +204,6 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
       );
 
       console.log('VetKey decrypted successfully');
-      console.log('VetKey signature length:', vetKey.signatureBytes().length);
 
       // Now decrypt the AES key using IBE
       const encryptedUserKeyBytes = atob(userKey);
@@ -213,10 +212,6 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
       );
 
       const ibeCiphertext = IbeCiphertext.deserialize(encryptedUserKeyUint8);
-      console.log(
-        'IBE Ciphertext parsed, length:',
-        ibeCiphertext.serialize().length,
-      );
 
       // Create the IBE identity that was used during encryption
       let ibeIdentityString: string;

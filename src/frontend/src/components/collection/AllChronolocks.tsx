@@ -23,17 +23,12 @@ export const AllChronolocks: React.FC = () => {
 
   // Fetch chronolocks when page changes
   useEffect(() => {
-    console.log('AllChronolocks: Fetching chronolocks for page', page);
     const fetchChronolocks = async () => {
       try {
         const offset = (page - 1) * itemsPerPage;
         const result = await getAllChronolocksPaginated(offset, itemsPerPage);
         const chronolocksData = (result as { Ok?: Chronolock[] })?.Ok || [];
-        console.log(
-          'AllChronolocks: Fetched',
-          chronolocksData.length,
-          'chronolocks',
-        );
+
         setChronolocks(chronolocksData);
       } catch (error) {
         console.error('Error fetching chronolocks:', error);
@@ -46,12 +41,10 @@ export const AllChronolocks: React.FC = () => {
 
   // Fetch count only once on mount
   useEffect(() => {
-    console.log('AllChronolocks: Fetching count');
     const fetchCount = async () => {
       try {
         const result = await getAllChronolocksCount();
         const count = result as number;
-        console.log('AllChronolocks: Total count is', count);
         setTotalCount(count);
       } catch (error) {
         console.error('Error fetching chronolocks count:', error);

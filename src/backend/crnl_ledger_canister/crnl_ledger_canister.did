@@ -48,7 +48,7 @@ type TransferFromArgs = record {
 service : (text, text, nat, nat64, nat, principal) -> {
   claim_referral : (ClaimReferralArgs) -> (Result);
   convert_dapp_funds_to_cycles : () -> (Result_1);
-  create_media_chronolock : () -> (Result);
+  create_media_chronolock : (Account) -> (Result);
   create_text_chronolock : (Account) -> (Result);
   get_admin : () -> (principal) query;
   get_community_pool_balance : () -> (nat) query;

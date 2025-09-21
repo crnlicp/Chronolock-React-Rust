@@ -65,7 +65,7 @@ export const MainNavigation = ({
             <div className="logo">
               <NavLink to="/">
                 <img
-                  src="assets/img/logo.gif"
+                  src="assets/img/logo.png"
                   alt=""
                   height={'95%'}
                   style={{ position: 'absolute', top: 0, left: 100 }}

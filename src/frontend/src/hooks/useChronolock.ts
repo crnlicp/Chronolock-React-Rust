@@ -41,6 +41,7 @@ interface IUseChronolock {
   ) => Promise<unknown>;
   // New pagination functions
   getAllChronolocksCount: () => Promise<unknown>;
+  getUniqueCreatorsCount: () => Promise<unknown>;
   getOwnerChronolocksCount: (owner: string) => Promise<unknown>;
   getUserAccessibleChronolocksCount: (user: string) => Promise<unknown>;
   getAllChronolocksPaginated: (
@@ -64,6 +65,7 @@ interface IUseChronolock {
   isGetOwnerChronolocksLoading: boolean;
   isGetUserAccessibleChronolocksLoading: boolean;
   isGetAllChronolocksCountLoading: boolean;
+  isGetUniqueCreatorsCountLoading: boolean;
   isGetOwnerChronolocksCountLoading: boolean;
   isGetUserAccessibleChronolocksCountLoading: boolean;
 }
@@ -144,6 +146,14 @@ export const useChronolock = (): IUseChronolock => {
   } = chronolockQueryCall({
     refetchOnMount: false,
     functionName: 'get_total_chronolocks_count' as any,
+  });
+
+  const {
+    call: getUniqueCreatorsCount,
+    loading: isGetUniqueCreatorsCountLoading,
+  } = chronolockQueryCall({
+    refetchOnMount: false,
+    functionName: 'get_unique_creators_count' as any,
   });
 
   const {
@@ -357,6 +367,7 @@ export const useChronolock = (): IUseChronolock => {
     getUserTimeDecryptionKey: getUserTimeDecryptionKeyWrapped,
     // New pagination functions
     getAllChronolocksCount,
+    getUniqueCreatorsCount,
     getOwnerChronolocksCount,
     getUserAccessibleChronolocksCount,
     getAllChronolocksPaginated,
@@ -369,6 +380,7 @@ export const useChronolock = (): IUseChronolock => {
     isGetOwnerChronolocksLoading,
     isGetUserAccessibleChronolocksLoading,
     isGetAllChronolocksCountLoading,
+    isGetUniqueCreatorsCountLoading,
     isGetOwnerChronolocksCountLoading,
     isGetUserAccessibleChronolocksCountLoading,
   };

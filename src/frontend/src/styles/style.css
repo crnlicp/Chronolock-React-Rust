@@ -5981,7 +5981,7 @@ a.metaportal_fn_videobutton:hover .fn__svg,
   position: relative;
   overflow: hidden;
   transition: all 0.5s ease;
-  background-image: url(assets/img/roadmap.png);
+  background-image: url(/assets/img/roadmap.png);
   background-repeat: repeat-x;
   max-width: 100% !important;
 }
