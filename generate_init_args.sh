@@ -5,11 +5,19 @@
 # Get the admin principal from the current DFX identity
 ADMIN_PRINCIPAL=$(dfx identity get-principal)
 
-# Detect network or ask user
+# Detect network from command parameters
 NETWORK=""
-if [ "$1" = "--network" ] && [ -n "$2" ]; then
+if [ "$1" = "--ic" ]; then
+  NETWORK="ic"
+  echo "🌐 Auto-detected network: IC Mainnet"
+elif [ "$1" = "--local" ]; then
+  NETWORK="local"
+  echo "🏠 Auto-detected network: Local Development"
+elif [ "$1" = "--network" ] && [ -n "$2" ]; then
   NETWORK="$2"
+  echo "🔧 Auto-detected network: $NETWORK"
 else
+  # No network specified, ask user interactively
   echo "🔧 Chronolock Canister Configuration"
   echo "=================================="
   echo "1) Local development (uses chainkey_testing_canister)"

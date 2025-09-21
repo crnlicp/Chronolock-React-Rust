@@ -148,8 +148,11 @@ async fn vetkd_derive_key(request: VetKDDeriveKeyRequest) -> VetKDDeriveKeyReply
         })
         .await;
 
+        let mut eks_map = std::collections::BTreeMap::new();
+        eks_map.insert(0u32, eks);
+        
         let ek = EncryptedKey::combine_all(
-            &vec![(0, eks)],
+            &eks_map,
             1,
             &MASTER_PK,
             &tpk,
