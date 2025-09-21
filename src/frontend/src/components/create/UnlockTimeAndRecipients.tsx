@@ -36,6 +36,13 @@ export const UnlockTimeAndRecipients = ({
     }
   };
 
+  const validatePrincipal = (principal: string): boolean => {
+    // Principal ID format: 10 groups of 5 chars + final group of 3 chars, separated by hyphens
+    // Example: 6a2vk-lcyzg-rltea-g4niu-z5m4b-5j6cs-i2fsj-7ib44-7zwp6-mha5o-oae
+    const principalPattern = /^[a-z0-9]{5}(-[a-z0-9]{5}){9}-[a-z0-9]{3}$/;
+    return principalPattern.test(principal);
+  };
+
   const handleRecipientChange = (index: number, value: string) => {
     const newRecipients = [...recipients];
     newRecipients[index] = value;
@@ -113,13 +120,32 @@ export const UnlockTimeAndRecipients = ({
                   <input
                     id={`recipient-${index}`}
                     type="text"
-                    placeholder="Reciepient Principal *"
-                    style={{ marginBottom: 16, width: '90%' }}
+                    placeholder="Recipient Principal (e.g., 6a2vk-lcyzg-rltea-g4niu-z5m4b-5j6cs-i2fsj-7ib44-7zwp6-mha5o-oae) *"
+                    style={{
+                      marginBottom:
+                        recipient && !validatePrincipal(recipient) ? 4 : 16,
+                      width: '90%',
+                      borderColor:
+                        recipient && !validatePrincipal(recipient)
+                          ? '#ff4444'
+                          : undefined,
+                    }}
                     value={recipient}
                     onChange={(e) =>
                       handleRecipientChange(index, e.target.value)
                     }
                   />
+                  {recipient && !validatePrincipal(recipient) && (
+                    <div
+                      style={{
+                        color: '#ff4444',
+                        fontSize: '12px',
+                        marginBottom: 12,
+                      }}
+                    >
+                      Not a valid principal ID
+                    </div>
+                  )}
                 </div>
 
                 <div
@@ -141,7 +167,9 @@ export const UnlockTimeAndRecipients = ({
       </div>
       <button
         className="metaportal_fn_button full cursor"
-        disabled={!lockTime || recipients.some((r) => r === '')}
+        disabled={
+          !lockTime || recipients.some((r) => r === '' || !validatePrincipal(r))
+        }
         style={{ border: 'none', marginBottom: 24, zIndex: 1 }}
         onClick={onNext}
       >
