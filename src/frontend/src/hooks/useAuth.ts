@@ -14,7 +14,7 @@ export const useAuth = () => {
     const authClient = await AuthClient.create();
     const isAuthenticated = await authClient.isAuthenticated();
     const provider =
-      process.env.CANISTER_ID_INTERNET_IDENTITY === 'ic'
+      process.env.DFX_NETWORK === 'ic'
         ? 'https://identity.ic0.app/?#authorize/'
         : `http://${process.env.CANISTER_ID_INTERNET_IDENTITY}.localhost:4943/?#authorize`;
 

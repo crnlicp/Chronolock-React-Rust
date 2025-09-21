@@ -4,7 +4,7 @@
     security_policy: 'standard',
     disable_security_policy_warning: true,
     headers: {
-      'Content-Security-Policy': "default-src 'self';script-src 'self';connect-src 'self' http://*.localhost:* http://localhost:* https://icp0.io https://*.icp0.io https://icp-api.io;img-src 'self' data: blob:;style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;font-src 'self' data: https://fonts.gstatic.com;object-src 'none';base-uri 'self';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;",
+      'Content-Security-Policy': "default-src 'self';script-src 'self';connect-src 'self' http://*.localhost:* http://localhost:* https://icp0.io https://*.icp0.io https://icp-api.io https://ic0.app;img-src 'self' data: blob:;style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;font-src 'self' data: https://fonts.gstatic.com;object-src 'none';base-uri 'self';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;",
       'Permissions-Policy': 'accelerometer=(), autoplay=(), camera=(), cross-origin-isolated=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=(), clipboard-read=(self), clipboard-write=(self), gamepad=(), hid=(), idle-detection=(), interest-cohort=(), serial=()',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'same-origin',

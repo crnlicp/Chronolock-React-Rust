@@ -40,8 +40,8 @@ dfx generate crnl_ledger_canister && dfx generate chronolock_canister &&
 if [ "$NETWORK" = "ic" ]; then
   echo ""
   echo "🌐 Deploying to IC mainnet with cycle allocation..."
-  echo "📊 Checking wallet balance before deployment..."
-  dfx wallet --network ic balance
+  echo "📊 Checking cycle balance before deployment..."
+  dfx cycles --network ic balance
   
   echo ""
   echo "🚀 Deploying canisters to IC mainnet..."
@@ -53,8 +53,8 @@ if [ "$NETWORK" = "ic" ]; then
   dfx deploy --network ic --with-cycles 2000000000000 frontend &&
   
   echo ""
-  echo "📊 Checking wallet balance after deployment..."
-  dfx wallet --network ic balance
+  echo "📊 Checking cycle balance after deployment..."
+  dfx cycles --network ic balance
   echo ""
   echo "✅ IC mainnet deployment complete!"
   echo "🔗 Canisters deployed:"
