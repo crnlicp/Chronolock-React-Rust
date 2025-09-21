@@ -2,12 +2,10 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use candid::{decode_one, encode_args, CandidType, Principal};
-use ic_vetkd_utils::TransportSecretKey;
 use pocket_ic::PocketIc;
 use serde::Deserialize;
 use serde_json;
 use std::fs;
-use std::time::UNIX_EPOCH;
 
 // Path to compiled WASM file (adjust as needed)
 const BACKEND_WASM: &str =
@@ -26,11 +24,6 @@ struct LogEntry {
     id: String,
     timestamp: u64,
     activity: String,
-}
-
-#[derive(CandidType, Deserialize, Clone, Debug)]
-struct TokenList {
-    tokens: Vec<String>,
 }
 
 #[derive(CandidType, Deserialize, Debug, PartialEq)]
@@ -58,11 +51,6 @@ struct HttpResponse {
     body: Vec<u8>,
 }
 
-#[derive(CandidType, Deserialize)]
-struct VetKDPublicKeyReply {
-    public_key: Vec<u8>,
-}
-
 #[derive(CandidType, Deserialize, Debug, PartialEq)]
 pub struct VetKDDeriveKeyReply {
     pub encrypted_key: Vec<u8>,
@@ -70,7 +58,7 @@ pub struct VetKDDeriveKeyReply {
 
 // Setup function
 fn setup() -> (PocketIc, Principal, Principal) {
-    std::env::set_var("POCKET_IC_BIN", "/usr/local/bin/pocket-ic");
+    // Let PocketIC handle the binary download automatically
     let pic = PocketIc::new();
 
     // Deploy Chronolock canister
@@ -251,7 +239,7 @@ fn test_icrc7_balance_of() {
 fn test_icrc7_owner_of_and_metadata() {
     let (pic, backend_canister, admin) = setup();
 
-    let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let unlock_time = (pic.get_time().as_nanos_since_unix_epoch() / 1_000_000_000) + 3600;
     let metadata = serde_json::json!({
         "unlock_time": unlock_time,
         "title": "Test NFT",
@@ -297,7 +285,7 @@ fn test_icrc7_transfer() {
     let (pic, backend_canister, admin) = setup();
 
     // Step 1: Create a chronolock token
-    let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let unlock_time = (pic.get_time().as_nanos_since_unix_epoch() / 1_000_000_000) + 3600;
     let metadata = serde_json::json!({
         "unlock_time": unlock_time,
         "title": "Test NFT",
@@ -353,7 +341,7 @@ fn test_icrc7_transfer() {
 fn test_icrc7_transfer_no_op() {
     let (pic, backend_canister, admin) = setup();
 
-    let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let unlock_time = (pic.get_time().as_nanos_since_unix_epoch() / 1_000_000_000) + 3600;
     let metadata = serde_json::json!({
         "unlock_time": unlock_time,
         "title": "Test NFT",
@@ -404,7 +392,7 @@ fn test_icrc7_transfer_no_op() {
 fn test_create_update_burn_chronolock() {
     let (pic, backend_canister, admin) = setup();
 
-    let unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let unlock_time = (pic.get_time().as_nanos_since_unix_epoch() / 1_000_000_000) + 3600;
     let metadata = serde_json::json!({
         "unlock_time": unlock_time,
         "title": "Test NFT",
@@ -422,7 +410,7 @@ fn test_create_update_burn_chronolock() {
     let token_id_result: Result<String, ChronoError> = decode_one(&create_response).unwrap();
     let token_id = token_id_result.expect("Failed to create chronolock");
 
-    let new_unlock_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs() + 7200;
+    let new_unlock_time = (pic.get_time().as_nanos_since_unix_epoch() / 1_000_000_000) + 7200;
     let new_metadata = serde_json::json!({
         "unlock_time": new_unlock_time,
         "title": "Test NFT",
@@ -568,133 +556,6 @@ fn test_upload_and_get_media() {
     assert_eq!(response.status_code, 200);
     assert_eq!(response.body, file_data);
 }
-
-// VETKD Tests cases - Disabled for now as they require actual vetKD system API
-
-/*
-#[test]
-fn test_ibe_encryption_key() {
-    let (pic, backend_canister, admin) = setup();
-
-    let response = pic
-        .update_call(
-            backend_canister,
-            admin,
-            "ibe_encryption_key",
-            encode_args(()).unwrap(),
-        )
-        .expect("Failed to call ibe_encryption_key");
-    let key_result: Result<VetKDPublicKeyReply, ChronoError> = decode_one(&response).unwrap();
-    let key = key_result.expect("Failed to get encryption key");
-    assert!(!key.public_key.is_empty(), "Expected non-empty public key");
-    println!("VETKD Public Key: {:?}", key.public_key);
-    println!("Key length: {:?}", key.public_key.len());
-}
-
-#[test]
-fn test_get_time_decryption_key_time_lock() {
-    let (pic, backend_canister, admin) = setup();
-
-    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
-    let unlock_time = current_time + 1000; // 1000 seconds from now
-    let unlock_time_hex = format!("{:016x}", unlock_time);
-
-    let tsk = TransportSecretKey::from_seed([42u8; 32].to_vec()).unwrap();
-    let encryption_public_key = tsk.public_key();
-
-    let encoded = encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap();
-    println!("Encoded args: {}", hex::encode(&encoded));
-
-    // Before unlock time
-    let response = pic
-        .update_call(
-            backend_canister,
-            admin,
-            "get_time_decryption_key",
-            encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
-        )
-        .expect("Failed to call get_time_decryption_key");
-    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
-    assert_eq!(
-        result,
-        Err(ChronoError::TimeLocked),
-        "Expected TimeLocked error before unlock time"
-    );
-
-    // Advance time by 1001 seconds
-    pic.advance_time(std::time::Duration::from_secs(1001));
-
-    // After unlock time
-    let response = pic
-        .update_call(
-            backend_canister,
-            admin,
-            "get_time_decryption_key",
-            encode_args((unlock_time_hex.clone(), encryption_public_key.clone())).unwrap(),
-        )
-        .expect("Failed to call get_time_decryption_key");
-    let result: Result<VetKDDeriveKeyReply, ChronoError> = decode_one(&response).unwrap();
-    let key = result.expect("Failed to get decryption key");
-
-    assert!(
-        !key.encrypted_key.is_empty(),
-        "Expected non-empty encrypted key"
-    );
-    assert_eq!(
-        key.encrypted_key.len(),
-        192,
-        "Expected encrypted key to be 48 bytes"
-    );
-}
-
-// VETKD Tests cases - Disabled for now as they require actual vetKD system API
-// These tests are commented out because they need a real vetKD system to work properly
-
-/*
-#[test]
-fn test_ibe_encryption_key() {
-    let (pic, backend_canister, admin) = setup();
-    // vetKD test implementation...
-}
-
-#[test] 
-fn test_get_time_decryption_key_time_lock() {
-    let (pic, backend_canister, admin) = setup();
-    // vetKD test implementation...
-}
-
-#[test]
-fn test_get_user_time_decryption_key_auth_and_time() {
-    let (pic, backend_canister, admin) = setup();
-    // vetKD test implementation...
-}
-
-#[test]
-fn test_encryption_decryption_invalid_inputs() {
-    let (pic, backend_canister, admin) = setup();
-    // vetKD test implementation...
-}
-
-#[test]
-fn test_chronolock_encryption_integration() {
-    let (pic, backend_canister, admin) = setup();
-    // vetKD test implementation...
-}
-
-#[test]
-fn test_multi_user_time_locked_decryption_keys() {
-    let (pic, backend_canister, admin) = setup();
-    // vetKD test implementation...
-}
-
-#[test]
-fn test_create_and_unlock_multi_user_chronolock() {
-    let (pic, backend_canister, admin) = setup();
-    // vetKD test implementation...
-}
-*/
-
-// New tests for pagination functions
 
 #[test]
 fn test_get_total_chronolocks_count() {
@@ -981,7 +842,7 @@ fn test_get_user_accessible_chronolocks_functions() {
     let user1 = Principal::self_authenticating(&[1, 2, 3]);
 
     // Get current time and set unlock times
-    let current_time = pic.get_time().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let current_time = pic.get_time().as_nanos_since_unix_epoch() / 1_000_000_000;
     let past_time = current_time - 3600; // 1 hour ago
     let future_time = current_time + 3600; // 1 hour in future
 
