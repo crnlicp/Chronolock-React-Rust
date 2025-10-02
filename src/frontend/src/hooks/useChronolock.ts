@@ -242,7 +242,12 @@ export const useChronolock = (): IUseChronolock => {
     async (media: ArrayBuffer) => {
       const totalChunks = Math.ceil(media.byteLength / UPLOAD_CHUNK_SIZE);
       // 1. Start upload, get media_id
-      const mediaId = await startMediaUpload([totalChunks]);
+      const startResp = await startMediaUpload([totalChunks]);
+      const mediaId = (
+        startResp as {
+          Ok?: string | number[] | object;
+        }
+      ).Ok;
       console.log('mediaId:', mediaId);
       // 2. Upload each chunk
       for (let i = 0; i < totalChunks; i++) {

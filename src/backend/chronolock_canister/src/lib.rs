@@ -26,6 +26,11 @@ enum ChronoError {
     TimeLocked,
     InvalidInput(String),
     InternalError(String),
+    // Authentication-related errors
+    NotAuthenticated,
+    InvalidPrincipal,
+    UnauthorizedCaller,
+    AdminRequired,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -211,6 +216,15 @@ thread_local! {
     static SYMBOL: RefCell<String> = RefCell::new("CHRONOLOCK".to_string());
     static NAME: RefCell<String> = RefCell::new("Chronolock Collection".to_string());
     static DESCRIPTION: RefCell<String> = RefCell::new("A collection of time-locked NFTs".to_string());
+    // Whitelist for trusted principals (e.g., Internet Identity principals)
+    static TRUSTED_PRINCIPALS: RefCell<StableBTreeMap<Principal, bool, Memory>> = RefCell::new(
+        StableBTreeMap::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(10))))
+    );
+    // Authentication bypass for admin operations
+    static ADMIN_BYPASS_ENABLED: RefCell<StableCell<bool, Memory>> = RefCell::new(
+        StableCell::init(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(11))), false)
+            .unwrap_or_else(|e| panic!("Failed to initialize ADMIN_BYPASS_ENABLED: {:?}", e))
+    );
 }
 
 fn generate_unique_id() -> String {
@@ -283,7 +297,7 @@ async fn call_vetkd_derive_key(
     };
 
     let management_canister = Principal::management_canister();
-    
+
     // VetKD operations require cycles to be sent with the call
     // Based on the error message, approximately 26 billion cycles are needed
     let cycles = 30_000_000_000u64; // 30 billion cycles for safety margin
@@ -321,12 +335,100 @@ fn get_network() -> Option<String> {
     NETWORK.with(|n| n.borrow().get().clone())
 }
 
+// -------------------------
+// Authentication Helper Functions
+// -------------------------
+
+// Check if a principal is a valid Internet Identity principal
+// Internet Identity principals have specific characteristics:
+// - They are not anonymous
+// - They are self-authenticating principals derived from public keys
+// - They are typically 29 bytes long and end with 0x02
+fn is_valid_internet_identity_principal(principal: Principal) -> bool {
+    // Reject anonymous outright
+    if principal == Principal::anonymous() {
+        return false;
+    }
+
+    // If principal is in the trusted whitelist, accept immediately
+    let trusted = TRUSTED_PRINCIPALS.with(|tp| tp.borrow().get(&principal).unwrap_or(false));
+    if trusted {
+        return true;
+    }
+
+    let principal_bytes = principal.as_slice();
+
+    // Reject management canister principal explicitly
+    if principal.to_text() == "aaaaa-aa" {
+        return false;
+    }
+
+    // Internet Identity issues self-authenticating principals (29 bytes ending with 0x02)
+    // Accept these as valid without further checks.
+    if principal_bytes.len() == 29 && principal_bytes.last() == Some(&0x02) {
+        return true;
+    }
+
+    // Fallback heuristic: enforce canister-style textual structure to filter out malformed inputs.
+    let text = principal.to_text();
+    if text.len() < 10 || text.len() > 63 || !text.contains('-') {
+        return false;
+    }
+
+    if !text.split('-').all(|segment| {
+        !segment.is_empty()
+            && segment.len() <= 5
+            && segment.chars().all(|c| matches!(c, 'a'..='z' | '0'..='9'))
+    }) {
+        return false;
+    }
+
+    // Final sanity check on length of the raw bytes.
+    principal_bytes.len() >= 10
+}
+
+// Validate that the caller is properly authenticated
+fn validate_caller_authentication() -> Result<Principal, ChronoError> {
+    let caller = caller();
+
+    // Allow admin to bypass authentication if enabled
+    if ADMIN_BYPASS_ENABLED.with(|ab| ab.borrow().get().clone()) {
+        return Ok(caller);
+    }
+
+    // Check if the caller is a trusted principal
+    if TRUSTED_PRINCIPALS.with(|tp| tp.borrow().get(&caller).unwrap_or(false)) {
+        return Ok(caller);
+    }
+
+    // Check if the caller is a valid Internet Identity principal
+    if !is_valid_internet_identity_principal(caller) {
+        log_activity(format!(
+            "Authentication failure: Invalid principal attempted access: {}",
+            caller
+        ));
+        return Err(ChronoError::NotAuthenticated);
+    }
+
+    Ok(caller)
+}
+
+// Validate admin authentication (stricter requirements)
+fn validate_admin_authentication() -> Result<Principal, ChronoError> {
+    let caller = validate_caller_authentication()?;
+
+    if !is_admin(caller) {
+        log_activity(format!("Unauthorized admin access attempt: {}", caller));
+        return Err(ChronoError::AdminRequired);
+    }
+
+    Ok(caller)
+}
+
 #[update]
 fn set_max_metadata_size(new_size: u64) -> Result<(), ChronoError> {
-    let caller = caller();
-    if !is_admin(caller) {
-        return Err(ChronoError::Unauthorized);
-    }
+    // Validate admin authentication
+    let _authenticated_admin = validate_admin_authentication()?;
     MAX_METADATA_SIZE.with(|size| {
         size.borrow_mut()
             .set(new_size)
@@ -338,16 +440,27 @@ fn set_max_metadata_size(new_size: u64) -> Result<(), ChronoError> {
 
 #[query]
 fn get_logs_paginated(offset: u64, limit: u64) -> Result<Vec<LogEntry>, ChronoError> {
-    let caller = caller();
-    if !is_admin(caller) {
-        return Err(ChronoError::Unauthorized);
-    }
+    // Validate admin authentication for log access
+    let _authenticated_admin = validate_admin_authentication()?;
     Ok(LOGS.with(|logs| {
         logs.borrow()
             .iter()
             .skip(offset as usize)
             .take(limit as usize)
             .map(|(_, entry)| entry.clone())
+            .collect()
+    }))
+}
+
+#[query]
+fn get_logs_by_range(start_time: u64, end_time: u64) -> Result<Vec<LogEntry>, ChronoError> {
+    // Validate admin authentication for log access
+    let _authenticated_admin = validate_admin_authentication()?;
+    Ok(LOGS.with(|logs| {
+        logs.borrow()
+            .iter()
+            .map(|(_, entry)| entry.clone())
+            .filter(|e| e.timestamp >= start_time && e.timestamp <= end_time)
             .collect()
     }))
 }
@@ -401,7 +514,8 @@ fn icrc7_token_metadata(token_id: String) -> Option<String> {
 
 #[update]
 fn icrc7_transfer(token_id: String, to: Principal) -> Result<(), ChronoError> {
-    let caller = caller();
+    // Validate caller authentication
+    let authenticated_caller = validate_caller_authentication()?;
     CHRONOLOCKS.with(|locks| {
         OWNER_TO_TOKENS.with(|owner_to_tokens| {
             let mut locks = locks.borrow_mut();
@@ -410,11 +524,11 @@ fn icrc7_transfer(token_id: String, to: Principal) -> Result<(), ChronoError> {
                 .get(&token_id)
                 .ok_or(ChronoError::TokenNotFound)?
                 .clone();
-            if lock.owner != caller {
+            if lock.owner != authenticated_caller {
                 return Err(ChronoError::Unauthorized);
             }
             let mut caller_tokens = owner_to_tokens
-                .get(&caller)
+                .get(&authenticated_caller)
                 .map(|t| t.clone())
                 .unwrap_or(TokenList { tokens: vec![] });
             if !caller_tokens.tokens.contains(&token_id) {
@@ -429,7 +543,7 @@ fn icrc7_transfer(token_id: String, to: Principal) -> Result<(), ChronoError> {
             let mut updated_lock = lock;
             updated_lock.owner = to;
             locks.insert(token_id.clone(), updated_lock);
-            owner_to_tokens.insert(caller, caller_tokens);
+            owner_to_tokens.insert(authenticated_caller, caller_tokens);
             owner_to_tokens.insert(to, to_tokens);
             log_activity(format!("Transferred token {} to {}", token_id, to));
             Ok(())
@@ -502,11 +616,13 @@ async fn get_user_time_decryption_key(
             "Transport public key cannot be empty".to_string(),
         ));
     }
-    let caller = caller();
+
+    // Validate caller authentication
+    let authenticated_caller = validate_caller_authentication()?;
     let authorized_principal = Principal::from_text(&user_id)
         .map_err(|e| ChronoError::InvalidInput(format!("Invalid user id: {}", e)))?;
 
-    if caller != authorized_principal {
+    if authenticated_caller != authorized_principal {
         return Err(ChronoError::Unauthorized);
     }
 
@@ -529,7 +645,8 @@ async fn get_user_time_decryption_key(
 
 #[update]
 fn create_chronolock(metadata: String) -> Result<String, ChronoError> {
-    let caller = caller();
+    // Validate caller authentication
+    let authenticated_caller = validate_caller_authentication()?;
     let metadata_size = metadata.len() as u64;
     let max_size = MAX_METADATA_SIZE.with(|size| *size.borrow().get());
     if metadata_size > max_size {
@@ -538,7 +655,7 @@ fn create_chronolock(metadata: String) -> Result<String, ChronoError> {
     let id = generate_unique_id();
     let chronolock = Chronolock {
         id: id.clone(),
-        owner: caller,
+        owner: authenticated_caller,
         metadata,
     };
     CHRONOLOCKS.with(|locks| {
@@ -547,11 +664,11 @@ fn create_chronolock(metadata: String) -> Result<String, ChronoError> {
     OWNER_TO_TOKENS.with(|owner_to_tokens| {
         let mut owner_to_tokens = owner_to_tokens.borrow_mut();
         let mut tokens = owner_to_tokens
-            .get(&caller)
+            .get(&authenticated_caller)
             .map(|t| t.clone())
             .unwrap_or(TokenList { tokens: vec![] });
         tokens.tokens.push(id.clone());
-        owner_to_tokens.insert(caller, tokens);
+        owner_to_tokens.insert(authenticated_caller, tokens);
     });
     log_activity(format!("Chronolock created with ID: {}", id));
     Ok(id)
@@ -559,14 +676,15 @@ fn create_chronolock(metadata: String) -> Result<String, ChronoError> {
 
 #[update]
 fn update_chronolock(token_id: String, metadata: String) -> Result<(), ChronoError> {
-    let caller = caller();
+    // Validate caller authentication
+    let authenticated_caller = validate_caller_authentication()?;
     CHRONOLOCKS.with(|locks| {
         let mut locks = locks.borrow_mut();
         let mut lock = locks
             .get(&token_id)
             .ok_or(ChronoError::TokenNotFound)?
             .clone();
-        if lock.owner != caller {
+        if lock.owner != authenticated_caller {
             return Err(ChronoError::Unauthorized);
         }
         if metadata.len() as u64 > MAX_METADATA_SIZE.with(|s| *s.borrow().get()) {
@@ -581,20 +699,24 @@ fn update_chronolock(token_id: String, metadata: String) -> Result<(), ChronoErr
 
 #[update]
 fn burn_chronolock(token_id: String) -> Result<(), ChronoError> {
-    let caller = caller();
+    // Validate caller authentication
+    let authenticated_caller = validate_caller_authentication()?;
     CHRONOLOCKS.with(|locks| {
         OWNER_TO_TOKENS.with(|owner_to_tokens| {
             let mut locks = locks.borrow_mut();
             let mut owner_to_tokens = owner_to_tokens.borrow_mut();
             let lock = locks.get(&token_id).ok_or(ChronoError::TokenNotFound)?;
-            if lock.owner != caller {
+            if lock.owner != authenticated_caller {
                 return Err(ChronoError::Unauthorized);
             }
             locks.remove(&token_id);
-            if let Some(caller_tokens) = owner_to_tokens.get(&caller).map(|t| t.clone()) {
+            if let Some(caller_tokens) = owner_to_tokens
+                .get(&authenticated_caller)
+                .map(|t| t.clone())
+            {
                 let mut caller_tokens = caller_tokens;
                 caller_tokens.tokens.retain(|id| id != &token_id);
-                owner_to_tokens.insert(caller, caller_tokens);
+                owner_to_tokens.insert(authenticated_caller, caller_tokens);
             }
             log_activity(format!("Burned chronolock {}", token_id));
             Ok(())
@@ -603,7 +725,10 @@ fn burn_chronolock(token_id: String) -> Result<(), ChronoError> {
 }
 
 #[update]
-fn start_media_upload(total_chunks: u32) -> String {
+fn start_media_upload(total_chunks: u32) -> Result<String, ChronoError> {
+    // Validate caller authentication
+    let _authenticated_caller = validate_caller_authentication()?;
+
     let media_id = generate_unique_id();
     MEDIA_UPLOADS.with(|uploads| {
         uploads.borrow_mut().insert(
@@ -619,7 +744,7 @@ fn start_media_upload(total_chunks: u32) -> String {
         "Started media upload: {} ({} chunks)",
         media_id, total_chunks
     ));
-    media_id
+    Ok(media_id)
 }
 
 #[update]
@@ -628,6 +753,9 @@ fn upload_media_chunk(
     chunk_index: u32,
     chunk: Vec<u8>,
 ) -> Result<u32, ChronoError> {
+    // Validate caller authentication
+    let _authenticated_caller = validate_caller_authentication()?;
+
     const MAX_CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2MB
     if chunk.len() > MAX_CHUNK_SIZE {
         return Err(ChronoError::InvalidInput(format!("Chunk size exceeds 2MB")));
@@ -660,6 +788,9 @@ fn upload_media_chunk(
 
 #[update]
 fn finish_media_upload(media_id: String) -> Result<String, ChronoError> {
+    // Validate caller authentication
+    let _authenticated_caller = validate_caller_authentication()?;
+
     const MAX_FILE_SIZE: usize = 10 * 1024 * 1024; // 10MB
     MEDIA_UPLOADS.with(|uploads| {
         let mut uploads = uploads.borrow_mut();
@@ -774,9 +905,7 @@ fn get_total_chronolocks_count() -> u64 {
 // Function to get total count of unique creators
 #[query]
 fn get_unique_creators_count() -> u64 {
-    OWNER_TO_TOKENS.with(|owner_to_tokens| {
-        owner_to_tokens.borrow().len() as u64
-    })
+    OWNER_TO_TOKENS.with(|owner_to_tokens| owner_to_tokens.borrow().len() as u64)
 }
 
 // Function to get total count of owner's chronolocks
@@ -967,6 +1096,125 @@ fn get_user_accessible_chronolocks_paginated(
     });
 
     Ok(accessible_chronolocks)
+}
+
+// -------------------------
+// Authentication Management Functions (Admin Only)
+// -------------------------
+
+#[update]
+fn add_trusted_principal(principal: Principal) -> Result<(), ChronoError> {
+    // Validate admin authentication
+    let _authenticated_admin = validate_admin_authentication()?;
+
+    TRUSTED_PRINCIPALS.with(|tp| {
+        tp.borrow_mut().insert(principal, true);
+    });
+
+    log_activity(format!("Added trusted principal: {}", principal));
+    Ok(())
+}
+
+#[update]
+fn remove_trusted_principal(principal: Principal) -> Result<(), ChronoError> {
+    // Validate admin authentication
+    let _authenticated_admin = validate_admin_authentication()?;
+
+    TRUSTED_PRINCIPALS.with(|tp| {
+        tp.borrow_mut().remove(&principal);
+    });
+
+    log_activity(format!("Removed trusted principal: {}", principal));
+    Ok(())
+}
+
+#[update]
+fn set_admin_bypass(enabled: bool) -> Result<(), ChronoError> {
+    // Validate admin authentication
+    let _authenticated_admin = validate_admin_authentication()?;
+
+    ADMIN_BYPASS_ENABLED.with(|ab| {
+        ab.borrow_mut()
+            .set(enabled)
+            .expect("Failed to set admin bypass");
+    });
+
+    log_activity(format!("Admin bypass enabled: {}", enabled));
+    Ok(())
+}
+
+// -------------------------
+// Authentication Query Functions
+// -------------------------
+
+#[query]
+fn is_caller_authenticated() -> bool {
+    validate_caller_authentication().is_ok()
+}
+
+#[query]
+fn is_principal_trusted(principal: Principal) -> bool {
+    TRUSTED_PRINCIPALS.with(|tp| tp.borrow().get(&principal).unwrap_or(false))
+}
+
+#[query]
+fn is_valid_ii_principal(principal: Principal) -> bool {
+    is_valid_internet_identity_principal(principal)
+}
+
+#[query]
+fn get_trusted_principals() -> Vec<Principal> {
+    // Only admin can view the full list of trusted principals
+    if validate_admin_authentication().is_err() {
+        return vec![];
+    }
+
+    TRUSTED_PRINCIPALS.with(|tp| {
+        tp.borrow()
+            .iter()
+            .filter(|(_, trusted)| *trusted)
+            .map(|(principal, _)| principal.clone())
+            .collect()
+    })
+}
+
+#[query]
+fn is_admin_bypass_enabled() -> bool {
+    // Only admin can check this status
+    if validate_admin_authentication().is_err() {
+        return false;
+    }
+
+    ADMIN_BYPASS_ENABLED.with(|ab| ab.borrow().get().clone())
+}
+
+#[query]
+fn get_caller_principal_info() -> (Principal, bool, bool) {
+    let caller = caller();
+    let is_authenticated = validate_caller_authentication().is_ok();
+    let is_admin_user = is_admin(caller);
+    (caller, is_authenticated, is_admin_user)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_valid_internet_identity_principal() {
+        let principal =
+            Principal::from_text("dmp4o-pkoo3-lnzzj-cystz-2jlkk-v4zcv-yc5h4-iqoeg-v5arm-avsbm-bae")
+                .expect("valid principal text");
+        TRUSTED_PRINCIPALS.with(|tp| {
+            tp.borrow_mut().remove(&principal);
+        });
+        assert!(is_valid_internet_identity_principal(principal));
+    }
+
+    #[test]
+    fn rejects_anonymous_principal() {
+        assert!(!is_valid_internet_identity_principal(Principal::anonymous()));
+    }
 }
 
 ic_cdk::export_candid!();

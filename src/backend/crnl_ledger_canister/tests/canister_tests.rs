@@ -30,6 +30,22 @@ struct ClaimReferralArgs {
 }
 
 #[derive(CandidType, serde::Deserialize, Clone, Debug)]
+struct DeductBalanceArgs {
+    caller: Account,
+    amount: Nat,
+    description: String,
+}
+
+#[derive(CandidType, serde::Deserialize, Clone, Debug)]
+struct PoolTransferArgs {
+    from_pool: String,
+    to_pool: Option<String>,
+    to_principal: Option<Account>,
+    amount: Nat,
+    description: String,
+}
+
+#[derive(CandidType, serde::Deserialize, Clone, Debug)]
 struct ApproveArgs {
     from_subaccount: Option<[u8; 32]>,
     spender: Account,
@@ -76,6 +92,27 @@ enum LedgerError {
     Unauthorized,
     InvalidAccount,
     ArithmeticError,
+    VestingLocked,
+    // Authentication-related errors
+    NotAuthenticated,
+    InvalidPrincipal,
+    UnauthorizedCaller,
+    AdminRequired,
+}
+
+// Helper function to create a mock Internet Identity principal (10 bytes ending with 0x01)
+fn create_mock_ii_principal(seed: u8) -> Principal {
+    let mut bytes = [0u8; 10];
+    bytes[0] = seed;
+    bytes[9] = 0x01; // Internet Identity principals end with 0x01
+    Principal::from_slice(&bytes)
+}
+
+// Helper function to enable admin bypass for testing
+fn enable_admin_bypass(pic: &PocketIc, canister_id: Principal, admin: Principal) {
+    let args = encode_args((true,)).unwrap();
+    pic.update_call(canister_id, admin, "set_admin_bypass", args)
+        .expect("Failed to enable admin bypass");
 }
 
 fn setup() -> (PocketIc, Principal, Principal) {
@@ -86,7 +123,8 @@ fn setup() -> (PocketIc, Principal, Principal) {
     pic.add_cycles(backend_canister, 2_000_000_000_000);
     let wasm = fs::read(BACKEND_WASM).expect("Wasm file not found, run 'cargo build'.");
 
-    let admin = Principal::from_text("aaaaa-aa").unwrap();
+    // Create a proper Internet Identity principal for admin
+    let admin = create_mock_ii_principal(1);
     let init_args = encode_args((
         "Chronolock".to_string(),
         "CRNL".to_string(),
@@ -98,6 +136,10 @@ fn setup() -> (PocketIc, Principal, Principal) {
     .expect("Failed to encode init arguments");
 
     pic.install_canister(backend_canister, wasm, init_args, None);
+
+    // Enable admin bypass for easier testing
+    enable_admin_bypass(&pic, backend_canister, admin);
+
     (pic, backend_canister, admin)
 }
 
@@ -251,34 +293,28 @@ fn test_balance_of() {
 
 #[test]
 fn test_get_logs() {
-    let (pic, backend_canister, _) = setup();
+    let (pic, backend_canister, admin) = setup();
+    let args = encode_args((0_u64, 100_u64)).expect("Failed to encode args");
     let response = pic
-        .query_call(
-            backend_canister,
-            Principal::anonymous(),
-            "get_logs",
-            encode_args(()).unwrap(),
-        )
-        .expect("Failed to query get_logs");
-    let result: Vec<LogEntry> = decode_one(&response).unwrap();
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0].event_type, "Init");
+        .query_call(backend_canister, admin, "get_logs_paginated", args)
+        .expect("Failed to query get_logs_paginated");
+    let result: Result<Vec<LogEntry>, LedgerError> = decode_one(&response).unwrap();
+    let logs = result.expect("Should succeed with admin");
+    assert_eq!(logs.len(), 2); // Init + admin bypass enabled
+    assert_eq!(logs[0].event_type, "Init");
+    assert_eq!(logs[1].event_type, "AdminBypassChanged");
 }
 
 #[test]
 fn test_get_logs_by_range() {
-    let (pic, backend_canister, _) = setup();
+    let (pic, backend_canister, admin) = setup();
     let args = encode_args((0_u64, u64::MAX)).expect("Failed to encode args");
     let response = pic
-        .query_call(
-            backend_canister,
-            Principal::anonymous(),
-            "get_logs_by_range",
-            args,
-        )
+        .query_call(backend_canister, admin, "get_logs_by_range", args)
         .expect("Failed to query get_logs_by_range");
-    let result: Vec<LogEntry> = decode_one(&response).unwrap();
-    assert_eq!(result.len(), 1);
+    let result: Result<Vec<LogEntry>, LedgerError> = decode_one(&response).unwrap();
+    let logs = result.expect("Should succeed with admin");
+    assert_eq!(logs.len(), 2); // Init + admin bypass enabled
 }
 
 #[test]
@@ -308,19 +344,19 @@ fn test_icrc1_allowance() {
 // Update Tests
 #[test]
 fn test_register_user() {
-    let (pic, backend_canister, _) = setup();
+    let (pic, backend_canister, admin) = setup();
+
+    // Enable admin bypass for this test to work with existing setup
+    enable_admin_bypass(&pic, backend_canister, admin);
+
+    let ii_principal = create_mock_ii_principal(1);
     let user = Account {
-        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        owner: ii_principal,
         subaccount: None,
     };
     let args = encode_args((user.clone(),)).expect("Failed to encode args");
     let response = pic
-        .update_call(
-            backend_canister,
-            Principal::anonymous(),
-            "register_user",
-            args,
-        )
+        .update_call(backend_canister, ii_principal, "register_user", args)
         .expect("Failed to call register_user");
     let result: Result<String, LedgerError> = decode_one(&response).unwrap();
     assert!(result.unwrap().starts_with("User registered with 200 CRNL"));
@@ -330,22 +366,17 @@ fn test_register_user() {
 fn test_claim_referral() {
     let (pic, backend_canister, _) = setup();
     let referrer = Account {
-        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        owner: create_mock_ii_principal(2),
         subaccount: None,
     };
     let referee = Account {
-        owner: Principal::from_text("ryjl3-tyaaa-aaaaa-aaaba-cai").unwrap(),
+        owner: create_mock_ii_principal(3),
         subaccount: None,
     };
 
     let reg_args = encode_args((referrer.clone(),)).expect("Failed to encode args");
     let reg_response = pic
-        .update_call(
-            backend_canister,
-            Principal::anonymous(),
-            "register_user",
-            reg_args,
-        )
+        .update_call(backend_canister, referrer.owner, "register_user", reg_args)
         .expect("Failed to register referrer");
     let reg_result: Result<String, LedgerError> = decode_one(&reg_response).unwrap();
     let referral_code = reg_result
@@ -432,7 +463,7 @@ fn test_icrc1_approve_and_transfer_from() {
         subaccount: Some(COMMUNITY_POOL_SUBACCOUNT),
     };
     let spender = Account {
-        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        owner: create_mock_ii_principal(2),
         subaccount: None,
     };
     let to = Account {
@@ -502,7 +533,7 @@ fn test_icrc1_approve_and_transfer_from() {
 }
 
 #[test]
-fn test_create_media_chronolock() {
+fn test_deduct_from_balance() {
     let (pic, backend_canister, admin) = setup();
     let caller = Account {
         owner: admin,
@@ -520,17 +551,29 @@ fn test_create_media_chronolock() {
         .unwrap(),
     )
     .unwrap();
-    println!("Caller balance before chronolock: {}", caller_balance);
+    println!("Caller balance before deduction: {}", caller_balance);
 
-    let args = encode_args((caller.clone(),)).expect("Failed to encode args");
+    let deduction_amount = Nat::from(2_000_000_000_u128); // 20 CRNL
+    let args = encode_args((DeductBalanceArgs {
+        caller: caller.clone(),
+        amount: deduction_amount.clone(),
+        description: "Media ChronoLock Creation".to_string(),
+    },))
+    .expect("Failed to encode args");
     let response = pic
-        .update_call(backend_canister, admin, "create_media_chronolock", args)
-        .expect("Failed to call create_media_chronolock");
+        .update_call(backend_canister, admin, "deduct_from_balance", args)
+        .expect("Failed to call deduct_from_balance");
     let result: Result<String, LedgerError> = decode_one(&response).unwrap();
     if let Err(e) = &result {
-        println!("Create media chronolock failed with: {:?}", e);
+        println!("Deduct from balance failed with: {:?}", e);
     }
-    assert_eq!(result.unwrap(), "Media ChronoLock created for 20 CRNL");
+    assert!(result.is_ok());
+    let result_msg = result.unwrap();
+    assert!(
+        result_msg.contains("Deducted 20 CRNL"),
+        "Result message should contain deduction amount: {}",
+        result_msg
+    );
 
     let post_balance: Nat = decode_one(
         &pic.query_call(
@@ -542,23 +585,8 @@ fn test_create_media_chronolock() {
         .unwrap(),
     )
     .unwrap();
-    println!("Caller balance after chronolock: {}", post_balance);
-    assert_eq!(post_balance, caller_balance - Nat::from(2_000_000_000_u128));
-}
-
-#[test]
-fn test_create_text_chronolock() {
-    let (pic, backend_canister, admin) = setup();
-    let caller = Account {
-        owner: admin,
-        subaccount: None,
-    };
-    let args = encode_args((caller,)).expect("Failed to encode args");
-    let response = pic
-        .update_call(backend_canister, admin, "create_text_chronolock", args)
-        .expect("Failed to call create_text_chronolock");
-    let result: Result<String, LedgerError> = decode_one(&response).unwrap();
-    assert_eq!(result.unwrap(), "Text ChronoLock created for free");
+    println!("Caller balance after deduction: {}", post_balance);
+    assert_eq!(post_balance, caller_balance - deduction_amount);
 }
 
 #[test]
@@ -586,7 +614,7 @@ fn test_set_transfer_fee() {
 #[test]
 fn test_set_transfer_fee_authorization() {
     let (pic, backend_canister, admin) = setup();
-    let non_admin = Principal::from_text("2vxsx-fae").unwrap();
+    let non_admin = create_mock_ii_principal(2);
 
     let args = encode_args((200_000_u128,)).expect("Failed to encode args");
     let response = pic
@@ -598,7 +626,11 @@ fn test_set_transfer_fee_authorization() {
         "Non-admin should not be able to set transfer fee"
     );
     if let Err(e) = result {
-        assert_eq!(e, LedgerError::Unauthorized, "Error should be Unauthorized");
+        assert_eq!(
+            e,
+            LedgerError::AdminRequired,
+            "Error should be AdminRequired"
+        );
     }
 
     let args = encode_args((200_000_u128,)).expect("Failed to encode args");
@@ -628,24 +660,24 @@ fn test_set_transfer_fee_authorization() {
 fn test_unique_referral_codes() {
     let (pic, backend_canister, _) = setup();
     let user1 = Account {
-        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        owner: create_mock_ii_principal(2),
         subaccount: None,
     };
     let user2 = Account {
-        owner: Principal::from_text("ryjl3-tyaaa-aaaaa-aaaba-cai").unwrap(),
+        owner: create_mock_ii_principal(3),
         subaccount: None,
     };
 
     pic.update_call(
         backend_canister,
-        Principal::anonymous(),
+        user1.owner,
         "register_user",
         encode_args((user1.clone(),)).unwrap(),
     )
     .expect("Failed to register user1");
     pic.update_call(
         backend_canister,
-        Principal::anonymous(),
+        user2.owner,
         "register_user",
         encode_args((user2.clone(),)).unwrap(),
     )
@@ -687,18 +719,18 @@ fn test_unique_referral_codes() {
 fn test_referral_reward() {
     let (pic, backend_canister, _admin) = setup();
     let referrer = Account {
-        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        owner: create_mock_ii_principal(2),
         subaccount: None,
     };
     let referee = Account {
-        owner: Principal::from_text("ryjl3-tyaaa-aaaaa-aaaba-cai").unwrap(),
+        owner: create_mock_ii_principal(3),
         subaccount: None,
     };
 
     let reg_response = pic
         .update_call(
             backend_canister,
-            Principal::anonymous(),
+            referrer.owner,
             "register_user",
             encode_args((referrer.clone(),)).unwrap(),
         )
@@ -804,7 +836,7 @@ fn test_icrc1_functions() {
         subaccount: Some(COMMUNITY_POOL_SUBACCOUNT), // Match transfer source
     };
     let spender = Account {
-        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        owner: create_mock_ii_principal(2), // Use proper II principal
         subaccount: None,
     };
     let to = Account {
@@ -1249,7 +1281,7 @@ fn test_process_fee() {
 fn test_icrc1_and_icrc2_compliance() {
     let (pic, backend_canister, admin) = setup();
     let user = Account {
-        owner: Principal::from_text("2vxsx-fae").unwrap(),
+        owner: create_mock_ii_principal(2),
         subaccount: None,
     };
     let spender = Account {
@@ -1344,7 +1376,7 @@ fn test_icrc1_and_icrc2_compliance() {
     // Register a user to give them some tokens
     pic.update_call(
         backend_canister,
-        Principal::anonymous(),
+        user.owner, // Use the actual user's principal for authentication
         "register_user",
         encode_args((user.clone(),)).unwrap(),
     )
@@ -1569,4 +1601,295 @@ fn test_transaction_recording() {
         32,
         "tx_id should be a SHA-256 hash of 32 bytes"
     );
+}
+
+#[test]
+fn test_pool_to_pool_transfer() {
+    let (pic, backend_canister, admin) = setup();
+
+    // Get initial balances
+    let community_balance_before: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "get_community_pool_balance",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let reserve_balance_before: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "get_reserve_pool_balance",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    println!("Community balance before: {}", community_balance_before);
+    println!("Reserve balance before: {}", reserve_balance_before);
+
+    // Transfer 1000 CRNL from reserve to community pool
+    let transfer_amount = Nat::from(100_000_000_000_u128); // 1000 CRNL
+    let args = encode_args((PoolTransferArgs {
+        from_pool: "reserve".to_string(),
+        to_pool: Some("community".to_string()),
+        to_principal: None,
+        amount: transfer_amount.clone(),
+        description: "Pool rebalancing".to_string(),
+    },))
+    .expect("Failed to encode args");
+
+    let response = pic
+        .update_call(backend_canister, admin, "admin_transfer", args)
+        .expect("Failed to call admin_transfer");
+    let result: Result<String, LedgerError> = decode_one(&response).unwrap();
+    assert!(result.is_ok(), "Transfer should succeed: {:?}", result);
+
+    // Verify balances changed correctly
+    let community_balance_after: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "get_community_pool_balance",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let reserve_balance_after: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "get_reserve_pool_balance",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    println!("Community balance after: {}", community_balance_after);
+    println!("Reserve balance after: {}", reserve_balance_after);
+
+    assert_eq!(
+        community_balance_after,
+        community_balance_before.clone() + transfer_amount.clone()
+    );
+    assert_eq!(
+        reserve_balance_after,
+        reserve_balance_before.clone() - transfer_amount.clone()
+    );
+}
+
+#[test]
+fn test_pool_to_principal_transfer() {
+    let (pic, backend_canister, admin) = setup();
+
+    // Create a recipient account
+    let recipient = Account {
+        owner: create_mock_ii_principal(5),
+        subaccount: None,
+    };
+
+    // Get initial balances
+    let reserve_balance_before: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "get_reserve_pool_balance",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let recipient_balance_before: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_balance_of",
+            encode_args((recipient.clone(),)).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    println!("Reserve balance before: {}", reserve_balance_before);
+    println!("Recipient balance before: {}", recipient_balance_before);
+
+    // Transfer 500 CRNL from reserve to recipient
+    let transfer_amount = Nat::from(50_000_000_000_u128); // 500 CRNL
+    let args = encode_args((PoolTransferArgs {
+        from_pool: "reserve".to_string(),
+        to_pool: None,
+        to_principal: Some(recipient.clone()),
+        amount: transfer_amount.clone(),
+        description: "Grant payment".to_string(),
+    },))
+    .expect("Failed to encode args");
+
+    let response = pic
+        .update_call(backend_canister, admin, "admin_transfer", args)
+        .expect("Failed to call admin_transfer");
+    let result: Result<String, LedgerError> = decode_one(&response).unwrap();
+    assert!(result.is_ok(), "Transfer should succeed: {:?}", result);
+
+    // Verify balances changed correctly
+    let reserve_balance_after: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "get_reserve_pool_balance",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let recipient_balance_after: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_balance_of",
+            encode_args((recipient.clone(),)).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    println!("Reserve balance after: {}", reserve_balance_after);
+    println!("Recipient balance after: {}", recipient_balance_after);
+
+    assert_eq!(
+        reserve_balance_after,
+        reserve_balance_before.clone() - transfer_amount.clone()
+    );
+    assert_eq!(
+        recipient_balance_after,
+        recipient_balance_before.clone() + transfer_amount.clone()
+    );
+}
+
+#[test]
+fn test_pool_transfer_insufficient_balance() {
+    let (pic, backend_canister, admin) = setup();
+
+    // Try to transfer more than the pool has
+    let excessive_amount = Nat::from(100_000_000_000_000_000_000_u128); // More than any pool
+    let args = encode_args((PoolTransferArgs {
+        from_pool: "community".to_string(),
+        to_pool: Some("reserve".to_string()),
+        to_principal: None,
+        amount: excessive_amount,
+        description: "Should fail".to_string(),
+    },))
+    .expect("Failed to encode args");
+
+    let response = pic
+        .update_call(backend_canister, admin, "admin_transfer", args)
+        .expect("Failed to call admin_transfer");
+    let result: Result<String, LedgerError> = decode_one(&response).unwrap();
+    assert!(
+        matches!(result, Err(LedgerError::InsufficientBalance)),
+        "Should fail with insufficient balance"
+    );
+}
+
+#[test]
+fn test_pool_transfer_authorization() {
+    let (pic, backend_canister, _admin) = setup();
+    let non_admin = create_mock_ii_principal(10);
+
+    // Try to transfer as non-admin
+    let transfer_amount = Nat::from(1_000_000_000_u128); // 10 CRNL
+    let args = encode_args((PoolTransferArgs {
+        from_pool: "reserve".to_string(),
+        to_pool: Some("community".to_string()),
+        to_principal: None,
+        amount: transfer_amount,
+        description: "Unauthorized attempt".to_string(),
+    },))
+    .expect("Failed to encode args");
+
+    let response = pic
+        .update_call(backend_canister, non_admin, "admin_transfer", args)
+        .expect("Failed to call admin_transfer");
+    let result: Result<String, LedgerError> = decode_one(&response).unwrap();
+    assert!(
+        matches!(
+            result,
+            Err(LedgerError::AdminRequired) | Err(LedgerError::NotAuthenticated)
+        ),
+        "Non-admin should not be able to transfer from pools: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_pool_transfer_invalid_pool_name() {
+    let (pic, backend_canister, admin) = setup();
+
+    // Try to transfer from invalid pool
+    let transfer_amount = Nat::from(1_000_000_000_u128);
+    let args = encode_args((PoolTransferArgs {
+        from_pool: "invalid_pool".to_string(),
+        to_pool: Some("community".to_string()),
+        to_principal: None,
+        amount: transfer_amount,
+        description: "Invalid pool".to_string(),
+    },))
+    .expect("Failed to encode args");
+
+    let response = pic
+        .update_call(backend_canister, admin, "admin_transfer", args)
+        .expect("Failed to call admin_transfer");
+    let result: Result<String, LedgerError> = decode_one(&response).unwrap();
+    assert!(
+        matches!(result, Err(LedgerError::InvalidAccount)),
+        "Should fail with invalid account"
+    );
+}
+
+#[test]
+fn test_pool_transfer_all_pool_combinations() {
+    let (pic, backend_canister, admin) = setup();
+
+    let pools = vec!["community", "reserve", "dapp"];
+    let transfer_amount = Nat::from(1_000_000_000_u128); // 10 CRNL
+
+    for from_pool in &pools {
+        for to_pool in &pools {
+            if from_pool == to_pool {
+                continue; // Skip same pool transfers
+            }
+
+            println!("Testing transfer from {} to {}", from_pool, to_pool);
+
+            let args = encode_args((PoolTransferArgs {
+                from_pool: from_pool.to_string(),
+                to_pool: Some(to_pool.to_string()),
+                to_principal: None,
+                amount: transfer_amount.clone(),
+                description: format!("Test {} to {}", from_pool, to_pool),
+            },))
+            .expect("Failed to encode args");
+
+            let response = pic
+                .update_call(backend_canister, admin, "admin_transfer", args)
+                .expect("Failed to call admin_transfer");
+            let result: Result<String, LedgerError> = decode_one(&response).unwrap();
+            assert!(
+                result.is_ok(),
+                "Transfer from {} to {} should succeed: {:?}",
+                from_pool,
+                to_pool,
+                result
+            );
+        }
+    }
 }

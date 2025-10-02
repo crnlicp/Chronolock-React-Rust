@@ -33,7 +33,7 @@ export const UserMenu = ({
 
   const referralLink =
     process.env.DFX_NETWORK === 'ic'
-      ? `https://${process.env.CANISTER_ID_FRONTEND}.raw.ic0.app/?referral_code=${referralCode}`
+      ? `https://${process.env.CANISTER_ID_FRONTEND}.icp0.io/?referral_code=${referralCode}`
       : `http://${process.env.CANISTER_ID_FRONTEND}.localhost:4943/?referral_code=${referralCode}`;
 
   function formatPrincipal(principal: string) {

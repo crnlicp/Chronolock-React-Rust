@@ -2,7 +2,11 @@ type ChronoError = variant {
   MetadataTooLarge;
   InvalidInput : text;
   TokenNotFound;
+  AdminRequired;
+  InvalidPrincipal;
+  UnauthorizedCaller;
   Unauthorized;
+  NotAuthenticated;
   InternalError : text;
   TimeLocked;
 };
@@ -30,10 +34,13 @@ type Result_7 = variant { Ok : nat32; Err : ChronoError };
 type VetKDDeriveKeyReply = record { encrypted_key : blob };
 type VetKDPublicKeyReply = record { public_key : blob };
 service : (principal, opt text) -> {
+  add_trusted_principal : (principal) -> (Result);
   burn_chronolock : (text) -> (Result);
   create_chronolock : (text) -> (Result_1);
   finish_media_upload : (text) -> (Result_1);
   get_all_chronolocks_paginated : (nat64, nat64) -> (Result_2) query;
+  get_caller_principal_info : () -> (principal, bool, bool) query;
+  get_logs_by_range : (nat64, nat64) -> (Result_3) query;
   get_logs_paginated : (nat64, nat64) -> (Result_3) query;
   get_media_chunk : (text, nat32, nat32) -> (Result_4) query;
   get_owner_chronolocks_count : (principal) -> (nat64) query;
@@ -42,6 +49,7 @@ service : (principal, opt text) -> {
     ) query;
   get_time_decryption_key : (text, blob) -> (Result_5);
   get_total_chronolocks_count : () -> (nat64) query;
+  get_trusted_principals : () -> (vec principal) query;
   get_unique_creators_count : () -> (nat64) query;
   get_user_accessible_chronolocks_count : (principal) -> (nat64) query;
   get_user_accessible_chronolocks_paginated : (principal, nat64, nat64) -> (
@@ -58,8 +66,14 @@ service : (principal, opt text) -> {
   icrc7_token_metadata : (text) -> (opt text) query;
   icrc7_total_supply : () -> (nat64) query;
   icrc7_transfer : (text, principal) -> (Result);
+  is_admin_bypass_enabled : () -> (bool) query;
+  is_caller_authenticated : () -> (bool) query;
+  is_principal_trusted : (principal) -> (bool) query;
+  is_valid_ii_principal : (principal) -> (bool) query;
+  remove_trusted_principal : (principal) -> (Result);
+  set_admin_bypass : (bool) -> (Result);
   set_max_metadata_size : (nat64) -> (Result);
-  start_media_upload : (nat32) -> (text);
+  start_media_upload : (nat32) -> (Result_1);
   update_chronolock : (text, text) -> (Result);
   upload_media_chunk : (text, nat32, blob) -> (Result_7);
 }
