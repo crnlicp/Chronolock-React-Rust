@@ -1005,6 +1005,77 @@ fn set_transfer_fee(new_fee: u128) -> Result<(), LedgerError> {
 }
 
 #[update]
+async fn admin_mint(
+    to: Account,
+    amount: Nat,
+    description: Option<String>,
+    random_bytes: Option<Vec<u8>>,
+) -> Result<Nat, LedgerError> {
+    // Only admin can mint
+    let _authenticated_admin = validate_admin_authentication()?;
+
+    let amt = nat_to_u128(amount.clone())?;
+    if amt == u128::MAX {
+        return Err(LedgerError::ArithmeticError);
+    }
+
+    // Increase total supply
+    METADATA.with(|metadata| {
+        let mut m = metadata.borrow_mut().get(&0).unwrap().clone();
+        m.total_supply = m
+            .total_supply
+            .checked_add(amt)
+            .ok_or(LedgerError::ArithmeticError)?;
+        metadata.borrow_mut().insert(0, m);
+        Ok(())
+    })?;
+
+    // Credit recipient balance
+    BALANCES.with(|balances| {
+        let mut b = balances.borrow_mut();
+        let current = b.get(&to).unwrap_or(0);
+        let new_balance = current
+            .checked_add(amt)
+            .ok_or(LedgerError::ArithmeticError)?;
+        b.insert(to.clone(), new_balance);
+        Ok(())
+    })?;
+
+    // Create a transaction event (async tx id)
+    let tx_id = generate_tx_id(random_bytes).await;
+    TRANSACTIONS.with(|txs| {
+        txs.borrow_mut().insert(
+            tx_id,
+            TransactionEvent {
+                tx_id,
+                timestamp: current_time(),
+                event_type: "Mint".to_string(),
+                from: Account {
+                    owner: admin_principal(),
+                    subaccount: None,
+                },
+                to: Some(to.clone()),
+                spender: None,
+                amount: amount.clone(),
+                fee: None,
+            },
+        );
+    });
+
+    log_event(
+        "AdminMint",
+        format!(
+            "To: {}, Amount: {}, Description: {}",
+            to.owner,
+            amt,
+            description.unwrap_or_default()
+        ),
+    );
+
+    Ok(amount)
+}
+
+#[update]
 async fn convert_dapp_funds_to_cycles() -> Result<(), LedgerError> {
     // Validate admin authentication
     let _authenticated_admin = validate_admin_authentication()?;

@@ -657,6 +657,75 @@ fn test_set_transfer_fee_authorization() {
 }
 
 #[test]
+fn test_admin_mint() {
+    let (pic, backend_canister, admin) = setup();
+
+    // Recipient principal
+    let recipient =
+        Principal::from_text("dmp4o-pkoo3-lnzzj-cystz-2jlkk-v4zcv-yc5h4-iqoeg-v5arm-avsbm-bae")
+            .expect("valid principal text");
+    let recipient_account = Account {
+        owner: recipient,
+        subaccount: None,
+    };
+
+    // Query total supply before mint
+    let before_supply: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_total_supply",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    // Mint amount
+    let mint_amount = Nat::from(1_000_000_000_u128); // 10 CRNL
+    let args = encode_args((
+        recipient_account.clone(),
+        mint_amount.clone(),
+        Some("test mint".to_string()),
+        None::<Vec<u8>>,
+    ))
+    .expect("Failed to encode args");
+
+    let response = pic
+        .update_call(backend_canister, admin, "admin_mint", args)
+        .expect("Failed to call admin_mint");
+    let result: Result<Nat, LedgerError> = decode_one(&response).unwrap();
+    assert!(result.is_ok());
+
+    // Verify recipient balance increased
+    let bal: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_balance_of",
+            encode_args((recipient_account.clone(),)).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(bal, mint_amount);
+
+    // Verify total supply increased
+    let after_supply: Nat = decode_one(
+        &pic.query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc1_total_supply",
+            encode_args(()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(after_supply, before_supply + mint_amount);
+}
+
+#[test]
 fn test_unique_referral_codes() {
     let (pic, backend_canister, _) = setup();
     let user1 = Account {
