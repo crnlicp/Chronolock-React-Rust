@@ -38,7 +38,7 @@ export const DrawerNavigation = ({
               <li>
                 <div className="item">
                   <img
-                    src="assets/img/logo.png"
+                    src="/assets/img/logo.png"
                     alt=""
                     height={150}
                     style={{ margin: 20 }}
@@ -54,7 +54,7 @@ export const DrawerNavigation = ({
                     rel="noreferrer"
                   />
                   <span className="icon">
-                    <img src="/img/market/opensea.png" alt="" />
+                    <img src="/assets/img/market/opensea.png" alt="" />
                   </span>
                   <span className="text">Opensea</span>
                 </div>
@@ -67,7 +67,7 @@ export const DrawerNavigation = ({
                     rel="noreferrer"
                   />
                   <span className="icon">
-                    <img src="/img/market/discord.png" alt="" />
+                    <img src="/assets/img/market/discord.png" alt="" />
                   </span>
                   <span className="text">Discord</span>
                 </div>

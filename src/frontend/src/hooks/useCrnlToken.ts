@@ -7,6 +7,7 @@ import { useLocation } from 'react-router';
 export interface IUseCrnlToken {
   isLoading: boolean;
   balanceData: string;
+  balanceRaw: bigint;
   isBalanceLoading: boolean;
   balanceError: Error | undefined;
   registerData: unknown;
@@ -24,7 +25,9 @@ export interface IUseCrnlToken {
   claimReferralData: unknown;
   isClaimReferralLoading: boolean;
   claimReferralError: Error | undefined;
-  isCreateMediaChronolockLoading: boolean;
+  deductFromBalanceData: unknown;
+  isDeductFromBalanceLoading: boolean;
+  deductFromBalanceError: Error | undefined;
   // New statistics functions
   totalSupplyData: unknown;
   isTotalSupplyLoading: boolean;
@@ -33,7 +36,6 @@ export interface IUseCrnlToken {
   isTotalBurnedLoading: boolean;
   totalBurnedError: Error | undefined;
   claimReferral: () => Promise<unknown>;
-  createMediaChronolock: (account?: { owner: Principal; subaccount: number[] }) => Promise<unknown>;
   getRefrrealCode: () => Promise<unknown>;
   getFee: () => Promise<unknown>;
   registerUser: () => Promise<unknown>;
@@ -42,6 +44,7 @@ export interface IUseCrnlToken {
   // New statistics functions
   getTotalSupply: () => Promise<unknown>;
   getTotalBurned: () => Promise<unknown>;
+  deductFromBalance: (amount: bigint, description: string) => Promise<unknown>;
 }
 
 interface ITransferArgs {
@@ -64,6 +67,32 @@ export const useCrnlToken = (): IUseCrnlToken => {
     ? new URLSearchParams(location.search).get('referral_code')
     : '';
 
+  const parseToBigInt = (value: unknown): bigint => {
+    if (typeof value === 'bigint') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) {
+        return 0n;
+      }
+      return BigInt(Math.trunc(value));
+    }
+    if (typeof value === 'string') {
+      const sanitized = value.replace(/[_,\s,]/g, '');
+      if (/^\d+$/.test(sanitized)) {
+        return BigInt(sanitized);
+      }
+      return 0n;
+    }
+    if (value && typeof value === 'object' && 'toString' in value) {
+      const stringValue = (value as { toString: () => string }).toString();
+      if (/^\d+$/.test(stringValue)) {
+        return BigInt(stringValue);
+      }
+    }
+    return 0n;
+  };
+
   const {
     call: checkBalance,
     loading: isBalanceLoading,
@@ -79,6 +108,30 @@ export const useCrnlToken = (): IUseCrnlToken => {
       },
     ],
   });
+
+  const balanceRaw = (() => {
+    try {
+      return balance !== undefined && balance !== null
+        ? parseToBigInt(balance)
+        : 0n;
+    } catch (error) {
+      console.warn('Unable to parse balance as bigint', error);
+      return 0n;
+    }
+  })();
+
+  const readableBalance = (rawBalance: bigint) => {
+    const numericBalance = Number(rawBalance) / 1e8;
+    if (!Number.isFinite(numericBalance)) {
+      return rawBalance.toString();
+    }
+    return numericBalance.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    });
+  };
+
+  const balanceData = readableBalance(balanceRaw);
 
   const {
     call: getRefrrealCode,
@@ -127,19 +180,43 @@ export const useCrnlToken = (): IUseCrnlToken => {
   });
 
   const {
-    call: createMediaChronolockCall,
-    loading: isCreateMediaChronolockLoading,
+    call: deductFromBalanceCall,
+    loading: isDeductFromBalanceLoading,
+    data: deductFromBalanceData,
+    error: deductFromBalanceError,
   } = crnlUpdateCall({
-    functionName: 'create_media_chronolock' as any,
+    functionName: 'deduct_from_balance' as any,
   });
 
-  const createMediaChronolock = (account?: { owner: Principal; subaccount: number[] }) => {
-    const accountToUse = account || {
-      owner: Principal.fromText(principal ?? 'aaaaa-aa'),
-      subaccount: [],
-    };
-    return createMediaChronolockCall([accountToUse]);
-  };
+  const deductFromBalance = useCallback(
+    async (amount: bigint, description: string) => {
+      const callerAccount = {
+        owner: Principal.fromText(principal ?? 'aaaaa-aa'),
+        subaccount: [],
+      };
+
+      return deductFromBalanceCall([
+        {
+          caller: callerAccount,
+          amount,
+          description,
+        },
+      ]).then((res) => {
+        const result = res as Record<string, unknown> | undefined;
+        if (result && 'Err' in result) {
+          const errValue = result.Err;
+          const errorKey =
+            errValue && typeof errValue === 'object'
+              ? Object.keys(errValue as Record<string, unknown>)[0]
+              : 'UnknownError';
+          throw new Error(`Failed to deduct balance: ${errorKey}`);
+        }
+        checkBalance();
+        return res;
+      });
+    },
+    [deductFromBalanceCall, principal, checkBalance],
+  );
 
   const {
     call: transferCall,
@@ -185,17 +262,8 @@ export const useCrnlToken = (): IUseCrnlToken => {
         return res;
       });
     },
-    [transferCall],
+    [transferCall, checkBalance],
   );
-
-  const readableBalance = (balance: unknown) => {
-    return (Number(balance) / 1e8).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 8,
-    });
-  };
-
-  const balanceData = balance ? readableBalance(balance) : '0.00';
 
   const isLoading =
     isBalanceLoading ||
@@ -205,7 +273,8 @@ export const useCrnlToken = (): IUseCrnlToken => {
     isReferralLoading ||
     isClaimReferralLoading ||
     isTotalSupplyLoading ||
-    isTotalBurnedLoading;
+    isTotalBurnedLoading ||
+    isDeductFromBalanceLoading;
 
   useEffect(() => {
     if (principal) {
@@ -243,6 +312,7 @@ export const useCrnlToken = (): IUseCrnlToken => {
   return {
     isLoading,
     balanceData,
+    balanceRaw,
     isBalanceLoading,
     balanceError,
     registerData,
@@ -260,7 +330,9 @@ export const useCrnlToken = (): IUseCrnlToken => {
     claimReferralData,
     isClaimReferralLoading,
     claimReferralError,
-    isCreateMediaChronolockLoading,
+    deductFromBalanceData,
+    isDeductFromBalanceLoading,
+    deductFromBalanceError,
     // New statistics data
     totalSupplyData,
     isTotalSupplyLoading,
@@ -268,7 +340,6 @@ export const useCrnlToken = (): IUseCrnlToken => {
     totalBurnedData,
     isTotalBurnedLoading,
     totalBurnedError,
-    createMediaChronolock,
     claimReferral,
     getRefrrealCode,
     getFee,
@@ -278,5 +349,6 @@ export const useCrnlToken = (): IUseCrnlToken => {
     // New statistics functions
     getTotalSupply,
     getTotalBurned,
+    deductFromBalance,
   };
 };

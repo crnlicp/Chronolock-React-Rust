@@ -26,11 +26,12 @@ type LogEntry = record { id : text; timestamp : nat64; activity : text };
 type Result = variant { Ok; Err : ChronoError };
 type Result_1 = variant { Ok : text; Err : ChronoError };
 type Result_2 = variant { Ok : vec Chronolock; Err : ChronoError };
-type Result_3 = variant { Ok : vec LogEntry; Err : ChronoError };
-type Result_4 = variant { Ok : blob; Err : ChronoError };
-type Result_5 = variant { Ok : VetKDDeriveKeyReply; Err : ChronoError };
-type Result_6 = variant { Ok : VetKDPublicKeyReply; Err : ChronoError };
-type Result_7 = variant { Ok : nat32; Err : ChronoError };
+type Result_3 = variant { Ok : Chronolock; Err : ChronoError };
+type Result_4 = variant { Ok : vec LogEntry; Err : ChronoError };
+type Result_5 = variant { Ok : blob; Err : ChronoError };
+type Result_6 = variant { Ok : VetKDDeriveKeyReply; Err : ChronoError };
+type Result_7 = variant { Ok : VetKDPublicKeyReply; Err : ChronoError };
+type Result_8 = variant { Ok : nat32; Err : ChronoError };
 type VetKDDeriveKeyReply = record { encrypted_key : blob };
 type VetKDPublicKeyReply = record { public_key : blob };
 service : (principal, opt text) -> {
@@ -40,14 +41,15 @@ service : (principal, opt text) -> {
   finish_media_upload : (text) -> (Result_1);
   get_all_chronolocks_paginated : (nat64, nat64) -> (Result_2) query;
   get_caller_principal_info : () -> (principal, bool, bool) query;
-  get_logs_by_range : (nat64, nat64) -> (Result_3) query;
-  get_logs_paginated : (nat64, nat64) -> (Result_3) query;
-  get_media_chunk : (text, nat32, nat32) -> (Result_4) query;
+  get_chronolock : (text) -> (Result_3) query;
+  get_logs_by_range : (nat64, nat64) -> (Result_4) query;
+  get_logs_paginated : (nat64, nat64) -> (Result_4) query;
+  get_media_chunk : (text, nat32, nat32) -> (Result_5) query;
   get_owner_chronolocks_count : (principal) -> (nat64) query;
   get_owner_chronolocks_paginated : (principal, nat64, nat64) -> (
       Result_2,
     ) query;
-  get_time_decryption_key : (text, blob) -> (Result_5);
+  get_time_decryption_key : (text, blob) -> (Result_6);
   get_total_chronolocks_count : () -> (nat64) query;
   get_trusted_principals : () -> (vec principal) query;
   get_unique_creators_count : () -> (nat64) query;
@@ -55,9 +57,9 @@ service : (principal, opt text) -> {
   get_user_accessible_chronolocks_paginated : (principal, nat64, nat64) -> (
       Result_2,
     ) query;
-  get_user_time_decryption_key : (text, text, blob) -> (Result_5);
+  get_user_time_decryption_key : (text, text, blob) -> (Result_6);
   http_request : (HttpRequest) -> (HttpResponse) query;
-  ibe_encryption_key : () -> (Result_6);
+  ibe_encryption_key : () -> (Result_7);
   icrc7_balance_of : (principal) -> (nat64) query;
   icrc7_description : () -> (text) query;
   icrc7_name : () -> (text) query;
@@ -75,5 +77,5 @@ service : (principal, opt text) -> {
   set_max_metadata_size : (nat64) -> (Result);
   start_media_upload : (nat32) -> (Result_1);
   update_chronolock : (text, text) -> (Result);
-  upload_media_chunk : (text, nat32, blob) -> (Result_7);
+  upload_media_chunk : (text, nat32, blob) -> (Result_8);
 }

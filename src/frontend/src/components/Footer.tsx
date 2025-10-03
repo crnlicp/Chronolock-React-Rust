@@ -9,10 +9,10 @@ export const Footer = () => {
             <p>Copyright 2025</p>
           </div>
           <div className="left_part" style={{ textAlign: 'center' }}>
-            <p>Developed with  ❤️  Fully on chain</p>
+            <p>Developed with ❤️ Fully on chain</p>
           </div>
           <div className="middle_part">
-            <img src="assets/svg/onchain.svg" alt="" width={200}/>
+            <img src="/assets/svg/onchain.svg" alt="" width={200} />
           </div>
           <div className="right_part">
             <ul>

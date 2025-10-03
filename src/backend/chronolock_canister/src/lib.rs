@@ -857,6 +857,18 @@ fn get_media_chunk(media_id: String, offset: u32, length: u32) -> Result<Vec<u8>
     })
 }
 
+// Query to fetch a single chronolock by id
+#[query]
+fn get_chronolock(token_id: String) -> Result<Chronolock, ChronoError> {
+    CHRONOLOCKS.with(|locks| {
+        locks
+            .borrow()
+            .get(&token_id)
+            .map(|c| c.clone())
+            .ok_or(ChronoError::TokenNotFound)
+    })
+}
+
 #[query]
 fn http_request(request: HttpRequest) -> HttpResponse {
     if request.method != "GET" {

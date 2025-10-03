@@ -11,6 +11,23 @@ export default defineConfig({
   build: {
     outDir: 'dist/',
     emptyOutDir: true,
+    // increase warning threshold and add manual chunking to keep large deps separated
+    chunkSizeWarningLimit: 1024, // 1MB
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@mui') || id.includes('material-ui')) {
+              return 'mui';
+            }
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react-vendor';
+            }
+            return 'vendor';
+          }
+        },
+      },
+    },
   },
   optimizeDeps: {
     esbuildOptions: {

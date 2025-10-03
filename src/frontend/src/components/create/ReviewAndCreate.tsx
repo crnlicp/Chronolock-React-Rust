@@ -38,12 +38,8 @@ const ReviewAndCreate = ({
   onBack,
 }: IReviewAndCreate) => {
   const date = lockTime ? moment(lockTime * 1000) : null;
-  const {
-    balanceData,
-    checkBalance,
-    createMediaChronolock,
-    isCreateMediaChronolockLoading,
-  } = useCrnlToken();
+  const { balanceRaw } = useCrnlToken();
+  const MEDIA_CHRONOLOCK_COST = 20n * 10n ** 8n;
   const {
     getVetkdPublicKey,
     createChronolock,
@@ -52,13 +48,10 @@ const ReviewAndCreate = ({
   } = useChronolock();
   const navigate = useNavigate();
 
-  const notEnoughCrnl = parseFloat(balanceData) < 20;
+  const notEnoughCrnl = balanceRaw < MEDIA_CHRONOLOCK_COST;
   const isMediaChronolock = mediaId && fileType;
   const showCreditError = notEnoughCrnl && isMediaChronolock;
-  const isLoading =
-    isCreateChronolockLoading ||
-    isGetVetkdPublicKeyLoading ||
-    isCreateMediaChronolockLoading;
+  const isLoading = isCreateChronolockLoading || isGetVetkdPublicKeyLoading;
 
   const [createdChronolockId, setCreatedChronolockId] = useState<string | null>(
     null,
@@ -159,11 +152,6 @@ const ReviewAndCreate = ({
         const chronolockId = (chronolockObject as { Ok: string }).Ok;
         if (chronolockId) {
           setCreatedChronolockId(chronolockId);
-
-          if (isMediaChronolock) {
-            await createMediaChronolock();
-            await checkBalance();
-          }
         }
       }, 0);
     } else {

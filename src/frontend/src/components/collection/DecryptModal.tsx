@@ -213,38 +213,12 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
 
       const ibeCiphertext = IbeCiphertext.deserialize(encryptedUserKeyUint8);
 
-      // Create the IBE identity that was used during encryption
-      let ibeIdentityString: string;
-      if (isPublic) {
-        // For public chronolocks, identity was just the lockTime
-        ibeIdentityString = metadata.lockTime?.toString() || '';
-      } else {
-        // For user chronolocks, identity was "user:lockTime"
-        // But userIdentity might already contain the full format or just the user part
-        if (userIdentity.includes(':')) {
-          ibeIdentityString = userIdentity; // Already in format "user:lockTime"
-        } else {
-          // Construct the identity format that was used during encryption
-          ibeIdentityString = `${userIdentity}:${metadata.lockTime}`;
-        }
-      }
-
-      console.log('Using IBE identity for decryption:', ibeIdentityString);
-      console.log('User identity from userKeys:', userIdentity);
+      console.log('Using IBE identity for decryption:');
+      console.log('User identity from userKeys:');
       console.log('Lock time:', metadata.lockTime);
       console.log('Is public chronolock:', isPublic);
-      console.log('VetKD derivation input bytes:', Array.from(derivationInput));
-      console.log(
-        'VetKD derivation input as text:',
-        new TextDecoder().decode(derivationInput),
-      );
-      console.log(
-        'FIXED: VetKD derivation (' +
-          new TextDecoder().decode(derivationInput) +
-          ') == IBE identity (' +
-          ibeIdentityString +
-          ') - formats now match!',
-      );
+      console.log('VetKD derivation input bytes:');
+      console.log('VetKD derivation input as text:');
 
       // Now use the VetKey for IBE decryption
       // The VetKey should be compatible with IBE decryption according to the vetkeys documentation
@@ -259,26 +233,7 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
         console.log(
           'IBE decryption failed, checking VetKey and IBE compatibility...',
         );
-        console.error('Direct error:', directError);
-        console.log('VetKey type:', typeof vetKey);
-        console.log(
-          'VetKey signatureBytes:',
-          Array.from(vetKey.signatureBytes().slice(0, 10)),
-          '...',
-        );
-        console.log('IBE identity used:', ibeIdentityString);
-        console.log(
-          'VetKD derivation input used:',
-          new TextDecoder().decode(derivationInput),
-        );
-
-        throw new Error(
-          `IBE decryption failed. VetKD and IBE identities should now match. ` +
-            `VetKD used: ${new TextDecoder().decode(derivationInput)}, ` +
-            `IBE identity: ${ibeIdentityString}. ` +
-            `If they match but decryption still fails, there may be another issue. ` +
-            `Error: ${(directError as Error).message}`,
-        );
+        throw new Error(`IBE decryption failed`);
       }
       console.log('AES key decrypted, length:', aesKeyBytes.length);
 
@@ -314,7 +269,7 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
       const decryptedText = new TextDecoder().decode(decryptedBuffer);
       const decryptedJson = JSON.parse(decryptedText);
 
-      console.log('Metadata decrypted successfully:', decryptedJson);
+      console.log('Metadata decrypted successfully');
 
       // If there's a mediaId and mediaSize, decrypt the media file
       if (decryptedJson.mediaId && decryptedJson.mediaSize) {
@@ -344,10 +299,6 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
             'Expected media size from metadata:',
             decryptedJson.mediaSize,
           );
-          console.log(
-            'First 20 bytes of encrypted data:',
-            Array.from(encryptedMediaData.slice(0, 20)),
-          );
 
           // The actual encrypted data should be larger than the original file size
           // because it includes IV (12 bytes) + AES-GCM authentication tag (16 bytes)
@@ -371,7 +322,6 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
           const encryptedMediaContent = encryptedMediaData.slice(12);
 
           console.log('Media IV length:', mediaIv.length);
-          console.log('Media IV bytes:', Array.from(mediaIv));
           console.log(
             'Encrypted media content length:',
             encryptedMediaContent.length,
@@ -468,6 +418,7 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
     <Dialog
       open={open}
       onClose={handleClose}
+      disableScrollLock
       maxWidth="md"
       fullWidth
       slotProps={{

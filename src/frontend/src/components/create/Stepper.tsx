@@ -89,7 +89,7 @@ const steps = [
 
 export default function CustomizedSteppers({ activeStep = 0 }) {
   return (
-    <Stack spacing={4} style={{ marginBottom: '24px' }}>
+    <Stack spacing={4} style={{ margin: '24px' }}>
       <Stepper
         alternativeLabel
         activeStep={activeStep}

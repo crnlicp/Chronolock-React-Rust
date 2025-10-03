@@ -45,7 +45,7 @@ export const Collection = () => {
                 <div className="img">
                   <div data-bg-img="assets/img/lock.png" className="abs_img" />
                   <Clock targetDate={targetDate} className="abs_img" />
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                 </div>
               </div>
               <input type="hidden" defaultValue="assets/img/collection/1.jpg" />
@@ -56,7 +56,7 @@ export const Collection = () => {
                 <div className="img">
                   <div data-bg-img="assets/img/lock.png" className="abs_img" />
                   <Clock targetDate={targetDate} className="abs_img" />
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                 </div>
               </div>
               <input type="hidden" defaultValue="assets/img/collection/1.jpg" />
@@ -67,7 +67,7 @@ export const Collection = () => {
                 <div className="img">
                   <div data-bg-img="assets/img/lock.png" className="abs_img" />
                   <Clock targetDate={targetDate} className="abs_img" />
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                 </div>
               </div>
               <input type="hidden" defaultValue="assets/img/collection/1.jpg" />
@@ -78,7 +78,7 @@ export const Collection = () => {
                 <div className="img">
                   <div data-bg-img="assets/img/lock.png" className="abs_img" />
                   <Clock targetDate={targetDate} className="abs_img" />
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                 </div>
               </div>
               <input type="hidden" defaultValue="assets/img/collection/1.jpg" />
@@ -90,7 +90,7 @@ export const Collection = () => {
                 <div className="img">
                   <div data-bg-img="assets/img/lock.png" className="abs_img" />
                   <Clock targetDate={targetDate} className="abs_img" />
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                 </div>
               </div>
               <input type="hidden" defaultValue="assets/img/collection/1.jpg" />
@@ -101,7 +101,7 @@ export const Collection = () => {
                 <div className="img">
                   <div data-bg-img="assets/img/lock.png" className="abs_img" />
                   <Clock targetDate={targetDate} className="abs_img" />
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                 </div>
               </div>
               <input type="hidden" defaultValue="assets/img/collection/1.jpg" />
@@ -112,7 +112,7 @@ export const Collection = () => {
                 <div className="img">
                   <div data-bg-img="assets/img/lock.png" className="abs_img" />
                   <Clock targetDate={targetDate} className="abs_img" />
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                 </div>
               </div>
               <input type="hidden" defaultValue="assets/img/collection/1.jpg" />
@@ -123,7 +123,7 @@ export const Collection = () => {
                 <div className="img">
                   <div data-bg-img="assets/img/lock.png" className="abs_img" />
                   <Clock targetDate={targetDate} className="abs_img" />
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                 </div>
               </div>
               <input type="hidden" defaultValue="assets/img/collection/1.jpg" />

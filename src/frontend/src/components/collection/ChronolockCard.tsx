@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { NavLink } from 'react-router';
 import {
   Box,
   Typography,
@@ -77,8 +78,14 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
     >
       <CardContent sx={{ flexGrow: 1 }}>
         <Typography variant="h6" component="div" gutterBottom>
-          {metadata?.title?.slice(0, 17) + '...' ||
-            `Chronolock #${chronolock.id.slice(0, 8)}...`}
+          <NavLink
+            to={`/chronolock/${chronolock.id}`}
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            {metadata?.title
+              ? metadata?.title?.slice(0, 19)
+              : `Chronolock #${chronolock.id.slice(0, 8)}...`}
+          </NavLink>
         </Typography>
 
         <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -114,8 +121,8 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
         <img
           src={
             !isDecryptable || isLocked
-              ? `assets/img/lock.png`
-              : `assets/img/unlocked.png`
+              ? `/assets/img/lock.png`
+              : `/assets/img/unlocked.png`
           }
           width={'100%'}
           height={'100%'}

@@ -3,7 +3,7 @@ import { ActorContextProvider } from './ActorContextProvider';
 import { Footer } from './components/Footer';
 import { Header } from './components/header/Header';
 import { NotFound } from './components/NotFound';
-import { Chronolock } from './pages/Chronolock';
+import { ChronolockDetail } from './pages/ChronolockDetail';
 import { Collection } from './pages/Collection';
 import { Cookies } from './pages/Cookies';
 import { Create } from './pages/Create';
@@ -19,7 +19,7 @@ const App = () => {
         <div className="body_container">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/chronolock/:id" element={<Chronolock />} />
+            <Route path="/chronolock/:id" element={<ChronolockDetail />} />
             <Route path="/create" element={<Create />} />
             <Route path="/collection" element={<Collection />} />
             <Route path="/policy" element={<Policy />} />
