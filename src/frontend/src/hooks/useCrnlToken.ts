@@ -333,7 +333,6 @@ export const useCrnlToken = (): IUseCrnlToken => {
     deductFromBalanceData,
     isDeductFromBalanceLoading,
     deductFromBalanceError,
-    // New statistics data
     totalSupplyData,
     isTotalSupplyLoading,
     totalSupplyError,
@@ -346,7 +345,6 @@ export const useCrnlToken = (): IUseCrnlToken => {
     registerUser,
     checkBalance,
     transfer,
-    // New statistics functions
     getTotalSupply,
     getTotalBurned,
     deductFromBalance,

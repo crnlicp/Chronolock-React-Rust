@@ -84,21 +84,14 @@ export const UserMenu = ({
         display: 'flex',
         flexDirection: 'column',
         zIndex: 0,
-        fontSize: '1.6em',
+        fontFamily: 'monospace',
+        fontSize: '0.85rem',
         background:
           'linear-gradient(135deg,rgb(118, 42, 95) 0%,rgb(70, 3, 101) 100%, rgb(118, 42, 95) 100%)',
       }}
       gap={2}
     >
-      <Box
-        display={'flex'}
-        alignItems={'center'}
-        sx={{
-          fontFamily: 'monospace',
-          fontSize: '0.8em',
-        }}
-        gap={2}
-      >
+      <Box display={'flex'} alignItems={'center'} sx={{}} gap={2}>
         <Box width={'100%'}>Your Credit: {String(balanceData)} CRNL</Box>
         <Box width={24} height={24}>
           {isBalanceLoading ? (
@@ -113,12 +106,7 @@ export const UserMenu = ({
           )}
         </Box>
       </Box>
-      <Box
-        display={'flex'}
-        alignItems={'center'}
-        gap={2}
-        sx={{ fontFamily: 'monospace', fontSize: '0.8em' }}
-      >
+      <Box display={'flex'} alignItems={'center'} gap={2}>
         <Box width={'100%'}>
           <span title={principal || ''} onClick={handleCopyWallet}>
             Principal ID: {principal ? formatPrincipal(principal) : ''}
@@ -144,15 +132,13 @@ export const UserMenu = ({
         </Box>
       </Box>
       {referralCode ? (
-        <Box
-          display={'flex'}
-          alignItems={'center'}
-          gap={2}
-          sx={{ fontFamily: 'monospace', fontSize: '0.8em' }}
-        >
+        <Box display={'flex'} alignItems={'center'} gap={2}>
           <Box width={'100%'}>
-            <span title={principal || ''} onClick={handleCopyURL}>
-              Referral Link:
+            <span title={referralLink || ''} onClick={handleCopyURL}>
+              Referral Link:&nbsp;
+              <span style={{ textDecoration: 'underline' }}>
+                {referralCode as string}
+              </span>
             </span>
           </Box>
           <Box>
@@ -184,7 +170,6 @@ export const UserMenu = ({
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: 'transparent',
-            fontSize: '0.9em',
             padding: '0.3em 0.8em',
             border: 'none',
             width: '100%',
@@ -204,7 +189,6 @@ export const UserMenu = ({
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: 'transparent',
-            fontSize: '0.9em',
             padding: '0.3em 0.8em',
             border: 'none',
             width: '100%',

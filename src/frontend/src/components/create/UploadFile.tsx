@@ -341,7 +341,7 @@ export const UploadFile = ({
               )}
               <aside style={thumbsContainer}>
                 {thumbs}
-                {files && files.length > 0 && mediaId && (
+                {files && files.length > 0 && (
                   <IconButton
                     sx={{ position: 'absolute' }}
                     onClick={handleRemoveFile}
@@ -464,11 +464,11 @@ export const UploadFile = ({
           my={2}
         >
           <h5 style={{ color: 'green', margin: '0', lineHeight: '1.5' }}>
-            Note: Changing the file requires re-uploading. If the changed file
-            is not uploaded, the previously selected file will be used. Files
-            are encrypted and securely uploaded. Please verify the file's
-            accuracy before proceeding. You can skip this step if you want to
-            create Text Chronolock.
+            Note: Changing the file requires re-uploading. Files are encrypted
+            and securely uploaded. Please verify the file's accuracy before
+            proceeding. You can skip this step if you want to create Text
+            Chronolock. Uploading each media file will cost you 20 CRNL. Make
+            sure you have enough CRNL in your account
           </h5>
         </Box>
         <ul style={{ marginTop: '100px' }}>
