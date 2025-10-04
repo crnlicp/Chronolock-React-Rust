@@ -96,7 +96,7 @@ struct Metadata {
     total_burned: u128,
     vesting_start_time: u64,
     vesting_duration: u64,
-    logo: String,
+    logo: Option<String>,
 }
 
 impl Storable for Metadata {
@@ -104,7 +104,54 @@ impl Storable for Metadata {
         Cow::Owned(candid::encode_one(self).unwrap())
     }
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        candid::decode_one(&bytes).unwrap()
+        // Try decoding the current Metadata layout first. Older canisters
+        // may have stored a legacy Metadata without the `logo` field, so
+        // fall back to decoding that and convert it.
+        // We avoid unwrap() to prevent panics during upgrades.
+        let bytes_ref: &[u8] = &bytes;
+        if let Ok(meta) = candid::decode_one::<Metadata>(bytes_ref) {
+            meta
+        } else {
+            // Define a legacy metadata shape matching the previous on-disk layout
+            #[derive(CandidType, Deserialize)]
+            struct LegacyMetadata {
+                name: String,
+                symbol: String,
+                decimals: u8,
+                total_supply: u128,
+                transfer_fee: u128,
+                total_burned: u128,
+                vesting_start_time: u64,
+                vesting_duration: u64,
+            }
+
+            if let Ok(legacy) = candid::decode_one::<LegacyMetadata>(bytes_ref) {
+                Metadata {
+                    name: legacy.name,
+                    symbol: legacy.symbol,
+                    decimals: legacy.decimals,
+                    total_supply: legacy.total_supply,
+                    transfer_fee: legacy.transfer_fee,
+                    total_burned: legacy.total_burned,
+                    vesting_start_time: legacy.vesting_start_time,
+                    vesting_duration: legacy.vesting_duration,
+                    logo: None,
+                }
+            } else {
+                // As a last resort, return a safe default to keep the canister running.
+                Metadata {
+                    name: "".to_string(),
+                    symbol: "".to_string(),
+                    decimals: 0,
+                    total_supply: 0,
+                    transfer_fee: 0,
+                    total_burned: 0,
+                    vesting_start_time: 0,
+                    vesting_duration: 0,
+                    logo: None,
+                }
+            }
+        }
     }
     const BOUND: Bound = Bound::Unbounded;
 }
@@ -500,7 +547,7 @@ fn init(
                 total_burned: 0,
                 vesting_start_time: current_time(),
                 vesting_duration,
-                logo: "".to_string(),
+                logo: None,
             },
         );
     });
@@ -1204,13 +1251,16 @@ fn icrc1_metadata() -> Vec<(String, String)> {
             "icrc1:total_supply".to_string(),
             meta.total_supply.to_string(),
         ),
-        ("icrc1:logo".to_string(), meta.logo),
+        (
+            "icrc1:logo".to_string(),
+            meta.logo.clone().unwrap_or_else(|| "".to_string()),
+        ),
     ]
 }
 
 #[query]
 fn get_logo() -> String {
-    METADATA.with(|m| m.borrow().get(&0).unwrap().logo.clone())
+    METADATA.with(|m| m.borrow().get(&0).unwrap().logo.clone().unwrap_or_default())
 }
 
 #[update]
@@ -1219,7 +1269,7 @@ fn set_logo(new_logo: String) -> Result<(), LedgerError> {
     let _admin = validate_admin_authentication()?;
     METADATA.with(|metadata| {
         let mut m = metadata.borrow_mut().get(&0).unwrap().clone();
-        m.logo = new_logo.clone();
+        m.logo = Some(new_logo.clone());
         metadata.borrow_mut().insert(0, m);
     });
     log_event("SetLogo", format!("Admin updated logo URL: {}", new_logo));
