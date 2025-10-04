@@ -501,7 +501,11 @@ export const UploadFile = ({
           </li>
         </ul>
       </div>
-      <Dialog open={isConfirmOpen} onClose={handleCloseConfirm}>
+      <Dialog
+        open={isConfirmOpen}
+        onClose={handleCloseConfirm}
+        disableScrollLock
+      >
         <DialogTitle>Confirm Upload Fee</DialogTitle>
         <DialogContent>
           <DialogContentText>
