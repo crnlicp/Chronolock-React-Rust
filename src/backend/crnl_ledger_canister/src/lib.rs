@@ -96,6 +96,7 @@ struct Metadata {
     total_burned: u128,
     vesting_start_time: u64,
     vesting_duration: u64,
+    logo: String,
 }
 
 impl Storable for Metadata {
@@ -499,6 +500,7 @@ fn init(
                 total_burned: 0,
                 vesting_start_time: current_time(),
                 vesting_duration,
+                logo: "".to_string(),
             },
         );
     });
@@ -1199,10 +1201,29 @@ fn icrc1_metadata() -> Vec<(String, String)> {
         ("icrc1:decimals".to_string(), meta.decimals.to_string()),
         ("icrc1:fee".to_string(), meta.transfer_fee.to_string()),
         (
-            "icrc1:logo".to_string(),
-            "https://your-logo-url.com/token.png".to_string(),
+            "icrc1:total_supply".to_string(),
+            meta.total_supply.to_string(),
         ),
+        ("icrc1:logo".to_string(), meta.logo),
     ]
+}
+
+#[query]
+fn get_logo() -> String {
+    METADATA.with(|m| m.borrow().get(&0).unwrap().logo.clone())
+}
+
+#[update]
+fn set_logo(new_logo: String) -> Result<(), LedgerError> {
+    // Only admin may update the logo
+    let _admin = validate_admin_authentication()?;
+    METADATA.with(|metadata| {
+        let mut m = metadata.borrow_mut().get(&0).unwrap().clone();
+        m.logo = new_logo.clone();
+        metadata.borrow_mut().insert(0, m);
+    });
+    log_event("SetLogo", format!("Admin updated logo URL: {}", new_logo));
+    Ok(())
 }
 
 #[query]
