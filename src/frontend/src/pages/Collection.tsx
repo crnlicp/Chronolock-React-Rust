@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Tab, Tabs } from '@mui/material';
 import { AllChronolocks } from '../components/collection/AllChronolocks';
 import { MyChronolocks } from '../components/collection/MyChronolocks';
@@ -41,9 +41,13 @@ export const Collection = () => {
     setValue(newValue);
   };
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   return (
     <div className="container page_container">
-      <Box sx={{ width: '100%' }}>
+      <Box sx={{ width: '100%' }} mt={4}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
           <Tabs
             value={value}

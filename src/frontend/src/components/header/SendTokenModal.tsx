@@ -89,7 +89,7 @@ export const SendTokenModal = ({
   }, [open]);
 
   return (
-    <Dialog fullWidth open={open} onClose={onClose}>
+    <Dialog fullWidth open={open} onClose={onClose} disableScrollLock>
       <Box
         display={'flex'}
         flexDirection="column"

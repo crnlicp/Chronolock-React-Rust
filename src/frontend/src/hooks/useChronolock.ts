@@ -27,6 +27,7 @@ interface IUseChronolock {
     mediaId: string,
     totalSize: number,
   ) => Promise<Uint8Array<ArrayBuffer>>;
+  getChronolock: (id: string) => Promise<unknown>;
   getVetkdPublicKey: () => Promise<unknown>;
   generateKey: () => Promise<CryptoKey>;
   // Decryption functions
@@ -68,6 +69,7 @@ interface IUseChronolock {
   isGetUniqueCreatorsCountLoading: boolean;
   isGetOwnerChronolocksCountLoading: boolean;
   isGetUserAccessibleChronolocksCountLoading: boolean;
+  isGetChronolockLoading: boolean;
 }
 
 const UPLOAD_CHUNK_SIZE = 1.95 * 1024 * 1024; // 2MB
@@ -180,6 +182,12 @@ export const useChronolock = (): IUseChronolock => {
     functionName: 'get_all_chronolocks_paginated' as any,
   });
 
+  const { call: getChronolockCall, loading: isGetChronolockLoading } =
+    chronolockQueryCall({
+      refetchOnMount: false,
+      functionName: 'get_chronolock' as any,
+    });
+
   const {
     call: getOwnerChronolocksPaginatedCall,
     loading: isGetOwnerChronolocksLoading,
@@ -238,19 +246,27 @@ export const useChronolock = (): IUseChronolock => {
     [getUserAccessibleChronolocksPaginatedCall],
   );
 
+  const getChronolock = useCallback(
+    (id: string) => getChronolockCall([id]),
+    [getChronolockCall],
+  );
+
   const upload = useCallback(
     async (media: ArrayBuffer) => {
       const totalChunks = Math.ceil(media.byteLength / UPLOAD_CHUNK_SIZE);
       // 1. Start upload, get media_id
-      const mediaId = await startMediaUpload([totalChunks]);
-      console.log('mediaId:', mediaId);
+      const startResp = await startMediaUpload([totalChunks]);
+      const mediaId = (
+        startResp as {
+          Ok?: string | number[] | object;
+        }
+      ).Ok;
       // 2. Upload each chunk
       for (let i = 0; i < totalChunks; i++) {
         const start = i * UPLOAD_CHUNK_SIZE;
         const end = Math.min(start + UPLOAD_CHUNK_SIZE, media.byteLength);
         const chunk = new Uint8Array(media.slice(start, end));
-        const upload = await uploadMediaChunk([mediaId, i, Array.from(chunk)]);
-        console.log('upload chunk:', upload);
+        await uploadMediaChunk([mediaId, i, Array.from(chunk)]);
       }
       // 3. Finish upload, get URL
       const urlObject = await finishMediaUpload([mediaId]);
@@ -288,8 +304,6 @@ export const useChronolock = (): IUseChronolock => {
           console.warn('Empty or invalid chunk received, breaking the loop.');
           break;
         }
-
-        console.log('Chunk received:', uint8Chunk.length, { Ok: uint8Chunk });
 
         chunks.push(uint8Chunk);
       }
@@ -360,6 +374,7 @@ export const useChronolock = (): IUseChronolock => {
     createChronolock,
     upload,
     getMediaChunked,
+    getChronolock,
     generateKey,
     getVetkdPublicKey,
     // Decryption functions
@@ -383,5 +398,6 @@ export const useChronolock = (): IUseChronolock => {
     isGetUniqueCreatorsCountLoading,
     isGetOwnerChronolocksCountLoading,
     isGetUserAccessibleChronolocksCountLoading,
+    isGetChronolockLoading,
   };
 };

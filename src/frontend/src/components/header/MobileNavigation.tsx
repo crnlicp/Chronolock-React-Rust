@@ -36,15 +36,9 @@ export const MobileNavigation = ({
   onNavigationToggle,
   onOpenSendTokenModal,
 }: IMobileNavigationProps) => {
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const { isAuthenticated, handleLogin } = useAuth();
-
-  const handleMobileMenuToggle = () => {
-    setShowMobileMenu(!showMobileMenu);
-  };
 
   function handleCloseMenu(): void {
     setShowUserMenu(false);
@@ -104,17 +98,12 @@ export const MobileNavigation = ({
                 }}
                 className="metaportal_fn_button wallet_opener"
               >
-                <img src="assets/svg/ii.svg" width={150} height={50} />
+                <img src="/assets/svg/ii.svg" width={150} height={50} />
               </NavLink>
             )}
           </div>
         </div>
-        <div className="mob_mid">
-          <div className="logo">
-            <NavLink to="/">
-              <img src="/img/logo.png" alt="" />
-            </NavLink>
-          </div>
+        {/* <div className="mob_mid">
           <div
             className={`trigger ${showMobileMenu ? 'active' : ''}`}
             onClick={() => setShowMobileMenu(!showMobileMenu)}
@@ -173,7 +162,7 @@ export const MobileNavigation = ({
               </NavLink>
             </li>
           </ul>
-        </div>
+        </div> */}
       </div>
     </Fragment>
   );

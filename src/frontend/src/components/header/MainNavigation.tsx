@@ -65,7 +65,7 @@ export const MainNavigation = ({
             <div className="logo">
               <NavLink to="/">
                 <img
-                  src="assets/img/logo.png"
+                  src="/assets/img/logo.png"
                   alt=""
                   height={'95%'}
                   style={{ position: 'absolute', top: 0, left: 100 }}
@@ -140,7 +140,7 @@ export const MainNavigation = ({
                 }}
                 className="metaportal_fn_button wallet_opener"
               >
-                <img src="assets/svg/ii.svg" width={150} height={50} />
+                <img src="/assets/svg/ii.svg" width={150} height={50} />
               </NavLink>
             )}
           </div>

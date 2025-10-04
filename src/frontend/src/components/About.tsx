@@ -13,7 +13,7 @@ export const About = () => {
           <div className="img bordergradient">
             <div className="img_in" data-bg-img="assets/img/lock.png">
               <Clock targetDate={targetDate} />
-              <img src="assets/img/1x1.jpg" alt="" />
+              <img src="/assets/img/1x1.jpg" alt="" />
             </div>
           </div>
           <div className="bg_overlay">

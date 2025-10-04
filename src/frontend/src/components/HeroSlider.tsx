@@ -165,11 +165,11 @@ export const HeroSlider = () => {
               {/* Slider */}
               <div className="fn_cs_slider" data-responsive="on">
                 <div className="slider_top">
-                  <img src="assets/img/1x1.jpg" alt="" />
+                  <img src="/assets/img/1x1.jpg" alt="" />
                   <ul>
                     <li className="prev" data-index={1}>
                       <div className="item">
-                        <img src="assets/img/1x1.jpg" alt="" />
+                        <img src="/assets/img/1x1.jpg" alt="" />
                         <div className="item_in">
                           <div
                             className="img"
@@ -182,7 +182,7 @@ export const HeroSlider = () => {
                     </li>
                     <li className="active" data-index={2}>
                       <div className="item">
-                        <img src="assets/img/1x1.jpg" alt="" />
+                        <img src="/assets/img/1x1.jpg" alt="" />
                         <div className="item_in">
                           <div
                             className="img"
@@ -195,7 +195,7 @@ export const HeroSlider = () => {
                     </li>
                     <li className="next" data-index={3}>
                       <div className="item">
-                        <img src="assets/img/1x1.jpg" alt="" />
+                        <img src="/assets/img/1x1.jpg" alt="" />
                         <div className="item_in">
                           <div
                             className="img"
