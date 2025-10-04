@@ -80,6 +80,7 @@ service : (text, text, nat, nat64, nat, principal) -> {
   get_community_pool_balance : () -> (nat) query;
   get_dapp_funds : () -> (nat) query;
   get_fee_distribution : () -> (FeeDistribution) query;
+  get_logo : () -> (text) query;
   get_logs_by_range : (nat64, nat64) -> (Result_3) query;
   get_logs_paginated : (nat64, nat64) -> (Result_3) query;
   get_referral_code : (Account) -> (opt text) query;
@@ -111,5 +112,6 @@ service : (text, text, nat, nat64, nat, principal) -> {
   register_user : (Account, opt blob) -> (Result_2);
   remove_trusted_principal : (principal) -> (Result);
   set_admin_bypass : (bool) -> (Result);
+  set_logo : (text) -> (Result);
   set_transfer_fee : (nat) -> (Result);
 }
