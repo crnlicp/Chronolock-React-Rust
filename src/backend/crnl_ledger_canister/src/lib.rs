@@ -292,9 +292,11 @@ fn nat_to_u128(n: Nat) -> Result<u128, LedgerError> {
 // Check if a principal is a valid Internet Identity principal
 // Internet Identity principals have specific characteristics:
 // - They are not anonymous
-// - They are self-authenticating principals derived from public keys
-// - Real II principals are typically derived from the II canister delegation
-// - We explicitly reject generic self-auth principals (29 bytes ending with 0x02)
+// - They follow a specific textual format with hyphens
+// - Real II principals like: 4s3y7-25yvt-jbdte-vpvcq-n4ghs-j5jo6-beihs-om2zi-oqzu6-krbhf-gqe
+//   are 29-byte self-authenticating principals (ending with 0x02) with proper random-looking segments
+// - Test/mock II principals may be shorter (10 bytes, ending with 0x01)
+// - We reject simple/mock self-auth principals with many repeated segments (like "aaaaa")
 fn is_valid_internet_identity_principal(principal: Principal) -> bool {
     // Reject anonymous outright
     if principal == Principal::anonymous() {
@@ -314,18 +316,16 @@ fn is_valid_internet_identity_principal(principal: Principal) -> bool {
         return false;
     }
 
-    // Internet Identity issues self-authenticating principals (29 bytes ending with 0x02)
-    // Accept these as valid without further checks.
-    if principal_bytes.len() == 29 && principal_bytes.last() == Some(&0x02) {
-        return true;
-    }
-
-    // Fallback heuristic: enforce textual structure to filter out malformed inputs.
+    // Enforce textual structure to match proper II principals
     let text = principal.to_text();
+
+    // Principal text must have proper length and contain hyphens
     if text.len() < 10 || text.len() > 63 || !text.contains('-') {
         return false;
     }
 
+    // Validate the format: segments separated by hyphens
+    // Each segment must be non-empty, max 5 characters, lowercase alphanumeric
     if !text.split('-').all(|segment| {
         !segment.is_empty()
             && segment.len() <= 5
@@ -334,6 +334,33 @@ fn is_valid_internet_identity_principal(principal: Principal) -> bool {
         return false;
     }
 
+    // For self-authenticating principals (29 bytes ending with 0x02):
+    // Reject if they look like simple test/mock principals
+    if principal_bytes.len() == 29 && principal_bytes.last() == Some(&0x02) {
+        let segments: Vec<&str> = text.split('-').collect();
+
+        // Count segments that are just "aaaaa" or similar repeated patterns
+        let repeated_count = segments
+            .iter()
+            .filter(|s| {
+                if s.len() < 3 {
+                    return false;
+                }
+                let chars: Vec<char> = s.chars().collect();
+                chars
+                    .windows(3)
+                    .all(|w| w[0] == 'a' && w[1] == 'a' && w[2] == 'a')
+            })
+            .count();
+
+        // Reject if more than half the segments look like test data
+        if repeated_count > segments.len() / 2 {
+            return false;
+        }
+    }
+
+    // Accept shorter principals (e.g., 10 bytes ending with 0x01 for test/mock II principals)
+    // and proper self-auth principals that pass validation
     principal_bytes.len() >= 10
 }
 

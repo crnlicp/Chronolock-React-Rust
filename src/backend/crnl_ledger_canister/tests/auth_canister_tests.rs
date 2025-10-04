@@ -581,3 +581,32 @@ fn test_authentication_get_caller_principal_info() {
     assert_eq!(result.1, true); // Is authenticated (due to admin bypass)
     assert_eq!(result.2, false); // Is not admin
 }
+
+#[test]
+fn test_principal_formats() {
+    // Test to understand principal formats
+    let mock_ii = create_mock_ii_principal(2);
+    let self_auth = create_self_auth_principal(1);
+    
+    println!("Mock II Principal: {}", mock_ii.to_text());
+    println!("  Segments: {:?}", mock_ii.to_text().split('-').collect::<Vec<_>>());
+    println!("  Bytes len: {}", mock_ii.as_slice().len());
+    println!("  Last byte: {:02x}", mock_ii.as_slice().last().unwrap());
+    
+    println!("Self-auth Principal: {}", self_auth.to_text());
+    println!("  Segments: {:?}", self_auth.to_text().split('-').collect::<Vec<_>>());
+    println!("  Bytes len: {}", self_auth.as_slice().len());
+    println!("  Last byte: {:02x}", self_auth.as_slice().last().unwrap());
+    
+    let real_ii = Principal::from_text("4s3y7-25yvt-jbdte-vpvcq-n4ghs-j5jo6-beihs-om2zi-oqzu6-krbhf-gqe").unwrap();
+    println!("Real II Principal: {}", real_ii.to_text());
+    println!("  Segments: {:?}", real_ii.to_text().split('-').collect::<Vec<_>>());
+    println!("  Bytes len: {}", real_ii.as_slice().len());
+    println!("  Last byte: {:02x}", real_ii.as_slice().last().unwrap());
+    
+    let test_ii = Principal::from_text("dmp4o-pkoo3-lnzzj-cystz-2jlkk-v4zcv-yc5h4-iqoeg-v5arm-avsbm-bae").unwrap();
+    println!("Test II Principal from lib.rs: {}", test_ii.to_text());
+    println!("  Segments: {:?}", test_ii.to_text().split('-').collect::<Vec<_>>());
+    println!("  Bytes len: {}", test_ii.as_slice().len());
+    println!("  Last byte: {:02x}", test_ii.as_slice().last().unwrap());
+}
