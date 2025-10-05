@@ -46,11 +46,11 @@ if [ "$NETWORK" = "ic" ]; then
   echo ""
   echo "🚀 Deploying canisters to IC mainnet..."
   echo "📦 Deploying crnl_ledger_canister..."
-  dfx deploy --network ic --with-cycles 2000000000000 crnl_ledger_canister &&
+  dfx deploy --network ic --with-cycles 1000000000000 crnl_ledger_canister &&
   echo "📦 Deploying chronolock_canister..."
-  dfx deploy --network ic --with-cycles 3000000000000 chronolock_canister &&
+  dfx deploy --network ic --with-cycles 1000000000000 chronolock_canister &&
   echo "📦 Deploying frontend..."
-  dfx deploy --network ic --with-cycles 2000000000000 frontend &&
+  dfx deploy --network ic --with-cycles 1000000000000 frontend &&
   
   echo ""
   echo "📊 Checking cycle balance after deployment..."

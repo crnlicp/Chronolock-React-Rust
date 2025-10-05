@@ -9,7 +9,7 @@ import {
   Button,
   Chip,
 } from '@mui/material';
-import { Chronolock } from '../../hooks/useChronolock';
+import { Chronolock, useChronolock } from '../../hooks/useChronolock';
 import Clock from '../Clock';
 import { useAuth } from '../../hooks/useAuth';
 import { DecryptModal } from './DecryptModal';
@@ -17,21 +17,26 @@ import { useLockTimer } from '../../hooks/useLockTimer';
 
 interface ChronolockMetadata {
   title?: string;
+  owner?: string;
   lockTime?: number;
+  createdAt?: number;
   userKeys?: { user: string; key: string }[];
   encryptedMetaData?: string;
 }
 
 interface ChronolockCardProps {
   chronolock: Chronolock;
+  onDelete?: () => void;
 }
 
 export const ChronolockCard: React.FC<ChronolockCardProps> = ({
   chronolock,
+  onDelete,
 }) => {
   const [metadata, setMetadata] = useState<ChronolockMetadata | null>(null);
   const [decryptModalOpen, setDecryptModalOpen] = useState(false);
   const { principal } = useAuth();
+  const { burnChronolock, isBurnChronolockLoading } = useChronolock();
 
   // Use the lock timer hook for efficient real-time updates
   const isLocked = useLockTimer(metadata?.lockTime, chronolock.id);
@@ -54,11 +59,11 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
     : false;
 
   const ownerStr = (() => {
-    if (typeof chronolock.owner === 'string') {
-      return `${chronolock.owner.slice(0, 5)}...${chronolock.owner.slice(-3)}`;
+    if (typeof metadata?.owner === 'string') {
+      return `${metadata?.owner.slice(0, 5)}...${metadata?.owner.slice(-3)}`;
     } else {
-      return `${String(chronolock.owner).slice(0, 5)}...${String(
-        chronolock.owner,
+      return `${String(metadata?.owner).slice(0, 5)}...${String(
+        metadata?.owner,
       ).slice(-3)}`;
     }
   })();
@@ -67,6 +72,27 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
     if (!isDecryptable) return;
     setDecryptModalOpen(true);
   };
+
+  const handleBurn = async () => {
+    if (
+      !window.confirm(
+        'Are you sure you want to burn this Chronolock? This action cannot be undone.',
+      )
+    ) {
+      return;
+    }
+    try {
+      await burnChronolock(chronolock.id);
+      if (onDelete) {
+        onDelete();
+      }
+    } catch (error) {
+      console.error('Error burning chronolock:', error);
+    }
+  };
+
+  const isOwner = principal === metadata?.owner?.toString();
+
   return (
     <Card
       sx={{
@@ -92,11 +118,20 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
           <strong>Owner:</strong> {ownerStr.slice(0, 20)}
         </Typography>
 
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          <strong>Created date:</strong>{' '}
+          {metadata?.createdAt
+            ? new Date(metadata.createdAt).toLocaleString()
+            : 'Unknown'}
+        </Typography>
+
         <Box sx={{ mt: 2 }}>
           <Chip
             label={isLocked ? 'Locked' : 'Unlocked'}
             color={isLocked ? 'error' : 'success'}
             size="small"
+            onClick={() => {}}
+            clickable={false}
           />
           {metadata?.userKeys && metadata.userKeys.length > 0 && (
             <Chip
@@ -112,6 +147,19 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
               variant="outlined"
               size="small"
               sx={{ ml: 1 }}
+              onClick={() => {}}
+              clickable={false}
+            />
+          )}
+          {isOwner && (
+            <Chip
+              label="U’re owner"
+              variant="outlined"
+              color="primary"
+              size="small"
+              sx={{ ml: 1 }}
+              onClick={() => {}}
+              clickable={false}
             />
           )}
         </Box>
@@ -133,7 +181,7 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
         />
       </Box>
       {principal ? (
-        <CardActions sx={{ padding: 1 }}>
+        <CardActions>
           <Button
             size="small"
             variant="outlined"
@@ -142,12 +190,20 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
             fullWidth
             onClick={handleClickDecrypt}
           >
-            {!isDecryptable
-              ? 'Not available to you'
-              : isLocked
-              ? 'Locked'
-              : 'Decrypt'}
+            {!isDecryptable ? 'Not for you' : isLocked ? 'Locked' : 'Decrypt'}
           </Button>
+          {isOwner && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              fullWidth
+              onClick={handleBurn}
+              disabled={isBurnChronolockLoading}
+            >
+              {isBurnChronolockLoading ? 'Burning...' : 'Burn'}
+            </Button>
+          )}
         </CardActions>
       ) : (
         <Box

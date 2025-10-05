@@ -1,0 +1,11 @@
+{
+  "chronolock_canister": {
+    "ic":"l3ofy-uqaaa-aaaal-qssxa-cai"
+  },
+  "crnl_ledger_canister": {
+    "ic":"lsnoe-cyaaa-aaaal-qsswq-cai"
+  },
+  "frontend": {
+    "ic":"l4pdm-ziaaa-aaaal-qssxq-cai"
+  }
+}

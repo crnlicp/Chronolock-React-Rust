@@ -10,7 +10,7 @@ import { SendTokenModal } from './SendTokenModal';
 
 export const Header = () => {
   const crnlTokenHook = useCrnlToken();
-  const { isAuthLoading } = useAuth();
+  const { isAuthLoading, principal } = useAuth();
 
   const [showSendTokenModal, setShowSendTokenModal] = useState(false);
   const [navigation, setNavigation] = useState(false);
@@ -54,6 +54,8 @@ export const Header = () => {
       <SendTokenModal
         open={showSendTokenModal}
         onClose={handleCloseSendTokenModal}
+        crnlTokenHook={crnlTokenHook}
+        principal={principal}
       />
     </Fragment>
   );

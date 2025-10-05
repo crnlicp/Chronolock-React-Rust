@@ -10,6 +10,7 @@ import {
 } from '@dfinity/vetkeys';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useAuth } from '../../hooks/useAuth';
 
 interface IReviewAndCreate {
   name: string | undefined;
@@ -39,6 +40,7 @@ const ReviewAndCreate = ({
 }: IReviewAndCreate) => {
   const date = lockTime ? moment(lockTime * 1000) : null;
   const { balanceRaw } = useCrnlToken();
+  const { principal } = useAuth();
   const MEDIA_CHRONOLOCK_COST = 20n * 10n ** 8n;
   const {
     getVetkdPublicKey,
@@ -58,6 +60,9 @@ const ReviewAndCreate = ({
   );
 
   const handleCreate = async () => {
+    if (!name || !title || !description || !lockTime || !principal) {
+      return;
+    }
     if (cryptoKey) {
       const iv = window.crypto.getRandomValues(new Uint8Array(12));
       const secureMetaData = {
@@ -88,14 +93,18 @@ const ReviewAndCreate = ({
       );
       const unsecretMetaData: {
         title: string | undefined;
+        owner: string;
         lockTime: number | null | undefined;
+        createdAt: number | null | undefined;
         userKeys: { user: string; key: string }[];
         encryptedMetaData: string;
       } = {
         title,
+        owner: principal,
         lockTime,
         userKeys: [],
         encryptedMetaData: encryptedBase64,
+        createdAt: Date.now(),
       };
 
       const rawKey = await window.crypto.subtle.exportKey('raw', cryptoKey);

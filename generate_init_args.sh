@@ -10,12 +10,15 @@ NETWORK=""
 if [ "$1" = "--ic" ]; then
   NETWORK="ic"
   echo "🌐 Auto-detected network: IC Mainnet"
+  echo "===================================="
 elif [ "$1" = "--local" ]; then
   NETWORK="local"
   echo "🏠 Auto-detected network: Local Development"
+  echo "===================================="
 elif [ "$1" = "--network" ] && [ -n "$2" ]; then
   NETWORK="$2"
   echo "🔧 Auto-detected network: $NETWORK"
+  echo "===================================="
 else
   # No network specified, ask user interactively
   echo "🔧 Chronolock Canister Configuration"
@@ -39,32 +42,6 @@ else
   esac
 fi
 
-# Configure based on network
-if [ "$NETWORK" = "ic" ]; then
-  echo ""
-  echo "🌐 IC Mainnet Configuration"
-  echo "=========================="
-  echo "✅ Using production vetKD via management canister directly"
-  echo "📖 No separate vetKD canister required - all calls go to management canister"
-  
-  NETWORK_NAME="ic"
-  
-  # Switch to IC-specific dfx.json (clean configuration)
-  echo "🔄 Configuring dfx.json for IC mainnet..."
-  cp dfx.ic.json dfx.json
-  
-  echo "✅ Configured dfx.json for IC mainnet deployment"
-else
-  # Local development - use management canister directly
-  
-  # Switch to local dfx.json (clean configuration)
-  echo "🔄 Configuring dfx.json for local development..."
-  cp dfx.local.json dfx.json
-  
-  NETWORK_NAME="local"
-  echo "✅ Configured dfx.json for local development"
-fi
-
 echo ""
 echo "📝 Generating initialization arguments..."
 
@@ -84,7 +61,7 @@ EOF
 cat <<EOF > src/backend/chronolock_canister/chronolock_init_args.did
 (
   principal "$ADMIN_PRINCIPAL",
-  opt "$NETWORK_NAME"
+  opt "$NETWORK"
 )
 EOF
 
@@ -96,8 +73,8 @@ echo ""
 echo "🎯 Configuration Summary:"
 echo "   👤 Admin Principal: $ADMIN_PRINCIPAL"
 echo "   🔐 VetKD System:    Management canister (direct)"
-echo "   🌐 Network:         $NETWORK_NAME"
-echo "   📋 dfx.json:        Configured for $NETWORK_NAME deployment"
+echo "   🌐 Network:         $NETWORK"
+echo "   📋 dfx.json:        Configured for $NETWORK deployment"
 
 if [ "$NETWORK" = "ic" ]; then
   echo ""
