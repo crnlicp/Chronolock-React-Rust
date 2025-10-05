@@ -1,10 +1,7 @@
 import { NavLink } from 'react-router';
 import Clock from './Clock';
 
-export const About = () => {
-  const targetDate = new Date();
-  targetDate.setHours(targetDate.getHours() + 2325);
-
+export const About = ({ targetDate }: { targetDate: Date }) => {
   return (
     <section id="about">
       {/* About Shortcode */}

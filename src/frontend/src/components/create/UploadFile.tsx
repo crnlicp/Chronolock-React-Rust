@@ -277,11 +277,11 @@ export const UploadFile = ({
     try {
       setConfirmError(null);
       setError(null);
+      await performUpload();
       await deductFromBalance(
         MEDIA_CHRONOLOCK_COST,
         'Media Chronolock upload fee',
       );
-      await performUpload();
       await checkBalance();
       setIsConfirmOpen(false);
     } catch (err) {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { ChronolockCard } from '../components/collection/ChronolockCard';
 import { Chronolock, useChronolock } from '../hooks/useChronolock';
 import { Box, CircularProgress, Typography } from '@mui/material';
@@ -9,6 +9,7 @@ export const ChronolockDetail: React.FC = () => {
   const [chronolock, setChronolock] = useState<Chronolock>();
   const [error, setError] = useState<string | null>(null);
   const { getChronolock, isGetChronolockLoading } = useChronolock();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!id) return;
@@ -18,7 +19,6 @@ export const ChronolockDetail: React.FC = () => {
       .then((resp: any) => {
         const chronolockData = (resp as { Ok?: Chronolock }).Ok;
         if (chronolockData) {
-          console.log(chronolockData);
           setChronolock(chronolockData);
         } else {
           setError('Chronolock not found!');
@@ -29,6 +29,10 @@ export const ChronolockDetail: React.FC = () => {
         setError('Failed to fetch chronolock!');
       });
   }, []);
+
+  function handleNavigate(): void {
+    navigate('/');
+  }
 
   if (isGetChronolockLoading) {
     return (
@@ -66,7 +70,7 @@ export const ChronolockDetail: React.FC = () => {
   return (
     <div className="container1 page_container1">
       <Box sx={{ maxWidth: 600, margin: '0 auto' }} p={4}>
-        <ChronolockCard chronolock={chronolock} />
+        <ChronolockCard chronolock={chronolock} onDelete={handleNavigate} />
       </Box>
     </div>
   );

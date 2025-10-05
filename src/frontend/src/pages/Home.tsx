@@ -14,15 +14,18 @@ export const Home = () => {
     imgToSVG();
   }, []);
 
+  const targetDate = new Date();
+  targetDate.setHours(targetDate.getHours() + 19);
+
   return (
     <Fragment>
-      <HeroSlider />
+      <HeroSlider targetDate={targetDate} />
       <SectionsDevider />
       <FunFacts />
       <SectionsDevider />
-      <About />
+      <About targetDate={targetDate} />
       <SectionsDevider />
-      <Collection />
+      <Collection targetDate={targetDate} />
       <SectionsDevider />
       <RoadMapSlider />
       <SectionsDevider />

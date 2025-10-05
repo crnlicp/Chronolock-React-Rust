@@ -38,8 +38,6 @@ export const DecryptableChronolocks: React.FC = () => {
           itemsPerPage,
         );
         const chronolocksData = (result as { Ok?: Chronolock[] })?.Ok || [];
-
-        console.log(chronolocksData);
         setChronolocks(chronolocksData);
       } catch (error) {
         console.error('Error fetching decryptable chronolocks:', error);

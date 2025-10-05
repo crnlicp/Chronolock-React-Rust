@@ -2,9 +2,19 @@ import { useCallback } from 'react';
 import { useActor } from '../ActorContextProvider';
 import { Principal } from '@dfinity/principal';
 
+export interface UserKey {
+  user: string;
+  key: string;
+}
+
 export interface Chronolock {
   id: string;
-  metadata: string;
+  owner: { toText: () => string } | string;
+  title: string;
+  unlock_time: bigint | number;
+  created_at: bigint | number;
+  user_keys: UserKey[];
+  encrypted_metadata: string;
 }
 
 interface IUseChronolock {
