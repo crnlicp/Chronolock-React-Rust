@@ -75,7 +75,10 @@ export const useCrnlToken = (): IUseCrnlToken => {
     };
   }, [accountPrincipal]);
 
-  const accountArgs = useMemo(() => [createAccountPayload()], [createAccountPayload]);
+  const accountArgs = useMemo(
+    () => [createAccountPayload()],
+    [createAccountPayload],
+  );
 
   const referrerCode = location.search
     ? new URLSearchParams(location.search).get('referral_code')
@@ -343,7 +346,15 @@ export const useCrnlToken = (): IUseCrnlToken => {
     } else {
       lastReferralClaimKey.current = null;
     }
-  }, [principal, referrerCode, registerUser, claimReferral, createAccountPayload, getRefrrealCode, checkBalance]);
+  }, [
+    principal,
+    referrerCode,
+    registerUser,
+    claimReferral,
+    createAccountPayload,
+    getRefrrealCode,
+    checkBalance,
+  ]);
 
   return {
     isLoading,
