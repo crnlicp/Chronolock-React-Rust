@@ -153,7 +153,7 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
           )}
           {isOwner && (
             <Chip
-              label="You are the owner"
+              label="U’re owner"
               variant="outlined"
               color="primary"
               size="small"
@@ -190,11 +190,7 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
             fullWidth
             onClick={handleClickDecrypt}
           >
-            {!isDecryptable
-              ? 'Not available to you'
-              : isLocked
-              ? 'Locked'
-              : 'Decrypt'}
+            {!isDecryptable ? 'Not for you' : isLocked ? 'Locked' : 'Decrypt'}
           </Button>
           {isOwner && (
             <Button
