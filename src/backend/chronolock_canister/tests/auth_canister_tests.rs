@@ -339,6 +339,45 @@ fn test_admin_bypass() {
         "Admin should be able to enable admin bypass"
     );
 
+    // Log raw response of set_admin_bypass and debug info
+    println!("set_admin_bypass raw response: {}", hex::encode(&response));
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "debug_admin_and_bypass",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to query debug_admin_and_bypass as admin");
+    println!(
+        "debug_admin_and_bypass raw response: {}",
+        hex::encode(&response)
+    );
+    let decode_dbg: Result<(Option<Principal>, bool), _> = candid::decode_one(&response);
+    match decode_dbg {
+        Ok((admin_val, bypass_val)) => println!(
+            "debug_admin_and_bypass (admin): admin={:?}, bypass={}",
+            admin_val, bypass_val
+        ),
+        Err(e) => println!("Failed to decode debug_admin_and_bypass (admin): {:?}", e),
+    }
+
+    // Verify bypass is enabled
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "is_admin_bypass_enabled",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to query is_admin_bypass_enabled");
+
+    let bypass_state: bool = decode_one(&response).unwrap();
+    assert!(
+        bypass_state,
+        "Admin bypass should be enabled after toggling to true"
+    );
+
     // Now regular user should be able to create chronolock (admin bypass enabled)
     let response = pic
         .update_call(
@@ -373,6 +412,22 @@ fn test_admin_bypass() {
     assert!(
         result.is_ok(),
         "Admin should be able to disable admin bypass"
+    );
+
+    // Verify bypass is disabled
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "is_admin_bypass_enabled",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to query is_admin_bypass_enabled");
+
+    let bypass_state: bool = decode_one(&response).unwrap();
+    assert!(
+        !bypass_state,
+        "Admin bypass should be disabled after toggling to false"
     );
 
     // Now regular user should be rejected again
