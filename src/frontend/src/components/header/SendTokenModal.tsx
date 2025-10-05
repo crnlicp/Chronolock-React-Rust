@@ -6,24 +6,26 @@ import {
   Typography,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { useCrnlToken } from '../../hooks/useCrnlToken';
+import type { IUseCrnlToken } from '../../hooks/useCrnlToken';
 import { Principal } from '@dfinity/principal';
-import { useAuth } from '../../hooks/useAuth';
 import SyncIcon from '@mui/icons-material/Sync';
 
 interface ISendTokenModalProps {
   open: boolean;
   onClose: () => void;
+  crnlTokenHook: IUseCrnlToken;
+  principal: string | null;
 }
 
 export const SendTokenModal = ({
   open,
   onClose,
+  crnlTokenHook,
+  principal,
 }: ISendTokenModalProps): JSX.Element => {
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('');
 
-  const { principal } = useAuth();
   const {
     transfer,
     isLoading,
@@ -31,7 +33,7 @@ export const SendTokenModal = ({
     isTransferLoading,
     balanceData,
     checkBalance,
-  } = useCrnlToken();
+  } = crnlTokenHook;
 
   const readableFeeData = feeData
     ? (Number(feeData) / 1e8).toLocaleString(undefined, {

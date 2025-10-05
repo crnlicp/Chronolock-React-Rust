@@ -1,7 +1,7 @@
 import { Principal } from '@dfinity/principal';
 import { useActor } from '../ActorContextProvider';
 import { useAuth } from './useAuth';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router';
 
 export interface IUseCrnlToken {
@@ -63,6 +63,20 @@ export const useCrnlToken = (): IUseCrnlToken => {
   const location = useLocation();
   const { principal } = useAuth();
 
+  const accountPrincipal = useMemo(
+    () => Principal.fromText(principal ?? 'aaaaa-aa'),
+    [principal],
+  );
+
+  const createAccountPayload = useCallback(() => {
+    return {
+      owner: accountPrincipal,
+      subaccount: [] as [],
+    };
+  }, [accountPrincipal]);
+
+  const accountArgs = useMemo(() => [createAccountPayload()], [createAccountPayload]);
+
   const referrerCode = location.search
     ? new URLSearchParams(location.search).get('referral_code')
     : '';
@@ -99,14 +113,9 @@ export const useCrnlToken = (): IUseCrnlToken => {
     data: balance,
     error: balanceError,
   } = crnlQueryCall({
-    refetchOnMount: true,
+    refetchOnMount: false,
     functionName: 'icrc1_balance_of' as any,
-    args: [
-      {
-        owner: Principal.fromText(principal ?? 'aaaaa-aa'),
-        subaccount: [],
-      },
-    ],
+    args: accountArgs,
   });
 
   const balanceRaw = (() => {
@@ -139,14 +148,9 @@ export const useCrnlToken = (): IUseCrnlToken => {
     data: referralCode,
     error: referralError,
   } = crnlQueryCall({
-    refetchOnMount: true,
+    refetchOnMount: false,
     functionName: 'get_referral_code' as any,
-    args: [
-      {
-        owner: Principal.fromText(principal ?? 'aaaaa-aa'),
-        subaccount: [],
-      },
-    ],
+    args: accountArgs,
   });
 
   const {
@@ -155,7 +159,7 @@ export const useCrnlToken = (): IUseCrnlToken => {
     data: feeData,
     error: feeError,
   } = crnlQueryCall({
-    refetchOnMount: true,
+    refetchOnMount: false,
     functionName: 'icrc1_fee' as any,
   });
 
@@ -165,7 +169,7 @@ export const useCrnlToken = (): IUseCrnlToken => {
     data: totalSupplyData,
     error: totalSupplyError,
   } = crnlQueryCall({
-    refetchOnMount: true,
+    refetchOnMount: false,
     functionName: 'icrc1_total_supply' as any,
   });
 
@@ -175,7 +179,7 @@ export const useCrnlToken = (): IUseCrnlToken => {
     data: totalBurnedData,
     error: totalBurnedError,
   } = crnlQueryCall({
-    refetchOnMount: true,
+    refetchOnMount: false,
     functionName: 'get_total_burned' as any,
   });
 
@@ -190,11 +194,7 @@ export const useCrnlToken = (): IUseCrnlToken => {
 
   const deductFromBalance = useCallback(
     async (amount: bigint, description: string) => {
-      const callerAccount = {
-        owner: Principal.fromText(principal ?? 'aaaaa-aa'),
-        subaccount: [],
-      };
-
+      const callerAccount = createAccountPayload();
       return deductFromBalanceCall([
         {
           caller: callerAccount,
@@ -215,7 +215,7 @@ export const useCrnlToken = (): IUseCrnlToken => {
         return res;
       });
     },
-    [deductFromBalanceCall, principal, checkBalance],
+    [deductFromBalanceCall, createAccountPayload, checkBalance],
   );
 
   const {
@@ -276,15 +276,43 @@ export const useCrnlToken = (): IUseCrnlToken => {
     isTotalBurnedLoading ||
     isDeductFromBalanceLoading;
 
+  const initialTokenStatsFetched = useRef(false);
+  const lastPrincipalFetched = useRef<string | null>(null);
+  const lastRegisteredPrincipal = useRef<string | null>(null);
+  const lastReferralClaimKey = useRef<string | null>(null);
+
   useEffect(() => {
-    if (principal) {
-      registerUser([
-        {
-          owner: Principal.fromText(principal ?? 'aaaaa-aa'),
-          subaccount: [],
-        },
-        [],
-      ])
+    if (initialTokenStatsFetched.current) {
+      return;
+    }
+    initialTokenStatsFetched.current = true;
+    getFee();
+    getTotalSupply();
+    getTotalBurned();
+  }, [getFee, getTotalSupply, getTotalBurned]);
+
+  useEffect(() => {
+    const currentPrincipal = principal ?? 'anonymous';
+    if (lastPrincipalFetched.current === currentPrincipal) {
+      return;
+    }
+    lastPrincipalFetched.current = currentPrincipal;
+    checkBalance();
+    getRefrrealCode();
+  }, [principal, checkBalance, getRefrrealCode]);
+
+  useEffect(() => {
+    if (!principal) {
+      lastRegisteredPrincipal.current = null;
+      if (!referrerCode) {
+        lastReferralClaimKey.current = null;
+      }
+      return;
+    }
+
+    if (lastRegisteredPrincipal.current !== principal) {
+      lastRegisteredPrincipal.current = principal;
+      registerUser([createAccountPayload(), []])
         .then((res) => {
           getRefrrealCode();
           checkBalance();
@@ -294,7 +322,13 @@ export const useCrnlToken = (): IUseCrnlToken => {
           console.error('Error registering user:', err);
         });
     }
-    if (principal && referrerCode) {
+
+    if (referrerCode) {
+      const claimKey = `${principal}::${referrerCode}`;
+      if (lastReferralClaimKey.current === claimKey) {
+        return;
+      }
+      lastReferralClaimKey.current = claimKey;
       claimReferral([
         {
           referral_code: referrerCode,
@@ -306,8 +340,10 @@ export const useCrnlToken = (): IUseCrnlToken => {
         .catch((err) => {
           console.error('Error claiming referral:', err);
         });
+    } else {
+      lastReferralClaimKey.current = null;
     }
-  }, [principal]);
+  }, [principal, referrerCode, registerUser, claimReferral, createAccountPayload, getRefrrealCode, checkBalance]);
 
   return {
     isLoading,

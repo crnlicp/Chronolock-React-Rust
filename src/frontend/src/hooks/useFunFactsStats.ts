@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useChronolock } from './useChronolock';
 import { useCrnlToken } from './useCrnlToken';
 
@@ -60,17 +60,14 @@ export const useFunFactsStats = (): UseFunFactsStatsReturn => {
     return 0;
   };
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setError(null);
 
-      // Fetch chronolock statistics
       const [chronolocksCount, creatorsCount] = await Promise.all([
         getAllChronolocksCount(),
         getUniqueCreatorsCount(),
       ]);
-
-      // Token statistics are already being fetched automatically by the hooks
 
       setStats((prevStats) => ({
         ...prevStats,
@@ -87,7 +84,7 @@ export const useFunFactsStats = (): UseFunFactsStatsReturn => {
       setError(err as Error);
       console.error('Error fetching fun facts stats:', err);
     }
-  };
+  }, [getAllChronolocksCount, getUniqueCreatorsCount]);
 
   // Update token stats when data changes
   useEffect(() => {
@@ -101,9 +98,15 @@ export const useFunFactsStats = (): UseFunFactsStatsReturn => {
   }, [totalSupplyData, totalBurnedData]);
 
   // Initial fetch
+  const hasFetchedOnce = useRef(false);
+
   useEffect(() => {
+    if (hasFetchedOnce.current) {
+      return;
+    }
+    hasFetchedOnce.current = true;
     fetchStats();
-  }, []); // Only run once on mount
+  }, [fetchStats]);
 
   const refetch = () => {
     fetchStats();
