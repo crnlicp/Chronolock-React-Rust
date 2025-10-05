@@ -61,6 +61,115 @@ The platform solves the problem of creating truly immutable time-locked content 
 - Pagination support for large datasets
 - Real-time statistics and monitoring
 
+## 🔐 Multi-Layer Encryption Architecture
+
+Chronolock implements a sophisticated three-layer encryption system that ensures content security and time-locked access control:
+
+### Layer 1: AES-GCM Symmetric Encryption
+
+- **Purpose**: Encrypt the actual content (metadata and media files)
+- **Algorithm**: AES-256-GCM (Advanced Encryption Standard with Galois/Counter Mode)
+- **Key Generation**: Unique 256-bit key generated for each Chronolock
+- **Security Features**:
+  - Authenticated encryption (confidentiality + integrity)
+  - Random 12-byte IV (Initialization Vector) for each encryption
+  - Built-in tamper detection via authentication tag
+
+### Layer 2: IBE (Identity-Based Encryption)
+
+- **Purpose**: Encrypt the AES key using recipient identities
+- **Algorithm**: BLS12-381 elliptic curve pairing-based encryption
+- **Identity Format**:
+  - Public Chronolocks: `"unlock_time"` (e.g., `"1734567890"`)
+  - Private Chronolocks: `"user_principal:unlock_time"` (e.g., `"aaaaa-aa:1734567890"`)
+- **Benefits**:
+  - No traditional PKI needed
+  - Direct encryption to identity strings
+  - Supports multiple recipients with individual encrypted keys
+
+### Layer 3: VetKD Time-Lock System
+
+- **Purpose**: Enforce time-based access control cryptographically
+- **Technology**: Internet Computer's Verifiable Encrypted Threshold Key Derivation
+- **How It Works**:
+  1. Decryption keys are derived by IC subnet nodes using threshold cryptography
+  2. Keys can only be derived after the specified unlock time
+  3. No single node can derive the key alone (threshold security)
+  4. Transport encryption ensures secure key delivery to clients
+- **Security Properties**:
+  - Mathematically impossible to decrypt before unlock time
+  - Decentralized across IC subnet (no single point of failure)
+  - Verifiable key authenticity
+
+### Encryption Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User Content (metadata + media files)                       │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 1: AES-256-GCM Encryption                             │
+│  → Random AES key + IV → Encrypted content                   │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 2: IBE Encryption                                     │
+│  → Encrypt AES key with recipient identity                   │
+│  → One encrypted key per recipient                           │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 3: VetKD Time-Lock                                    │
+│  → Store on IC with time-lock enforcement                    │
+│  → Decryption only possible after unlock_time                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Decryption Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User requests decryption after unlock_time                  │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 3: VetKD Key Derivation                               │
+│  → Verify time has passed                                    │
+│  → Verify user identity (for private chronolocks)            │
+│  → Derive and return encrypted VetKey                        │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 2: IBE Decryption                                     │
+│  → Use VetKey to decrypt IBE ciphertext                      │
+│  → Recover original AES key                                  │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 1: AES-GCM Decryption                                 │
+│  → Use recovered AES key to decrypt content                  │
+│  → Verify integrity via authentication tag                   │
+│  → Display decrypted metadata and media                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Security Guarantees
+
+✅ **Time-Lock Security**: Content is cryptographically inaccessible before unlock time  
+✅ **Tamper Detection**: AES-GCM authentication detects any modifications  
+✅ **No Trusted Third Party**: Decentralized across IC subnet nodes  
+✅ **Identity Verification**: Only authorized users can access private chronolocks  
+✅ **Forward Security**: Unique keys per chronolock prevent cross-contamination
+
+📚 **For detailed technical documentation**, including code examples, security analysis, and implementation details, see [docs/ENCRYPTION_AND_DECRYPTION.md](docs/ENCRYPTION_AND_DECRYPTION.md)
+
 ## 🛠️ Tech Stack and Architecture
 
 ### Frontend
@@ -330,12 +439,24 @@ if ('Ok' in keyResult) {
 
 ## 📚 Documentation
 
+### Technical Documentation
+
+- **[Encryption and Decryption Architecture](docs/ENCRYPTION_AND_DECRYPTION.md)** - Comprehensive guide covering:
+  - Multi-layer encryption system (AES-GCM, IBE, VetKD)
+  - Detailed encryption and decryption flows
+  - Security model and threat analysis
+  - Key management lifecycle
+  - Code examples and best practices
+  - Implementation details for both frontend and backend
+
 ### API Reference
 
 #### Chronolock Canister
 
 - **`create_chronolock(metadata: text)`**: Create a new time-locked NFT
 - **`get_time_decryption_key(token_id: text, context: blob)`**: Retrieve decryption key after unlock time
+- **`get_user_time_decryption_key(unlock_time_hex: text, user_id: text, transport_public_key: blob)`**: Get user-specific decryption key
+- **`ibe_encryption_key()`**: Get VetKD public key for IBE encryption
 - **`icrc7_transfer(token_id: text, to: principal)`**: Transfer NFT ownership
 - **`get_owner_chronolocks_paginated(owner: principal, offset: nat64, limit: nat64)`**: Get user's Chronolocks
 
@@ -535,7 +656,7 @@ We welcome contributions from the community! Please see [CONTRIBUTE.md](CONTRIBU
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## � Acknowledgements
+## 👍 Acknowledgements
 
 - **DFINITY Foundation** - For the Internet Computer platform and VetKD technology
 - **Internet Identity** - For providing secure, privacy-preserving authentication

@@ -443,8 +443,13 @@ fn is_valid_internet_identity_principal(principal: Principal) -> bool {
 fn validate_caller_authentication() -> Result<Principal, ChronoError> {
     let caller = caller();
 
-    // Allow admin to bypass authentication if enabled
-    if ADMIN_BYPASS_ENABLED.with(|ab| ab.borrow().get().clone()) {
+    // Allow admin to bypass authentication if enabled (only if the caller is admin)
+    // NOTE: previous logic allowed ANY caller to be treated as authenticated when
+    // ADMIN_BYPASS_ENABLED was true. That effectively disabled authentication for
+    // all callers and is a critical security bug. Require the caller to be an admin
+    // when bypass is enabled, matching the intended behavior used in the ledger
+    // canister.
+    if ADMIN_BYPASS_ENABLED.with(|ab| ab.borrow().get().clone()) && is_admin(caller) {
         return Ok(caller);
     }
 

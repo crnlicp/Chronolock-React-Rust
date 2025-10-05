@@ -8,7 +8,6 @@
     "setup:backend": "./setup-backend.sh",
     "start": "run-p frontend backend",
     "frontend": "vite --config \"src/frontend/vite.config.ts\" --port 3000",
-    "backend": "./watch-and-deploy-all.sh",
     "build": "tsc -p \"src/frontend/tsconfig.json\"  && vite build --config \"src/frontend/vite.config.ts\"",
     "test": "run-s test:backend test:frontend",
     "test:frontend": "vitest run --config \"src/frontend/vite.config.ts\"",
