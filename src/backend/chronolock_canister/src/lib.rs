@@ -1240,4 +1240,95 @@ fn get_caller_principal_info() -> (Principal, bool, bool) {
     (caller, is_authenticated, is_admin_user)
 }
 
+// -------------------------
+// Admin: Reset stable storage to initial state
+// -------------------------
+
+#[update]
+fn admin_reset_stable_storage() -> Result<(), ChronoError> {
+    // Validate admin authentication
+    let admin = validate_admin_authentication()?;
+    let res = reset_stable_storage_internal(admin);
+    if res.is_ok() {
+        log_activity("Admin reset stable storage to initial state".to_string());
+    }
+    res
+}
+
+// Internal helper that performs the reset given an admin principal.
+fn reset_stable_storage_internal(admin: Principal) -> Result<(), ChronoError> {
+    // Clear all stable maps by collecting keys then removing them.
+    LOGS.with(|logs| {
+        let keys: Vec<String> = logs.borrow().keys().map(|k| k.clone()).collect();
+        for k in keys {
+            logs.borrow_mut().remove(&k);
+        }
+    });
+
+    CHRONOLOCKS.with(|locks| {
+        let keys: Vec<String> = locks.borrow().keys().map(|k| k.clone()).collect();
+        for k in keys {
+            locks.borrow_mut().remove(&k);
+        }
+    });
+
+    OWNER_TO_TOKENS.with(|m| {
+        let keys: Vec<Principal> = m.borrow().keys().map(|k| k.clone()).collect();
+        for k in keys {
+            m.borrow_mut().remove(&k);
+        }
+    });
+
+    MEDIA_FILES.with(|m| {
+        let keys: Vec<String> = m.borrow().keys().map(|k| k.clone()).collect();
+        for k in keys {
+            m.borrow_mut().remove(&k);
+        }
+    });
+
+    MEDIA_UPLOADS.with(|m| {
+        let keys: Vec<String> = m.borrow().keys().map(|k| k.clone()).collect();
+        for k in keys {
+            m.borrow_mut().remove(&k);
+        }
+    });
+
+    TRUSTED_PRINCIPALS.with(|tp| {
+        let keys: Vec<Principal> = tp.borrow().keys().map(|k| k.clone()).collect();
+        for k in keys {
+            tp.borrow_mut().remove(&k);
+        }
+    });
+
+    // Reset stable cells to their initial defaults
+    MAX_METADATA_SIZE.with(|s| {
+        s.borrow_mut()
+            .set(51200)
+            .expect("Failed to reset MAX_METADATA_SIZE")
+    });
+    LAST_TIMESTAMP.with(|s| {
+        s.borrow_mut()
+            .set(0)
+            .expect("Failed to reset LAST_TIMESTAMP")
+    });
+    COUNTER.with(|s| s.borrow_mut().set(0).expect("Failed to reset COUNTER"));
+    NETWORK.with(|n| n.borrow_mut().set(None).expect("Failed to reset NETWORK"));
+    ADMIN_BYPASS_ENABLED.with(|ab| {
+        ab.borrow_mut()
+            .set(false)
+            .expect("Failed to reset ADMIN_BYPASS_ENABLED")
+    });
+
+    // Reset admins to only the provided principal
+    ADMINS.with(|admins| {
+        let keys: Vec<u8> = admins.borrow().keys().collect();
+        for k in keys {
+            admins.borrow_mut().remove(&k);
+        }
+        admins.borrow_mut().insert(0, admin);
+    });
+
+    Ok(())
+}
+
 ic_cdk::export_candid!();

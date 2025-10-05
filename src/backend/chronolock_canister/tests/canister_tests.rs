@@ -389,6 +389,59 @@ fn test_icrc7_owner_of_and_metadata() {
     assert_eq!(chronolock.unlock_time, unlock_time);
 }
 
+// Admin reset integration test
+#[test]
+fn test_admin_reset_via_canister() {
+    let (pic, backend_canister, admin) = setup();
+
+    // Create a token so there is something to clear
+    let unlock_time = (pic.get_time().as_nanos_since_unix_epoch() / 1_000_000_000) + 3600;
+    let user_keys = vec![UserKey {
+        user: "public".to_string(),
+        key: "test_key".to_string(),
+    }];
+
+    let token_id_result = create_test_chronolock(
+        &pic,
+        backend_canister,
+        admin,
+        unlock_time,
+        "Reset NFT".to_string(),
+        user_keys,
+    );
+
+    assert!(token_id_result.is_ok());
+
+    // Call admin reset via canister
+    let resp = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "admin_reset_stable_storage",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to call admin_reset_stable_storage");
+
+    let result: Result<(), ChronoError> = decode_with_fallback(&resp, "admin_reset_stable_storage")
+        .unwrap_or_else(|e| {
+            println!("Decoding error: {}", e);
+            Err(ChronoError::InternalError(e))
+        });
+    assert!(result.is_ok());
+
+    // After reset, total supply (number of chronolocks) should be 0
+    let response = pic
+        .query_call(
+            backend_canister,
+            Principal::anonymous(),
+            "icrc7_total_supply",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to query icrc7_total_supply");
+    let total: u64 = decode_one(&response).unwrap();
+    assert_eq!(total, 0);
+}
+
 #[test]
 fn test_icrc7_transfer() {
     let (pic, backend_canister, admin) = setup();

@@ -204,6 +204,42 @@ fn test_icrc1_total_supply() {
     assert_eq!(result, Nat::from(100_000_000_000_000_000_000_u128));
 }
 
+// Admin reset integration test
+#[test]
+fn test_admin_reset_ledger_via_canister() {
+    let (pic, backend_canister, admin) = setup();
+
+    // Ensure some balance exists (setup seeds pools)
+    // Call admin reset via canister
+    let resp = pic
+        .update_call(
+            backend_canister,
+            admin,
+            "admin_reset_stable_storage",
+            encode_args(()).unwrap(),
+        )
+        .expect("Failed to call admin_reset_stable_storage");
+
+    // Decode response (should be Ok(()))
+    let result: Result<(), LedgerError> = decode_one(&resp).unwrap();
+    assert!(result.is_ok());
+
+    // Check logs - should have at most a small number (reset log may be present)
+    let response = pic
+        .query_call(
+            backend_canister,
+            admin,
+            "get_logs_paginated",
+            encode_args((0u64, 10u64)).unwrap(),
+        )
+        .expect("Failed to query get_logs_paginated");
+
+    let logs_result: Result<Vec<LogEntry>, LedgerError> = decode_one(&response).unwrap();
+    let logs = logs_result.expect("Failed to get logs");
+    // After reset, we expect logs cleared then reset log inserted => length <= 1
+    assert!(logs.len() <= 1);
+}
+
 #[test]
 fn test_icrc1_fee() {
     let (pic, backend_canister, _) = setup();
