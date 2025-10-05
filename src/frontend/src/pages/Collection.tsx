@@ -56,7 +56,7 @@ export const Collection = () => {
           >
             <Tab label="Chronolocks" {...a11yProps(0)} />
             <Tab label="My Chronolocks" {...a11yProps(1)} />
-            <Tab label="Encrypted for you" {...a11yProps(2)} />
+            <Tab label="Decryptable Now" {...a11yProps(2)} />
           </Tabs>
         </Box>
 

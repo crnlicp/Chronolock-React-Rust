@@ -95,8 +95,10 @@ struct Chronolock {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MetaData {
-    pub unlock_time: u64,                     // Unix timestamp in seconds
     pub title: Option<String>,                // Optional title for the NFT
+    pub owner: String,                        // Principal ID of the owner
+    pub unlock_time: u64,                     // Unix timestamp in seconds
+    pub created_at: Option<u64>, // Unix timestamp in seconds when chronolock was created
     pub user_keys: Option<serde_json::Value>, // Map of user principal to their encrypted keys
     pub encrypted_metadata: String, // hex encoded encrypted metadata as EncryptedMetadataPayload
 }
@@ -108,7 +110,7 @@ pub struct EncryptedMetadataPayload {
     pub description: Option<String>,           // Optional description
     pub file_type: Option<String>,             // MIME type, optional
     pub media_id: Option<String>,              // ID of the media file, if any
-    pub media_url: Option<String>,             // URL to encrypted media
+    pub media_size: Option<u64>,               // Size of the media file
     pub attributes: Option<serde_json::Value>, // Arbitrary user key-values
 }
 
@@ -335,6 +337,29 @@ fn get_network() -> Option<String> {
     NETWORK.with(|n| n.borrow().get().clone())
 }
 
+// Decode metadata which may be hex-encoded or base64-encoded into JSON Value
+fn decode_metadata_value(metadata_encoded: &str) -> Option<serde_json::Value> {
+    // Try hex decode first
+    if let Ok(bytes) = hex::decode(metadata_encoded) {
+        if let Ok(s) = String::from_utf8(bytes) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) {
+                return Some(v);
+            }
+        }
+    }
+
+    // Fallback to base64
+    if let Ok(bytes) = general_purpose::STANDARD.decode(metadata_encoded) {
+        if let Ok(s) = String::from_utf8(bytes) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) {
+                return Some(v);
+            }
+        }
+    }
+
+    None
+}
+
 // -------------------------
 // Authentication Helper Functions
 // -------------------------
@@ -368,7 +393,7 @@ fn is_valid_internet_identity_principal(principal: Principal) -> bool {
 
     // Enforce textual structure to match proper II principals
     let text = principal.to_text();
-    
+
     // Principal text must have proper length and contain hyphens
     if text.len() < 10 || text.len() > 63 || !text.contains('-') {
         return false;
@@ -388,16 +413,21 @@ fn is_valid_internet_identity_principal(principal: Principal) -> bool {
     // Reject if they look like simple test/mock principals
     if principal_bytes.len() == 29 && principal_bytes.last() == Some(&0x02) {
         let segments: Vec<&str> = text.split('-').collect();
-        
+
         // Count segments that are just "aaaaa" or similar repeated patterns
-        let repeated_count = segments.iter().filter(|s| {
-            if s.len() < 3 {
-                return false;
-            }
-            let chars: Vec<char> = s.chars().collect();
-            chars.windows(3).all(|w| w[0] == 'a' && w[1] == 'a' && w[2] == 'a')
-        }).count();
-        
+        let repeated_count = segments
+            .iter()
+            .filter(|s| {
+                if s.len() < 3 {
+                    return false;
+                }
+                let chars: Vec<char> = s.chars().collect();
+                chars
+                    .windows(3)
+                    .all(|w| w[0] == 'a' && w[1] == 'a' && w[2] == 'a')
+            })
+            .count();
+
         // Reject if more than half the segments look like test data
         if repeated_count > segments.len() / 2 {
             return false;
@@ -728,17 +758,23 @@ fn burn_chronolock(token_id: String) -> Result<(), ChronoError> {
             let mut locks = locks.borrow_mut();
             let mut owner_to_tokens = owner_to_tokens.borrow_mut();
             let lock = locks.get(&token_id).ok_or(ChronoError::TokenNotFound)?;
-            if lock.owner != authenticated_caller {
+
+            // Allow owner or admin to burn
+            let is_owner = lock.owner == authenticated_caller;
+            let caller_is_admin = is_admin(authenticated_caller);
+
+            if !is_owner && !caller_is_admin {
                 return Err(ChronoError::Unauthorized);
             }
+
+            let owner = lock.owner;
             locks.remove(&token_id);
-            if let Some(caller_tokens) = owner_to_tokens
-                .get(&authenticated_caller)
-                .map(|t| t.clone())
-            {
-                let mut caller_tokens = caller_tokens;
-                caller_tokens.tokens.retain(|id| id != &token_id);
-                owner_to_tokens.insert(authenticated_caller, caller_tokens);
+
+            // Remove from owner's token list
+            if let Some(owner_tokens) = owner_to_tokens.get(&owner).map(|t| t.clone()) {
+                let mut owner_tokens = owner_tokens;
+                owner_tokens.tokens.retain(|id| id != &token_id);
+                owner_to_tokens.insert(owner, owner_tokens);
             }
             log_activity(format!("Burned chronolock {}", token_id));
             Ok(())
@@ -965,43 +1001,35 @@ fn get_user_accessible_chronolocks_count(user: Principal) -> u64 {
             .borrow()
             .iter()
             .filter(|(_, chronolock)| {
-                // Parse the base64-encoded metadata
-                if let Ok(metadata_bytes) = general_purpose::STANDARD.decode(&chronolock.metadata) {
-                    if let Ok(metadata_str) = String::from_utf8(metadata_bytes) {
-                        if let Ok(metadata_value) =
-                            serde_json::from_str::<serde_json::Value>(&metadata_str)
-                        {
-                            // Extract lockTime and userKeys from the parsed JSON
-                            if let (Some(lock_time), Some(user_keys_array)) = (
-                                metadata_value.get("lockTime").and_then(|v| v.as_u64()),
-                                metadata_value.get("userKeys").and_then(|v| v.as_array()),
-                            ) {
-                                let unlock_time_ns = lock_time * 1_000_000_000;
+                if let Some(metadata_value) = decode_metadata_value(&chronolock.metadata) {
+                    // Extract lockTime and userKeys from the parsed JSON
+                    if let (Some(lock_time), Some(user_keys_array)) = (
+                        metadata_value.get("lockTime").and_then(|v| v.as_u64()),
+                        metadata_value.get("userKeys").and_then(|v| v.as_array()),
+                    ) {
+                        let unlock_time_ns = lock_time * 1_000_000_000;
 
-                                // Check if the unlock time has passed
-                                if current_time >= unlock_time_ns {
-                                    // Check if user has access
-                                    for user_key_obj in user_keys_array {
-                                        if let Some(user_key_user) =
-                                            user_key_obj.get("user").and_then(|v| v.as_str())
-                                        {
-                                            // Check if it's a public chronolock
-                                            if user_key_user == "public" {
-                                                return true;
-                                            }
+                        // Check if the unlock time has passed
+                        if current_time >= unlock_time_ns {
+                            // Check if user has access
+                            for user_key_obj in user_keys_array {
+                                if let Some(user_key_user) =
+                                    user_key_obj.get("user").and_then(|v| v.as_str())
+                                {
+                                    // Check if it's a public chronolock
+                                    if user_key_user == "public" {
+                                        return true;
+                                    }
 
-                                            // Check if user matches directly
-                                            if user_key_user == user_text {
-                                                return true;
-                                            }
+                                    // Check if user matches directly
+                                    if user_key_user == user_text {
+                                        return true;
+                                    }
 
-                                            // Check for user:unlock_time format (which is used by the frontend)
-                                            let user_time_key =
-                                                format!("{}:{}", user_text, lock_time);
-                                            if user_key_user == user_time_key {
-                                                return true;
-                                            }
-                                        }
+                                    // Check for user:unlock_time format (which is used by the frontend)
+                                    let user_time_key = format!("{}:{}", user_text, lock_time);
+                                    if user_key_user == user_time_key {
+                                        return true;
                                     }
                                 }
                             }
@@ -1073,49 +1101,40 @@ fn get_user_accessible_chronolocks_paginated(
     let actual_limit = std::cmp::min(limit, max_limit);
     let current_time = time();
     let user_text = user.to_text();
-
     let accessible_chronolocks: Vec<Chronolock> = CHRONOLOCKS.with(|locks| {
         locks
             .borrow()
             .iter()
             .filter_map(|(_, chronolock)| {
-                // Parse the base64-encoded metadata
-                if let Ok(metadata_bytes) = general_purpose::STANDARD.decode(&chronolock.metadata) {
-                    if let Ok(metadata_str) = String::from_utf8(metadata_bytes) {
-                        if let Ok(metadata_value) =
-                            serde_json::from_str::<serde_json::Value>(&metadata_str)
-                        {
-                            // Extract lockTime and userKeys from the parsed JSON
-                            if let (Some(lock_time), Some(user_keys_array)) = (
-                                metadata_value.get("lockTime").and_then(|v| v.as_u64()),
-                                metadata_value.get("userKeys").and_then(|v| v.as_array()),
-                            ) {
-                                let unlock_time_ns = lock_time * 1_000_000_000;
+                if let Some(metadata_value) = decode_metadata_value(&chronolock.metadata) {
+                    // Extract lockTime and userKeys from the parsed JSON
+                    if let (Some(lock_time), Some(user_keys_array)) = (
+                        metadata_value.get("lockTime").and_then(|v| v.as_u64()),
+                        metadata_value.get("userKeys").and_then(|v| v.as_array()),
+                    ) {
+                        let unlock_time_ns = lock_time * 1_000_000_000;
 
-                                // Check if the unlock time has passed
-                                if current_time >= unlock_time_ns {
-                                    // Check if user has access
-                                    for user_key_obj in user_keys_array {
-                                        if let Some(user_key_user) =
-                                            user_key_obj.get("user").and_then(|v| v.as_str())
-                                        {
-                                            // Check if it's a public chronolock
-                                            if user_key_user == "public" {
-                                                return Some(chronolock.clone());
-                                            }
+                        // Check if the unlock time has passed
+                        if current_time >= unlock_time_ns {
+                            // Check if user has access
+                            for user_key_obj in user_keys_array {
+                                if let Some(user_key_user) =
+                                    user_key_obj.get("user").and_then(|v| v.as_str())
+                                {
+                                    // Check if it's a public chronolock
+                                    if user_key_user == "public" {
+                                        return Some(chronolock.clone());
+                                    }
 
-                                            // Check if user matches directly
-                                            if user_key_user == user_text {
-                                                return Some(chronolock.clone());
-                                            }
+                                    // Check if user matches directly
+                                    if user_key_user == user_text {
+                                        return Some(chronolock.clone());
+                                    }
 
-                                            // Check for user:unlock_time format (which is used by the frontend)
-                                            let user_time_key =
-                                                format!("{}:{}", user_text, lock_time);
-                                            if user_key_user == user_time_key {
-                                                return Some(chronolock.clone());
-                                            }
-                                        }
+                                    // Check for user:unlock_time format (which is used by the frontend)
+                                    let user_time_key = format!("{}:{}", user_text, lock_time);
+                                    if user_key_user == user_time_key {
+                                        return Some(chronolock.clone());
                                     }
                                 }
                             }

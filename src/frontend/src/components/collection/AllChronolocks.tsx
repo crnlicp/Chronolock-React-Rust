@@ -19,6 +19,7 @@ export const AllChronolocks: React.FC = () => {
   const [chronolocks, setChronolocks] = useState<Chronolock[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const itemsPerPage = 12;
 
   // Fetch chronolocks when page changes
@@ -37,7 +38,7 @@ export const AllChronolocks: React.FC = () => {
     };
 
     fetchChronolocks();
-  }, [page]); // Only depend on page
+  }, [page, refreshKey]);
 
   // Fetch count only once on mount
   useEffect(() => {
@@ -54,6 +55,10 @@ export const AllChronolocks: React.FC = () => {
 
     fetchCount();
   }, []); // Empty dependency array for mount only
+
+  const handleDelete = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
 
   const totalPages = Math.ceil(Number(totalCount) / itemsPerPage);
 
@@ -87,7 +92,10 @@ export const AllChronolocks: React.FC = () => {
           <Grid container spacing={3}>
             {chronolocks.map((chronolock) => (
               <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={chronolock.id}>
-                <ChronolockCard chronolock={chronolock} />
+                <ChronolockCard
+                  chronolock={chronolock}
+                  onDelete={handleDelete}
+                />
               </Grid>
             ))}
           </Grid>

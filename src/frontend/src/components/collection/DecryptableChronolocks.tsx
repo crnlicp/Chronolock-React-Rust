@@ -22,6 +22,7 @@ export const DecryptableChronolocks: React.FC = () => {
   const [chronolocks, setChronolocks] = useState<Chronolock[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const itemsPerPage = 12;
 
   // Fetch chronolocks when page or principal changes
@@ -38,6 +39,7 @@ export const DecryptableChronolocks: React.FC = () => {
         );
         const chronolocksData = (result as { Ok?: Chronolock[] })?.Ok || [];
 
+        console.log(chronolocksData);
         setChronolocks(chronolocksData);
       } catch (error) {
         console.error('Error fetching decryptable chronolocks:', error);
@@ -45,7 +47,7 @@ export const DecryptableChronolocks: React.FC = () => {
     };
 
     fetchChronolocks();
-  }, [page, principal]); // Only depend on page and principal
+  }, [page, principal, refreshKey]); // Only depend on page and principal
 
   // Fetch count when principal changes
   useEffect(() => {
@@ -63,6 +65,10 @@ export const DecryptableChronolocks: React.FC = () => {
 
     fetchCount();
   }, [principal]); // Only depend on principal
+
+  const handleDelete = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
 
   const totalPages = Math.ceil(Number(totalCount) / itemsPerPage);
 
@@ -120,7 +126,10 @@ export const DecryptableChronolocks: React.FC = () => {
           <Grid container spacing={3}>
             {chronolocks.map((chronolock) => (
               <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={chronolock.id}>
-                <ChronolockCard chronolock={chronolock} />
+                <ChronolockCard
+                  chronolock={chronolock}
+                  onDelete={handleDelete}
+                />
               </Grid>
             ))}
           </Grid>

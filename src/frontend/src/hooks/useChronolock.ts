@@ -4,7 +4,6 @@ import { Principal } from '@dfinity/principal';
 
 export interface Chronolock {
   id: string;
-  owner: string;
   metadata: string;
 }
 
@@ -30,6 +29,9 @@ interface IUseChronolock {
   getChronolock: (id: string) => Promise<unknown>;
   getVetkdPublicKey: () => Promise<unknown>;
   generateKey: () => Promise<CryptoKey>;
+  burnChronolock: (id: string) => Promise<unknown>;
+  isBurnChronolockLoading: boolean;
+  burnChronolockError?: Error;
   // Decryption functions
   getTimeDecryptionKey: (
     unlockTimeHex: string,
@@ -143,6 +145,14 @@ export const useChronolock = (): IUseChronolock => {
   });
 
   const {
+    call: burnChronolockCall,
+    loading: isBurnChronolockLoading,
+    error: burnChronolockError,
+  } = chronolockUpdateCall({
+    functionName: 'burn_chronolock' as any,
+  });
+
+  const {
     call: getAllChronolocksCount,
     loading: isGetAllChronolocksCountLoading,
   } = chronolockQueryCall({
@@ -249,6 +259,11 @@ export const useChronolock = (): IUseChronolock => {
   const getChronolock = useCallback(
     (id: string) => getChronolockCall([id]),
     [getChronolockCall],
+  );
+
+  const burnChronolock = useCallback(
+    (id: string) => burnChronolockCall([id]),
+    [burnChronolockCall],
   );
 
   const upload = useCallback(
@@ -377,6 +392,9 @@ export const useChronolock = (): IUseChronolock => {
     getChronolock,
     generateKey,
     getVetkdPublicKey,
+    burnChronolock,
+    isBurnChronolockLoading,
+    burnChronolockError,
     // Decryption functions
     getTimeDecryptionKey: getTimeDecryptionKeyWrapped,
     getUserTimeDecryptionKey: getUserTimeDecryptionKeyWrapped,
