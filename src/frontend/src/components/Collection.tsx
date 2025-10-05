@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import Clock from './Clock';
 import { NavLink } from 'react-router';
 
-export const Collection = () => {
+export const Collection = ({ targetDate }: { targetDate: Date }) => {
   useEffect(() => {
     const collection = document.querySelector('.fn_cs_collection');
     var items = collection?.querySelectorAll('.item') ?? [];
@@ -24,9 +24,6 @@ export const Collection = () => {
       }, 500);
     }, 2000);
   }, []);
-
-  const targetDate = new Date();
-  targetDate.setHours(targetDate.getHours() + 2325);
 
   return (
     <section id="collection">

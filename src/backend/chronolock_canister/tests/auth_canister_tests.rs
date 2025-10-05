@@ -9,6 +9,13 @@ use std::fs;
 const BACKEND_WASM: &str =
     "../../../target/wasm32-unknown-unknown/release/chronolock_canister.wasm";
 
+// UserKey struct matching the canister
+#[derive(CandidType, Deserialize, Debug, Clone)]
+struct UserKey {
+    user: String,
+    key: String,
+}
+
 // Error type matching the canister
 #[derive(CandidType, Deserialize, Debug, PartialEq)]
 enum ChronoError {
@@ -76,8 +83,13 @@ fn test_authentication_validation() {
             admin,
             "create_chronolock",
             encode_args((
-                "admin_chronolock".to_string(),
                 "Admin created chronolock".to_string(),
+                1000000u64,
+                vec![UserKey {
+                    user: "public".to_string(),
+                    key: "test_key".to_string(),
+                }],
+                "encrypted_data".to_string(),
             ))
             .unwrap(),
         )
@@ -93,8 +105,13 @@ fn test_authentication_validation() {
             ii_user,
             "create_chronolock",
             encode_args((
-                "ii_user_chronolock".to_string(),
                 "II user created chronolock".to_string(),
+                2000000u64,
+                vec![UserKey {
+                    user: "public".to_string(),
+                    key: "test_key".to_string(),
+                }],
+                "encrypted_data".to_string(),
             ))
             .unwrap(),
         )
@@ -113,8 +130,13 @@ fn test_authentication_validation() {
             regular_user,
             "create_chronolock",
             encode_args((
-                "regular_user_chronolock".to_string(),
                 "Regular user created chronolock".to_string(),
+                3000000u64,
+                vec![UserKey {
+                    user: "public".to_string(),
+                    key: "test_key".to_string(),
+                }],
+                "encrypted_data".to_string(),
             ))
             .unwrap(),
         )
@@ -276,8 +298,13 @@ fn test_trusted_principals() {
             regular_user,
             "create_chronolock",
             encode_args((
-                "trusted_user_chronolock".to_string(),
                 "Trusted user created chronolock".to_string(),
+                4000000u64,
+                vec![UserKey {
+                    user: "public".to_string(),
+                    key: "test_key".to_string(),
+                }],
+                "encrypted_data".to_string(),
             ))
             .unwrap(),
         )
@@ -339,28 +366,11 @@ fn test_admin_bypass() {
         "Admin should be able to enable admin bypass"
     );
 
-    // Log raw response of set_admin_bypass and debug info
+    // Log raw response of set_admin_bypass
     println!("set_admin_bypass raw response: {}", hex::encode(&response));
-    let response = pic
-        .query_call(
-            backend_canister,
-            admin,
-            "debug_admin_and_bypass",
-            encode_args(()).unwrap(),
-        )
-        .expect("Failed to query debug_admin_and_bypass as admin");
-    println!(
-        "debug_admin_and_bypass raw response: {}",
-        hex::encode(&response)
-    );
-    let decode_dbg: Result<(Option<Principal>, bool), _> = candid::decode_one(&response);
-    match decode_dbg {
-        Ok((admin_val, bypass_val)) => println!(
-            "debug_admin_and_bypass (admin): admin={:?}, bypass={}",
-            admin_val, bypass_val
-        ),
-        Err(e) => println!("Failed to decode debug_admin_and_bypass (admin): {:?}", e),
-    }
+
+    // Note: debug_admin_and_bypass query method doesn't exist in the canister
+    // Commenting out for now - the bypass functionality is tested through actual usage below
 
     // Verify bypass is enabled
     let response = pic
@@ -385,8 +395,13 @@ fn test_admin_bypass() {
             regular_user,
             "create_chronolock",
             encode_args((
-                "bypass_chronolock".to_string(),
                 "Created with admin bypass".to_string(),
+                5000000u64,
+                vec![UserKey {
+                    user: "public".to_string(),
+                    key: "test_key".to_string(),
+                }],
+                "encrypted_data".to_string(),
             ))
             .unwrap(),
         )
@@ -437,8 +452,13 @@ fn test_admin_bypass() {
             regular_user,
             "create_chronolock",
             encode_args((
-                "should_fail_chronolock".to_string(),
                 "Should fail without bypass".to_string(),
+                6000000u64,
+                vec![UserKey {
+                    user: "public".to_string(),
+                    key: "test_key".to_string(),
+                }],
+                "encrypted_data".to_string(),
             ))
             .unwrap(),
         )

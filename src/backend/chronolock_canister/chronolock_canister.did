@@ -10,7 +10,15 @@ type ChronoError = variant {
   InternalError : text;
   TimeLocked;
 };
-type Chronolock = record { id : text; owner : principal; metadata : text };
+type Chronolock = record {
+  id : text;
+  title : text;
+  user_keys : vec UserKey;
+  unlock_time : nat64;
+  owner : principal;
+  created_at : nat64;
+  encrypted_metadata : text;
+};
 type HttpRequest = record {
   url : text;
   method : text;
@@ -32,12 +40,13 @@ type Result_5 = variant { Ok : blob; Err : ChronoError };
 type Result_6 = variant { Ok : VetKDDeriveKeyReply; Err : ChronoError };
 type Result_7 = variant { Ok : VetKDPublicKeyReply; Err : ChronoError };
 type Result_8 = variant { Ok : nat32; Err : ChronoError };
+type UserKey = record { key : text; user : text };
 type VetKDDeriveKeyReply = record { encrypted_key : blob };
 type VetKDPublicKeyReply = record { public_key : blob };
 service : (principal, opt text) -> {
   add_trusted_principal : (principal) -> (Result);
   burn_chronolock : (text) -> (Result);
-  create_chronolock : (text) -> (Result_1);
+  create_chronolock : (text, nat64, vec UserKey, text) -> (Result_1);
   finish_media_upload : (text) -> (Result_1);
   get_all_chronolocks_paginated : (nat64, nat64) -> (Result_2) query;
   get_caller_principal_info : () -> (principal, bool, bool) query;
@@ -65,7 +74,7 @@ service : (principal, opt text) -> {
   icrc7_name : () -> (text) query;
   icrc7_owner_of : (text) -> (opt principal) query;
   icrc7_symbol : () -> (text) query;
-  icrc7_token_metadata : (text) -> (opt text) query;
+  icrc7_token_metadata : (text) -> (opt Chronolock) query;
   icrc7_total_supply : () -> (nat64) query;
   icrc7_transfer : (text, principal) -> (Result);
   is_admin_bypass_enabled : () -> (bool) query;
@@ -76,6 +85,12 @@ service : (principal, opt text) -> {
   set_admin_bypass : (bool) -> (Result);
   set_max_metadata_size : (nat64) -> (Result);
   start_media_upload : (nat32) -> (Result_1);
-  update_chronolock : (text, text) -> (Result);
+  update_chronolock : (
+      text,
+      opt text,
+      opt nat64,
+      opt vec UserKey,
+      opt text,
+    ) -> (Result);
   upload_media_chunk : (text, nat32, blob) -> (Result_8);
 }

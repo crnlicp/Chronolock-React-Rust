@@ -370,6 +370,7 @@ body:before {
   -webkit-filter: blur(150px);
   -o-filter: blur(150px);
   filter: blur(150px);
+  z-index: -1;
 }
 .fn__svg {
   fill: currentcolor;
@@ -2449,8 +2450,8 @@ a.metaportal_fn_videobutton:hover .fn__svg,
   flex-wrap: wrap;
 }
 .fn_cs_contact_form input::placeholder {
-  color: rgb(163, 157, 157); 
-  opacity: 1; 
+  color: rgb(163, 157, 157);
+  opacity: 1;
 }
 .fn_cs_contact_form input[type='text'] {
   height: 80px;

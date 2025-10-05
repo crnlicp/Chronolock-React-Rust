@@ -3,7 +3,7 @@ import WaterWave from 'react-water-wave';
 import Clock from './Clock';
 import { NavLink } from 'react-router';
 
-export const HeroSlider = () => {
+export const HeroSlider = ({ targetDate }: { targetDate: Date }) => {
   useEffect(() => {
     const fn_cs_slider = document.querySelectorAll('.fn_cs_slider');
     fn_cs_slider.forEach((element) => {
@@ -125,9 +125,6 @@ export const HeroSlider = () => {
       ?.classList.add('next2');
     return activeIndex;
   };
-
-  const targetDate = new Date();
-  targetDate.setHours(targetDate.getHours() + 2325);
 
   return (
     <WaterWave

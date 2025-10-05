@@ -91,21 +91,6 @@ const ReviewAndCreate = ({
       const encryptedBase64 = btoa(
         String.fromCharCode(...new Uint8Array(concatenatedBuffer)),
       );
-      const unsecretMetaData: {
-        title: string | undefined;
-        owner: string;
-        lockTime: number | null | undefined;
-        createdAt: number | null | undefined;
-        userKeys: { user: string; key: string }[];
-        encryptedMetaData: string;
-      } = {
-        title,
-        owner: principal,
-        lockTime,
-        userKeys: [],
-        encryptedMetaData: encryptedBase64,
-        createdAt: Date.now(),
-      };
 
       const rawKey = await window.crypto.subtle.exportKey('raw', cryptoKey);
       const rawKeyUint8 = new Uint8Array(rawKey);
@@ -117,6 +102,8 @@ const ReviewAndCreate = ({
       const vetkdPublicKey = DerivedPublicKey.deserialize(
         new Uint8Array(vetkdPublicKeyBuffer),
       );
+
+      const userKeys: { user: string; key: string }[] = [];
 
       if (recipients && recipients.length > 0 && vetkdPublicKey) {
         recipients?.map((recipient) => {
@@ -130,7 +117,7 @@ const ReviewAndCreate = ({
             const encryptedKeyBase64 = btoa(
               String.fromCharCode(...new Uint8Array(encryptedKey.serialize())),
             );
-            unsecretMetaData.userKeys.push({
+            userKeys.push({
               user: recipient,
               key: encryptedKeyBase64,
             });
@@ -146,16 +133,18 @@ const ReviewAndCreate = ({
         const encryptedKeyBase64 = btoa(
           String.fromCharCode(...new Uint8Array(encryptedKey.serialize())),
         );
-        unsecretMetaData.userKeys.push({
+        userKeys.push({
           user: 'public',
           key: encryptedKeyBase64,
         });
       }
-      const unsecureMetaDataBase64 = btoa(JSON.stringify(unsecretMetaData));
 
       setTimeout(async () => {
         const chronolockObject = await createChronolock([
-          unsecureMetaDataBase64,
+          title,
+          lockTime,
+          userKeys,
+          encryptedBase64,
         ]);
 
         const chronolockId = (chronolockObject as { Ok: string }).Ok;

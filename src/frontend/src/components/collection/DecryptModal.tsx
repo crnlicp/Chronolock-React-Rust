@@ -15,7 +15,7 @@ import {
   Chip,
 } from '@mui/material';
 import { useAuth } from '../../hooks/useAuth';
-import { useChronolock } from '../../hooks/useChronolock';
+import { Chronolock, useChronolock } from '../../hooks/useChronolock';
 import {
   DerivedPublicKey,
   IbeCiphertext,
@@ -33,23 +33,16 @@ interface DecryptedData {
   attributes?: Record<string, any>;
 }
 
-interface ChronolockMetadata {
-  title?: string;
-  lockTime?: number;
-  userKeys?: { user: string; key: string }[];
-  encryptedMetaData?: string;
-}
-
 interface DecryptModalProps {
   open: boolean;
   onClose: () => void;
-  metadata: ChronolockMetadata;
+  chronolock: Chronolock;
 }
 
 export const DecryptModal: React.FC<DecryptModalProps> = ({
   open,
   onClose,
-  metadata,
+  chronolock,
 }) => {
   const [decryptedData, setDecryptedData] = useState<DecryptedData | null>(
     null,
@@ -70,8 +63,14 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
     getMediaChunked,
   } = useChronolock();
 
+  // Convert bigint to number for unlock_time if needed
+  const unlockTime =
+    typeof chronolock.unlock_time === 'bigint'
+      ? Number(chronolock.unlock_time)
+      : chronolock.unlock_time;
+
   const decrypt = async () => {
-    if (!metadata.encryptedMetaData || !metadata.userKeys || !principal) {
+    if (!chronolock.encrypted_metadata || !chronolock.user_keys || !principal) {
       setError('Missing required data for decryption');
       return;
     }
@@ -82,15 +81,15 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
 
     try {
       // Find the user's encrypted key
-      const isPublic = metadata.userKeys[0]?.user === 'public';
+      const isPublic = chronolock.user_keys[0]?.user === 'public';
       let userKey: string | null = null;
       let userIdentity: string | null = null;
 
       if (isPublic) {
-        userKey = metadata.userKeys[0].key;
-        userIdentity = metadata.lockTime?.toString() || '';
+        userKey = chronolock.user_keys[0].key;
+        userIdentity = unlockTime?.toString() || '';
       } else {
-        const userKeyEntry = metadata.userKeys.find(
+        const userKeyEntry = chronolock.user_keys.find(
           (uk) => uk.user === principal || uk.user.startsWith(`${principal}:`),
         );
         if (userKeyEntry) {
@@ -138,7 +137,7 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
       let decryptionKeyResult: any;
       if (isPublic) {
         // For public chronolocks, use the lockTime as unlock_time_hex
-        const unlockTimeHex = metadata.lockTime?.toString(16).padStart(16, '0');
+        const unlockTimeHex = unlockTime?.toString(16).padStart(16, '0');
         if (!unlockTimeHex) {
           throw new Error('Invalid lock time for public chronolock');
         }
@@ -148,7 +147,7 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
         );
       } else {
         // For user-specific chronolocks, extract unlock time and user from identity
-        const unlockTimeHex = metadata.lockTime?.toString(16).padStart(16, '0');
+        const unlockTimeHex = unlockTime?.toString(16).padStart(16, '0');
 
         if (!unlockTimeHex) {
           throw new Error('Invalid lock time for private chronolock');
@@ -187,11 +186,11 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
       let derivationInput: Uint8Array;
       if (isPublic) {
         // For public chronolocks: both VetKD and IBE use decimal time string
-        const lockTimeString = metadata.lockTime?.toString() || '';
+        const lockTimeString = unlockTime?.toString() || '';
         derivationInput = new TextEncoder().encode(lockTimeString);
       } else {
         // For user chronolocks: both VetKD and IBE use "user_id:decimal_time" format
-        const lockTimeString = metadata.lockTime?.toString() || '';
+        const lockTimeString = unlockTime?.toString() || '';
         const identityFormat = `${userIdentity}:${lockTimeString}`;
         derivationInput = new TextEncoder().encode(identityFormat);
       }
@@ -215,7 +214,7 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
 
       console.log('Using IBE identity for decryption:');
       console.log('User identity from userKeys:');
-      console.log('Lock time:', metadata.lockTime);
+      console.log('Lock time:', unlockTime);
       console.log('Is public chronolock:', isPublic);
       console.log('VetKD derivation input bytes:');
       console.log('VetKD derivation input as text:');
@@ -249,7 +248,7 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
       );
 
       // Decrypt the actual metadata using AES-GCM
-      const encryptedMetadataBytes = atob(metadata.encryptedMetaData);
+      const encryptedMetadataBytes = atob(chronolock.encrypted_metadata);
       const encryptedBuffer = Uint8Array.from(encryptedMetadataBytes, (c) =>
         c.charCodeAt(0),
       );
@@ -432,7 +431,7 @@ export const DecryptModal: React.FC<DecryptModalProps> = ({
           Decrypted Content
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          {metadata.title || 'Chronolock Content'}
+          {chronolock.title || 'Chronolock Content'}
         </Typography>
       </DialogTitle>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router';
 import {
   Box,
@@ -15,15 +15,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { DecryptModal } from './DecryptModal';
 import { useLockTimer } from '../../hooks/useLockTimer';
 
-interface ChronolockMetadata {
-  title?: string;
-  owner?: string;
-  lockTime?: number;
-  createdAt?: number;
-  userKeys?: { user: string; key: string }[];
-  encryptedMetaData?: string;
-}
-
 interface ChronolockCardProps {
   chronolock: Chronolock;
   onDelete?: () => void;
@@ -33,39 +24,36 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
   chronolock,
   onDelete,
 }) => {
-  const [metadata, setMetadata] = useState<ChronolockMetadata | null>(null);
   const [decryptModalOpen, setDecryptModalOpen] = useState(false);
   const { principal } = useAuth();
   const { burnChronolock, isBurnChronolockLoading } = useChronolock();
 
+  // Convert bigint to number for unlock_time if needed
+  const unlockTime =
+    typeof chronolock.unlock_time === 'bigint'
+      ? Number(chronolock.unlock_time)
+      : chronolock.unlock_time;
+
+  const createdAt =
+    typeof chronolock.created_at === 'bigint'
+      ? Number(chronolock.created_at)
+      : chronolock.created_at;
+
   // Use the lock timer hook for efficient real-time updates
-  const isLocked = useLockTimer(metadata?.lockTime, chronolock.id);
+  const isLocked = useLockTimer(unlockTime, chronolock.id);
 
-  useEffect(() => {
-    try {
-      // Decode base64 metadata
-      const decodedMetadata = atob(chronolock.metadata);
-      const metadataObj = JSON.parse(decodedMetadata);
-      setMetadata(metadataObj);
-    } catch (error) {
-      console.error('Error parsing chronolock metadata:', error);
-    }
-  }, [chronolock.metadata]);
+  const isPublic = chronolock.user_keys?.[0]?.user === 'public';
 
-  const isPublic = metadata?.userKeys?.[0]?.user === 'public';
-
-  const isDecryptable = metadata?.userKeys
-    ? metadata.userKeys.some((uk) => uk.user === principal) || isPublic
+  const isDecryptable = chronolock.user_keys
+    ? chronolock.user_keys.some((uk) => uk.user === principal) || isPublic
     : false;
 
   const ownerStr = (() => {
-    if (typeof metadata?.owner === 'string') {
-      return `${metadata?.owner.slice(0, 5)}...${metadata?.owner.slice(-3)}`;
-    } else {
-      return `${String(metadata?.owner).slice(0, 5)}...${String(
-        metadata?.owner,
-      ).slice(-3)}`;
-    }
+    const ownerText =
+      typeof chronolock.owner === 'string'
+        ? chronolock.owner
+        : chronolock.owner.toText();
+    return `${ownerText.slice(0, 5)}...${ownerText.slice(-3)}`;
   })();
 
   const handleClickDecrypt = () => {
@@ -91,7 +79,11 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
     }
   };
 
-  const isOwner = principal === metadata?.owner?.toString();
+  const isOwner =
+    principal ===
+    (typeof chronolock.owner === 'string'
+      ? chronolock.owner
+      : chronolock.owner.toText());
 
   return (
     <Card
@@ -108,8 +100,8 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
             to={`/chronolock/${chronolock.id}`}
             style={{ textDecoration: 'none', color: 'inherit' }}
           >
-            {metadata?.title
-              ? metadata?.title?.slice(0, 19)
+            {chronolock.title
+              ? chronolock.title.slice(0, 19)
               : `Chronolock #${chronolock.id.slice(0, 8)}...`}
           </NavLink>
         </Typography>
@@ -120,9 +112,7 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
 
         <Typography variant="body2" color="text.secondary" gutterBottom>
           <strong>Created date:</strong>{' '}
-          {metadata?.createdAt
-            ? new Date(metadata.createdAt).toLocaleString()
-            : 'Unknown'}
+          {createdAt ? new Date(createdAt).toLocaleString() : 'Unknown'}
         </Typography>
 
         <Box sx={{ mt: 2 }}>
@@ -133,16 +123,16 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
             onClick={() => {}}
             clickable={false}
           />
-          {metadata?.userKeys && metadata.userKeys.length > 0 && (
+          {chronolock.user_keys && chronolock.user_keys.length > 0 && (
             <Chip
               label={
                 isPublic
                   ? 'Public'
                   : isDecryptable
-                  ? metadata.userKeys.length > 1
-                    ? `You + ${metadata.userKeys.length - 1} recipient(s)`
+                  ? chronolock.user_keys.length > 1
+                    ? `You + ${chronolock.user_keys.length - 1} recipient(s)`
                     : 'Only You'
-                  : `${metadata.userKeys.length} recipient(s)`
+                  : `${chronolock.user_keys.length} recipient(s)`
               }
               variant="outlined"
               size="small"
@@ -175,10 +165,7 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
           width={'100%'}
           height={'100%'}
         />
-        <Clock
-          targetDate={new Date((metadata?.lockTime ?? 0) * 1000)}
-          className="abs_img"
-        />
+        <Clock targetDate={new Date(unlockTime * 1000)} className="abs_img" />
       </Box>
       {principal ? (
         <CardActions>
@@ -222,13 +209,11 @@ export const ChronolockCard: React.FC<ChronolockCardProps> = ({
       )}
 
       {/* Decrypt Modal */}
-      {metadata && (
-        <DecryptModal
-          open={decryptModalOpen}
-          onClose={() => setDecryptModalOpen(false)}
-          metadata={metadata}
-        />
-      )}
+      <DecryptModal
+        open={decryptModalOpen}
+        onClose={() => setDecryptModalOpen(false)}
+        chronolock={chronolock}
+      />
     </Card>
   );
 };
