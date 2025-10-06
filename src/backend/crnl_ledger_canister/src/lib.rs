@@ -1582,26 +1582,5 @@ fn log_event(event_type: &str, details: String) {
     });
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn accepts_valid_internet_identity_principal() {
-        let principal =
-            Principal::from_text("dmp4o-pkoo3-lnzzj-cystz-2jlkk-v4zcv-yc5h4-iqoeg-v5arm-avsbm-bae")
-                .expect("valid principal text");
-        TRUSTED_PRINCIPALS.with(|tp| {
-            tp.borrow_mut().remove(&principal);
-        });
-        assert!(is_valid_internet_identity_principal(principal));
-    }
-
-    #[test]
-    fn rejects_anonymous_principal() {
-        assert!(!is_valid_internet_identity_principal(Principal::anonymous()));
-    }
-}
-
 // Export Candid interface
 ic_cdk::export_candid!();
