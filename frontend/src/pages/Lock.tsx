@@ -109,10 +109,10 @@ export const LockPage = () => {
         Collection
       </Button>
       <Grid container spacing={5}>
-        <Grid size={{ xs: 12, md: 5 }} sx={{ display: 'flex', justifyContent: 'center' }}>
-          <ClockLock target={unlockAt.toDate()} unlocked={!locked} size={400} />
+        <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', justifyContent: 'center' }}>
+          <ClockLock target={unlockAt.toDate()} unlocked={!locked} />
         </Grid>
-        <Grid size={{ xs: 12, md: 7 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }}>
             <Chip label={locked ? 'Locked' : 'Unlocked'} color={locked ? 'default' : 'success'} />
             <Chip variant="outlined" label={v.isPublic ? 'Public' : `${v.recipientCount} recipient${v.recipientCount === 1 ? '' : 's'}`} />
