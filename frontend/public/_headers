@@ -1,0 +1,31 @@
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/assets/*
+  Cache-Control: public, max-age=86400
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Internet Identity reads these cross-origin to name the app on its sign-in screen.
+/.well-known/ii-app-metadata
+  Content-Type: application/json
+  Access-Control-Allow-Origin: *
+
+/assets/img/logo.png
+  Access-Control-Allow-Origin: *
+
+# chronolock.app derives Internet Identity principals from the canister origin.
+/.well-known/ii-alternative-origins
+  Content-Type: application/json
+  Access-Control-Allow-Origin: *
+
+/.well-known/ii-derivation-origin
+  Content-Type: text/plain
+  Access-Control-Allow-Origin: *
+
+/.well-known/ic-domains
+  Content-Type: text/plain

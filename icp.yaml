@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/dfinity/icp-cli/main/docs/schemas/icp-yaml-schema.json
+
+canisters:
+  - backend
+  - frontend
+
+environments:
+  - name: local
+    network: local
+    canisters: [backend, frontend]
+
+  - name: ic
+    network: ic
+    canisters: [backend, frontend]
+    settings:
+      backend:
+        log_visibility: controllers
+        freezing_threshold: 90d
+    init_args:
+      backend: '(opt record { vetkd_key_name = opt "key_1"; admins = null })'

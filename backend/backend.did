@@ -1,0 +1,223 @@
+// [Account](https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-3/README.md#value)
+// representation of ledgers supporting the ICRC-1 standard.
+type Account = record { owner : principal; subaccount : opt blob };
+type ChronoError = variant {
+  Internal : text;
+  InvalidInput : text;
+  // Another request from the same caller is still in progress.
+  AlreadyProcessing;
+  NotFound;
+  Unauthorized;
+  Payment : PaymentError;
+  LimitExceeded : text;
+  TimeLocked;
+  // The anonymous principal cannot call this method. Sign in first.
+  AnonymousCaller;
+};
+type Chronolock = record {
+  id : nat64;
+  media : opt MediaRef;
+  user_keys : vec UserKey;
+  creator : principal;
+  // Unix time in seconds.
+  unlock_time : nat64;
+  owner : principal;
+  // Encryption scheme version (see vetkd.rs). Titles live inside the
+  // encrypted metadata, so nothing about the content is public.
+  scheme : nat8;
+  // Unix time in milliseconds.
+  created_at : nat64;
+  // Base64 of the AES-GCM encrypted metadata payload (includes the title).
+  encrypted_metadata : text;
+  payment : opt PaymentReceipt;
+};
+// Running totals of what the treasury collected (smallest units).
+type Collected = record { icp : nat; payments : nat64; chrono : nat };
+type CreateChronolockArgs = record {
+  user_keys : vec UserKey;
+  unlock_time : nat64;
+  // Must equal `vetkd::SCHEME_VERSION`.
+  scheme : nat8;
+  // A finished upload session owned by the caller.
+  media_id : opt nat64;
+  encrypted_metadata : text;
+  // Ledger to pay with; approve price + fee for this canister first.
+  payment : PaymentMethod;
+};
+// A value defined in [the ICRC-3 standard](https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-3/README.md#value).
+type ICRC3Value = variant {
+  Int : int;
+  Map : vec record { text; ICRC3Value };
+  Nat : nat;
+  Blob : blob;
+  Text : text;
+  Array : vec ICRC3Value;
+};
+type InitArgs = record {
+  // Extra admins besides the canister controllers.
+  admins : opt vec principal;
+  // vetKD master key: `test_key_1` for local/testing, `key_1` for production.
+  // Fixed at first install; ignored on upgrade.
+  vetkd_key_name : opt text;
+};
+type Limits = record {
+  max_chunk_bytes : nat64;
+  max_media_bytes : nat64;
+  max_recipients : nat32;
+  max_metadata_bytes : nat64;
+  // vetKD derivations allowed per caller per hour (protects cycles).
+  key_derivations_per_hour : nat32;
+  upload_ttl_seconds : nat64;
+  max_open_uploads_per_user : nat32;
+};
+type LockPage = record { total : nat64; items : vec Chronolock };
+type MediaInfo = record {
+  lock_id : opt nat64;
+  owner : principal;
+  size : nat64;
+  media_id : nat64;
+  finished : bool;
+  chunk_count : nat32;
+};
+type MediaRef = record { size : nat64; media_id : nat64; chunk_count : nat32 };
+type Page = record { offset : nat64; limit : nat64 };
+type PaymentError = variant {
+  // Approve at least price + fee for this canister first.
+  InsufficientAllowance : record { allowance : nat };
+  // $CHRONO payments are not enabled yet (token not connected).
+  NotEnabled;
+  Rejected : text;
+  // The ledger could not be reached; nothing was charged.
+  LedgerUnavailable : text;
+  InsufficientFunds : record { balance : nat };
+};
+type PaymentInfo = record {
+  icp_ledger : principal;
+  collected : Collected;
+  prices : Prices;
+  // `None` until an admin connects the $CHRONO token.
+  chrono_ledger : opt principal;
+  // Where payments go; also the spender to approve.
+  treasury : Account;
+};
+type PaymentMethod = variant { ICP; CHRONO };
+type PaymentReceipt = record {
+  method : PaymentMethod;
+  block_index : nat;
+  ledger : principal;
+  amount : nat;
+};
+// Prices in the ledger's smallest unit (e8s for ICP and Soon tokens).
+type Prices = record {
+  icp_text : nat64;
+  chrono_media : nat64;
+  icp_media : nat64;
+  chrono_text : nat64;
+};
+type PublicConfig = record {
+  token : opt TokenConfig;
+  scheme : nat8;
+  limits : Limits;
+  vetkd_key_name : text;
+};
+type Result = variant { Ok; Err : ChronoError };
+type Result_1 = variant { Ok : Chronolock; Err : ChronoError };
+type Result_2 = variant { Ok : MediaInfo; Err : ChronoError };
+type Result_3 = variant { Ok : blob; Err : ChronoError };
+type Result_4 = variant { Ok : nat; Err : TransferError };
+type Result_5 = variant { Ok : vec principal; Err : ChronoError };
+type Result_6 = variant { Ok : nat64; Err : ChronoError };
+type Result_7 = variant { Ok : nat; Err : ChronoError };
+type StandardRecord = record { url : text; name : text };
+type StartMediaUploadArgs = record { size : nat64; chunk_count : nat32 };
+type Stats = record {
+  total_locks : nat64;
+  public_locks : nat64;
+  unique_creators : nat64;
+  media_locks : nat64;
+};
+// An ICRC-1/ICRC-2 token launched on Soon (https://soonlaunchpad.fun).
+type TokenConfig = record {
+  ledger : principal;
+  // Soon market canister, used for the token page links (`/t/<market>`).
+  market : opt principal;
+  symbol : text;
+};
+type TransferArg = record {
+  to : Account;
+  token_id : nat;
+  memo : opt blob;
+  from_subaccount : opt blob;
+  created_at_time : opt nat64;
+};
+type TransferError = variant {
+  GenericError : record { message : text; error_code : nat };
+  Duplicate : record { duplicate_of : nat };
+  NonExistingTokenId;
+  Unauthorized;
+  CreatedInFuture : record { ledger_time : nat64 };
+  InvalidRecipient;
+  GenericBatchError : record { message : text; error_code : nat };
+  TooOld;
+};
+// Per-recipient wrapped key. `user` is a principal text, or `"public"` for
+// locks anyone can open once the unlock time has passed.
+type UserKey = record { key : text; user : text };
+service : (opt InitArgs) -> {
+  add_admin : (principal) -> (Result);
+  burn_chronolock : (nat64) -> (Result);
+  cancel_media_upload : (nat64) -> (Result);
+  // Creates a chronolock, paid with ICP or $CHRONO (ICRC-2). Approve the
+  // price + one ledger fee for this canister first (see `get_payment_info`).
+  create_chronolock : (CreateChronolockArgs) -> (Result_1);
+  finish_media_upload : (nat64) -> (Result_2);
+  get_chronolock : (nat64) -> (opt Chronolock) query;
+  get_config : () -> (PublicConfig) query;
+  get_media_chunk : (nat64, nat32) -> (Result_3) query;
+  get_media_info : (nat64) -> (Result_2) query;
+  get_payment_info : () -> (PaymentInfo) query;
+  get_stats : () -> (Stats) query;
+  // The $CHRONO token launched on Soon, if configured.
+  get_token : () -> (opt TokenConfig) query;
+  ibe_public_key : () -> (Result_3);
+  icrc10_supported_standards : () -> (vec StandardRecord) query;
+  icrc7_atomic_batch_transfers : () -> (opt bool) query;
+  icrc7_balance_of : (vec Account) -> (vec nat) query;
+  icrc7_collection_metadata : () -> (vec record { text; ICRC3Value }) query;
+  icrc7_default_take_value : () -> (opt nat) query;
+  icrc7_description : () -> (opt text) query;
+  icrc7_logo : () -> (opt text) query;
+  icrc7_max_memo_size : () -> (opt nat) query;
+  icrc7_max_query_batch_size : () -> (opt nat) query;
+  icrc7_max_take_value : () -> (opt nat) query;
+  icrc7_max_update_batch_size : () -> (opt nat) query;
+  icrc7_name : () -> (text) query;
+  icrc7_owner_of : (vec nat) -> (vec opt Account) query;
+  icrc7_supply_cap : () -> (opt nat) query;
+  icrc7_symbol : () -> (text) query;
+  icrc7_token_metadata : (vec nat) -> (
+      vec opt vec record { text; ICRC3Value },
+    ) query;
+  icrc7_tokens : (opt nat, opt nat) -> (vec nat) query;
+  icrc7_tokens_of : (Account, opt nat, opt nat) -> (vec nat) query;
+  icrc7_total_supply : () -> (nat) query;
+  icrc7_transfer : (vec TransferArg) -> (vec opt Result_4);
+  list_admins : () -> (Result_5) query;
+  list_chronolocks : (Page) -> (LockPage) query;
+  list_owned_chronolocks : (principal, Page) -> (LockPage) query;
+  // Locks addressed to `user` plus public locks.
+  list_received_chronolocks : (principal, bool, Page) -> (LockPage) query;
+  public_time_key : (nat64, blob) -> (Result_3);
+  remove_admin : (principal) -> (Result);
+  set_limits : (Limits) -> (Result);
+  // Sets prices in smallest units (e8s). Admin only.
+  set_prices : (Prices) -> (Result);
+  // Connects (or with `None`, disconnects) the $CHRONO token. Admin only.
+  set_token : (opt TokenConfig) -> (Result);
+  start_media_upload : (StartMediaUploadArgs) -> (Result_6);
+  upload_media_chunk : (nat64, nat32, blob) -> (Result);
+  user_time_key : (nat64, blob) -> (Result_3);
+  whoami : () -> (principal, bool) query;
+  // Sends collected funds from the treasury. The ledger fee is paid on top.
+  withdraw : (PaymentMethod, Account, nat) -> (Result_7);
+}

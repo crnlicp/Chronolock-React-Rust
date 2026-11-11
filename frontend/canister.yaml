@@ -1,0 +1,8 @@
+name: frontend
+recipe:
+  type: "@dfinity/static-site@v0.4.1"
+  configuration:
+    dir: dist
+    build:
+      - pnpm install --frozen-lockfile
+      - pnpm run build

@@ -1,8 +1,5 @@
 [workspace]
-members = [
-    "src/backend/chronolock_canister",
-    "src/backend/crnl_ledger_canister",
-]
+members = ["backend"]
 resolver = "2"
 
 [profile.release]

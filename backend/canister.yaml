@@ -1,0 +1,9 @@
+name: backend
+recipe:
+  type: "@dfinity/rust@v3.3.0"
+  configuration:
+    candid: backend.did
+# Local default; the ic environment overrides it with the production key.
+init_args: '(opt record { vetkd_key_name = opt "test_key_1"; admins = null })'
+settings:
+  log_visibility: controllers
