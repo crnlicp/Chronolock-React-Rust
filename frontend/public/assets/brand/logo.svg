@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 96 476 654" role="img" aria-label="Chronolock">
+<defs>
+  <linearGradient id="cl-shackle" x1="133" y1="0" x2="401" y2="0" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#4a2f93"/><stop offset=".3" stop-color="#3d4ca5"/>
+    <stop offset=".55" stop-color="#2b509c"/><stop offset=".8" stop-color="#2377a8"/><stop offset="1" stop-color="#2382af"/>
+  </linearGradient>
+  <radialGradient id="cl-shackle-hi" cx="267" cy="272" r="164" gradientUnits="userSpaceOnUse">
+    <stop offset=".63" stop-color="#000" stop-opacity=".22"/><stop offset=".8" stop-color="#000" stop-opacity="0"/>
+    <stop offset=".93" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="cl-left" x1="0" y1="300" x2="0" y2="742" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#4150ac"/><stop offset=".35" stop-color="#3b3a98"/>
+    <stop offset=".7" stop-color="#3b1f7c"/><stop offset="1" stop-color="#371875"/>
+  </linearGradient>
+  <linearGradient id="cl-right" x1="0" y1="300" x2="0" y2="742" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#1a8cb2"/><stop offset=".3" stop-color="#16568c"/>
+    <stop offset=".65" stop-color="#192f70"/><stop offset="1" stop-color="#151a5f"/>
+  </linearGradient>
+  <linearGradient id="cl-glass-l" x1="0" y1="380" x2="0" y2="620" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#2a3a92"/><stop offset="1" stop-color="#1c2470"/>
+  </linearGradient>
+  <linearGradient id="cl-sand" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#27e0da"/><stop offset=".5" stop-color="#12ebeb"/><stop offset="1" stop-color="#15ccc6"/>
+  </linearGradient>
+  <linearGradient id="cl-pile" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#13e7e8"/><stop offset=".6" stop-color="#10d8d2"/><stop offset="1" stop-color="#1e8ca9"/>
+  </linearGradient>
+  <clipPath id="cl-shield"><path d="M61 330 Q267 262 475 330 L476 432 C472 560 388 664 267 742 C146 664 62 560 61 432 Z"/></clipPath>
+  <clipPath id="cl-glass"><path d="M200 382 C200 455 255 470 257 500 C255 530 200 545 200 618 H334 C334 545 279 530 277 500 C279 470 334 455 334 382 Z"/></clipPath>
+  <filter id="cl-glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+<!-- shackle -->
+<path d="M133 340 V272 A134 134 0 0 1 401 272 V340" fill="none" stroke="url(#cl-shackle)" stroke-width="60"/>
+<path d="M133 340 V272 A134 134 0 0 1 401 272 V340" fill="none" stroke="url(#cl-shackle-hi)" stroke-width="60"/>
+<path id="cl-arc" d="M133 272 A134 134 0 0 1 401 272" fill="none"/><text font-family="Montserrat, 'Space Grotesk', Inter, Arial, sans-serif" font-size="42" font-weight="800" letter-spacing="3" fill="#ffffff"><textPath href="#cl-arc" startOffset="50%" text-anchor="middle" dominant-baseline="central">CHRONOLOCK</textPath></text>
+<!-- shield: violet left half, teal-blue right half -->
+<g clip-path="url(#cl-shield)">
+  <rect x="40" y="250" width="230" height="510" fill="url(#cl-left)"/>
+  <rect x="270" y="250" width="250" height="510" fill="url(#cl-right)"/>
+  <g clip-path="inset(0 0 0 0)"><g fill="none" stroke="#5f45af" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".75"><path d="M95 470 H120 L150 440 H178"/><path d="M120 610 L160 650 H205"/><path d="M210 690 L230 670 V640"/><path d="M95 350 L125 380 H160"/><path d="M185 330 V355 L200 368"/><path d="M70 520 H100 L118 538"/><path d="M175 600 L150 625 V660"/></g><g fill="none" stroke="#5f45af" stroke-width="3" opacity=".8"><circle cx="95" cy="470" r="5"/><circle cx="120" cy="610" r="5"/><circle cx="210" cy="690" r="5"/><circle cx="95" cy="350" r="5"/><circle cx="185" cy="330" r="5"/></g><g fill="none" stroke="#2da5bb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".75"><path d="M445 470 H420 L395 445 H360"/><path d="M420 600 L380 640 H335"/><path d="M330 690 L305 668 V640"/><path d="M440 350 L410 380 H372"/><path d="M350 330 V355 L335 368"/><path d="M470 530 H440 L420 550"/></g><g fill="none" stroke="#2da5bb" stroke-width="3" opacity=".8"><circle cx="445" cy="470" r="5"/><circle cx="420" cy="600" r="5"/><circle cx="330" cy="690" r="5"/><circle cx="440" cy="350" r="5"/><circle cx="350" cy="330" r="5"/></g><g transform="translate(115 520) scale(0.8)" fill="#5842a8" opacity=".55"><path d="M-7 -2 V-8 a7 7 0 0 1 14 0 V-2" fill="none" stroke="#5842a8" stroke-width="3"/><rect x="-11" y="-3" width="22" height="17" rx="3"/></g><g transform="translate(232 318) scale(0.7)" fill="#4c81c8" opacity=".55"><path d="M-7 -2 V-8 a7 7 0 0 1 14 0 V-2" fill="none" stroke="#4c81c8" stroke-width="3"/><rect x="-11" y="-3" width="22" height="17" rx="3"/></g><g transform="translate(428 545) scale(0.8)" fill="#2382af" opacity=".55"><path d="M-7 -2 V-8 a7 7 0 0 1 14 0 V-2" fill="none" stroke="#2382af" stroke-width="3"/><rect x="-11" y="-3" width="22" height="17" rx="3"/></g><g transform="translate(140 650) scale(0.7)" fill="#5842a8" opacity=".55"><path d="M-7 -2 V-8 a7 7 0 0 1 14 0 V-2" fill="none" stroke="#5842a8" stroke-width="3"/><rect x="-11" y="-3" width="22" height="17" rx="3"/></g><g transform="translate(408 330) scale(0.6)" fill="#25afce" opacity=".55"><path d="M-7 -2 V-8 a7 7 0 0 1 14 0 V-2" fill="none" stroke="#25afce" stroke-width="3"/><rect x="-11" y="-3" width="22" height="17" rx="3"/></g></g>
+  <path d="M270 250 V760" stroke="#ffffff" stroke-opacity=".06" stroke-width="2"/>
+</g>
+<path d="M61 330 Q267 262 475 330" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+<!-- connectors and nodes -->
+<g fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M64 372 C88 372 106 390 106 412 C106 428 98 440 86 446"/>
+  <path d="M106 412 H150 L190 452 H222"/>
+  <path d="M170 508 H212 L236 484"/>
+  <path d="M146 562 H208"/>
+  <path d="M312 470 L338 452 H378 L428 402"/>
+  <path d="M296 515 H382"/>
+  <path d="M312 568 H362 L398 600 H418"/>
+</g>
+<g fill="none" stroke="#ffffff" stroke-width="10">
+  <circle cx="151" cy="508" r="19"/>
+  <circle cx="128" cy="562" r="17"/>
+</g>
+<g filter="url(#cl-glow)" fill="none" stroke-width="10">
+  <circle cx="452" cy="394" r="22" stroke="#ffffff"/>
+  <circle cx="452" cy="394" r="30" stroke="#5eeaf2" stroke-width="3" opacity=".7"/>
+  <circle cx="403" cy="515" r="18" stroke="#ffffff"/>
+  <circle cx="403" cy="515" r="25" stroke="#5eeaf2" stroke-width="3" opacity=".6"/>
+</g>
+<path d="M418 600 A18 18 0 0 1 452 590" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+
+<!-- hourglass -->
+<g clip-path="url(#cl-glass)">
+  <rect x="190" y="370" width="77" height="260" fill="url(#cl-glass-l)"/>
+  <rect x="267" y="370" width="80" height="260" fill="#1a3274"/>
+  <path d="M214 438 H320 C312 458 284 474 270 496 H264 C250 474 222 458 214 438 Z" fill="url(#cl-sand)"/>
+  <path d="M265 498 V578" stroke="#12ebeb" stroke-width="5"/>
+  <path d="M205 618 C222 596 248 578 267 574 C286 578 312 596 329 618 Z" fill="url(#cl-pile)"/>
+</g>
+<g fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M200 382 C200 455 255 470 257 500 C255 530 200 545 200 618"/>
+  <path d="M334 382 C334 455 279 470 277 500 C279 530 334 545 334 618"/>
+</g>
+<g fill="#ffffff">
+  <rect x="170" y="364" width="194" height="20" rx="8"/>
+  <rect x="170" y="616" width="194" height="20" rx="8"/>
+</g>
+</svg>

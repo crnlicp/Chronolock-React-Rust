@@ -1,35 +1,41 @@
 name: Tests
 
 on:
-  # push:
-  #   branches: [ "main" ]
   pull_request:
+  push:
+    branches: [main, develop]
 
-concurrency: 
+concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18.x]
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - name: Install dfx
-      uses: dfinity/setup-dfx@main
-    - name: Start dfx
-      run: |
-        dfx cache install
-        dfx start --background
-    - run: npm run setup
-    - run: npm test
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install icp-cli
+        run: npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm
+      - name: Backend unit and PocketIC integration tests
+        run: scripts/test-backend.sh
+      - name: Build all canisters
+        run: icp build
+      - name: Frontend tests
+        run: pnpm --dir frontend install --frozen-lockfile && pnpm --dir frontend test
+      - name: End-to-end tests on a local network
+        run: |
+          icp network start -d
+          icp deploy --identity anonymous
+          ICP_E2E=1 pnpm --dir frontend exec vitest run tests/e2e.local.test.ts

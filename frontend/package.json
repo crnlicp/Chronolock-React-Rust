@@ -1,0 +1,56 @@
+{
+  "name": "chronolock-frontend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "bindings": "icp-bindgen --did-file ../backend/backend.did --out-dir ./src/bindings --force && icp-bindgen --did-file ./candid/icrc_ledger.did --out-dir ./src/bindings --force",
+    "dev": "vite",
+    "build": "pnpm bindings && tsc -p tsconfig.json && vite build",
+    "typecheck": "pnpm bindings && tsc -p tsconfig.json",
+    "test": "pnpm bindings && vitest run",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,scss}\""
+  },
+  "dependencies": {
+    "@dfinity/utils": "^5.0.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@icp-sdk/auth": "^11.2.0",
+    "@icp-sdk/canisters": "^4.1.0",
+    "@icp-sdk/core": "^6.1.1",
+    "@icp-sdk/signer": "^6.1.0",
+    "@icp-sdk/vetkeys": "^0.7.0",
+    "@mui/icons-material": "^9.5.0",
+    "@mui/material": "^9.5.0",
+    "@mui/x-date-pickers": "^9.17.0",
+    "@tanstack/react-query": "^5.107.1",
+    "dayjs": "^1.11.23",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-dropzone": "^20.2.0",
+    "react-router": "^8.5.1"
+  },
+  "devDependencies": {
+    "@icp-sdk/bindgen": "^0.4.1",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "jsdom": "^31.0.0",
+    "prettier": "^3.10.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  },
+  "packageManager": "pnpm@10.12.1+sha512.f0dda8580f0ee9481c5c79a1d927b9164f2c478e90992ad268bbb2465a736984391d6333d2c327913578b2804af33474ca554ba29c04a8b13060a717675ae3ac",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@parcel/watcher"
+    ]
+  }
+}
