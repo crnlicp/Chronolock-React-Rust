@@ -1,1 +1,3 @@
-/src/declarations
+dist
+src/bindings
+node_modules

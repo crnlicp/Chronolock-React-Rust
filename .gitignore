@@ -9,19 +9,12 @@ lerna-debug.log*
 
 node_modules
 dist
-dist-ssr
-*.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-!.vscode/settings.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
 
 # icp-cli: keep .icp/data (mainnet ids), ignore the cache
@@ -33,14 +26,12 @@ frontend/.vite/
 *.tsbuildinfo
 coverage/
 
-# Environment variables
+# Environment variables and local secrets
 .env
-.env.local
-.env.development
-.env.test
-.env.production
+.env.*
 .seedphrase
 .principal_ids
 
+# Rust
 target
 
