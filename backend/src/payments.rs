@@ -44,10 +44,10 @@ impl Default for Prices {
     fn default() -> Self {
         const E8: u64 = 100_000_000;
         Self {
-            icp_text: E8 / 5,           // 0.2 ICP
-            icp_media: E8,              // 1 ICP
-            chrono_text: 1_000 * E8,    // 1,000 $CHRONO
-            chrono_media: 5_000 * E8,   // 5,000 $CHRONO
+            icp_text: E8 / 5,         // 0.2 ICP
+            icp_media: E8,            // 1 ICP
+            chrono_text: 1_000 * E8,  // 1,000 $CHRONO
+            chrono_media: 5_000 * E8, // 5,000 $CHRONO
         }
     }
 }
@@ -83,9 +83,13 @@ pub struct PaymentInfo {
 pub enum PaymentError {
     /// $CHRONO payments are not enabled yet (token not connected).
     NotEnabled,
-    InsufficientFunds { balance: Nat },
+    InsufficientFunds {
+        balance: Nat,
+    },
     /// Approve at least price + fee for this canister first.
-    InsufficientAllowance { allowance: Nat },
+    InsufficientAllowance {
+        allowance: Nat,
+    },
     /// The ledger could not be reached; nothing was charged.
     LedgerUnavailable(String),
     Rejected(String),
@@ -140,7 +144,9 @@ pub fn info() -> PaymentInfo {
 
 pub fn set_prices(p: Prices) -> ChronoResult<()> {
     if [p.icp_text, p.icp_media, p.chrono_text, p.chrono_media].contains(&0) {
-        return Err(ChronoError::InvalidInput("prices must be greater than zero".into()));
+        return Err(ChronoError::InvalidInput(
+            "prices must be greater than zero".into(),
+        ));
     }
     update_config(|c| c.prices = p);
     Ok(())
@@ -173,7 +179,10 @@ pub async fn collect(
     let amount = Nat::from(price(method, with_media));
     let args = TransferFromArgs {
         spender_subaccount: None,
-        from: Account { owner: payer, subaccount: None },
+        from: Account {
+            owner: payer,
+            subaccount: None,
+        },
         to: treasury(),
         amount: amount.clone(),
         fee: None,
@@ -209,7 +218,9 @@ pub async fn collect(
                 continue;
             }
             Err(TransferFromError::InsufficientFunds { balance }) => {
-                return Err(ChronoError::Payment(PaymentError::InsufficientFunds { balance }))
+                return Err(ChronoError::Payment(PaymentError::InsufficientFunds {
+                    balance,
+                }))
             }
             Err(TransferFromError::InsufficientAllowance { allowance }) => {
                 return Err(ChronoError::Payment(PaymentError::InsufficientAllowance {
@@ -220,9 +231,16 @@ pub async fn collect(
         };
         record(method, &amount);
         ic_cdk::println!("{method:?} payment of {amount} from {payer} in block {block_index}");
-        return Ok(PaymentReceipt { method, ledger, amount, block_index });
+        return Ok(PaymentReceipt {
+            method,
+            ledger,
+            amount,
+            block_index,
+        });
     }
-    Err(ChronoError::Payment(PaymentError::LedgerUnavailable(last_err)))
+    Err(ChronoError::Payment(PaymentError::LedgerUnavailable(
+        last_err,
+    )))
 }
 
 /// Sends treasury funds out. The ledger fee is paid from the treasury on top.
@@ -238,7 +256,10 @@ pub async fn withdraw(method: PaymentMethod, to: Account, amount: Nat) -> Chrono
     };
     let mut last_err = String::new();
     for _ in 0..MAX_ATTEMPTS {
-        let reply = match Call::bounded_wait(ledger, "icrc1_transfer").with_arg(&args).await {
+        let reply = match Call::bounded_wait(ledger, "icrc1_transfer")
+            .with_arg(&args)
+            .await
+        {
             Ok(r) => r,
             Err(e) => {
                 last_err = e.to_string();
@@ -259,10 +280,14 @@ pub async fn withdraw(method: PaymentMethod, to: Account, amount: Nat) -> Chrono
                 continue;
             }
             Err(TransferError::InsufficientFunds { balance }) => {
-                Err(ChronoError::Payment(PaymentError::InsufficientFunds { balance }))
+                Err(ChronoError::Payment(PaymentError::InsufficientFunds {
+                    balance,
+                }))
             }
             Err(e) => Err(ChronoError::Payment(PaymentError::Rejected(e.to_string()))),
         };
     }
-    Err(ChronoError::Payment(PaymentError::LedgerUnavailable(last_err)))
+    Err(ChronoError::Payment(PaymentError::LedgerUnavailable(
+        last_err,
+    )))
 }

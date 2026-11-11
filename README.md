@@ -126,7 +126,7 @@ Locally the network seeds the anonymous identity with ICP. Fund a test user with
 ## Tests
 
 ```bash
-cargo test -p backend
+scripts/test-backend.sh        # backend unit + PocketIC tests (real ledgers and vetKD)
 pnpm --dir frontend test
 # end-to-end against the running local deployment:
 ICP_E2E=1 pnpm --dir frontend exec vitest run tests/e2e.local.test.ts
@@ -145,7 +145,8 @@ The frontend regenerates its TypeScript bindings from it on every build.
 
 ## Mainnet
 
-Mainnet ids live in `.icp/data/mappings/ic.ids.json`. Deploy, then connect the
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full checklist. In short,
+mainnet ids live in `.icp/data/mappings/ic.ids.json`. Deploy, then connect the
 token with `set_token` (above):
 
 ```bash

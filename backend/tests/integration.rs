@@ -9,7 +9,9 @@ use candid::utils::ArgumentEncoder;
 use candid::{decode_one, encode_args, CandidType, Nat, Principal};
 use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;
 use icrc_ledger_types::icrc1::account::Account;
-use icrc_ledger_types::icrc1::transfer::{TransferArg as LedgerTransferArg, TransferError as LedgerTransferError};
+use icrc_ledger_types::icrc1::transfer::{
+    TransferArg as LedgerTransferArg, TransferError as LedgerTransferError,
+};
 use icrc_ledger_types::icrc2::approve::{ApproveArgs, ApproveError};
 use pocket_ic::{PocketIc, PocketIcBuilder};
 use serde::Deserialize;
@@ -81,18 +83,26 @@ fn user(n: u8) -> Principal {
 }
 
 fn account(owner: Principal) -> Account {
-    Account { owner, subaccount: None }
+    Account {
+        owner,
+        subaccount: None,
+    }
 }
 
 fn wasm(env_var: &str, default: &str) -> Vec<u8> {
     let path = std::env::var(env_var).unwrap_or_else(|_| default.to_string());
     std::fs::read(&path).unwrap_or_else(|e| {
-        panic!("cannot read {path} ({e}). Run scripts/test-backend.sh, which builds and fetches it.")
+        panic!(
+            "cannot read {path} ({e}). Run scripts/test-backend.sh, which builds and fetches it."
+        )
     })
 }
 
 fn backend_wasm() -> Vec<u8> {
-    wasm("BACKEND_WASM", "../target/wasm32-unknown-unknown/release/backend.wasm")
+    wasm(
+        "BACKEND_WASM",
+        "../target/wasm32-unknown-unknown/release/backend.wasm",
+    )
 }
 
 fn install_ledger(pic: &PocketIc, id: Principal, symbol: &str, funded: &[Principal]) {
@@ -117,7 +127,10 @@ fn install_ledger(pic: &PocketIc, id: Principal, symbol: &str, funded: &[Princip
     });
     pic.install_canister(
         id,
-        wasm("LEDGER_WASM", "../.icp/cache/local-token/ic-icrc1-ledger.wasm.gz"),
+        wasm(
+            "LEDGER_WASM",
+            "../.icp/cache/local-token/ic-icrc1-ledger.wasm.gz",
+        ),
         candid::encode_one(arg).unwrap(),
         None,
     );
@@ -126,8 +139,7 @@ fn install_ledger(pic: &PocketIc, id: Principal, symbol: &str, funded: &[Princip
 fn setup() -> Env {
     let pic = PocketIcBuilder::new()
         .with_nns_subnet()
-        .with_ii_subnet()
-        .with_fiduciary_subnet() // threshold keys (vetKD) live on the II and fiduciary subnets
+        .with_test_threshold_keys_subnet() // holds the vetKD test key `test_key_1`
         .with_application_subnet()
         .build();
     let (admin, alice, bob, carol) = (user(1), user(2), user(3), user(4));
@@ -142,10 +154,27 @@ fn setup() -> Env {
 
     let backend = pic.create_canister_with_settings(Some(admin), None);
     pic.add_cycles(backend, 1_000_000_000_000_000);
-    let init = Some(InitArgs { vetkd_key_name: Some("test_key_1".to_string()), admins: None });
-    pic.install_canister(backend, backend_wasm(), candid::encode_one(init).unwrap(), Some(admin));
+    let init = Some(InitArgs {
+        vetkd_key_name: Some("test_key_1".to_string()),
+        admins: None,
+    });
+    pic.install_canister(
+        backend,
+        backend_wasm(),
+        candid::encode_one(init).unwrap(),
+        Some(admin),
+    );
 
-    Env { pic, backend, icp, chrono, admin, alice, bob, carol }
+    Env {
+        pic,
+        backend,
+        icp,
+        chrono,
+        admin,
+        alice,
+        bob,
+        carol,
+    }
 }
 
 impl Env {
@@ -182,7 +211,12 @@ impl Env {
     }
 
     fn balance(&self, ledger: Principal, owner: Principal) -> u64 {
-        let n: Nat = self.query(ledger, Principal::anonymous(), "icrc1_balance_of", (account(owner),));
+        let n: Nat = self.query(
+            ledger,
+            Principal::anonymous(),
+            "icrc1_balance_of",
+            (account(owner),),
+        );
         u64::try_from(n.0).unwrap()
     }
 
@@ -211,11 +245,17 @@ impl Env {
 
     fn lock_args(&self, recipients: &[Principal], payment: PaymentMethod) -> CreateChronolockArgs {
         let user_keys = if recipients.is_empty() {
-            vec![UserKey { user: "public".to_string(), key: "wrapped".to_string() }]
+            vec![UserKey {
+                user: "public".to_string(),
+                key: "wrapped".to_string(),
+            }]
         } else {
             recipients
                 .iter()
-                .map(|p| UserKey { user: p.to_text(), key: "wrapped".to_string() })
+                .map(|p| UserKey {
+                    user: p.to_text(),
+                    key: "wrapped".to_string(),
+                })
                 .collect()
         };
         CreateChronolockArgs {
@@ -235,18 +275,26 @@ impl Env {
     /// Approves the ICP text price and creates a lock for `recipients`.
     fn paid_lock(&self, sender: Principal, recipients: &[Principal]) -> Chronolock {
         self.approve(self.icp, sender, E8 / 5 + FEE);
-        self.create(sender, self.lock_args(recipients, PaymentMethod::ICP)).expect("create")
+        self.create(sender, self.lock_args(recipients, PaymentMethod::ICP))
+            .expect("create")
     }
 
     fn connect_chrono(&self) {
-        let token = Some(TokenConfig { ledger: self.chrono, market: None, symbol: "CHRONO".into() });
+        let token = Some(TokenConfig {
+            ledger: self.chrono,
+            market: None,
+            symbol: "CHRONO".into(),
+        });
         let res: ChronoResult<()> = self.update(self.backend, self.admin, "set_token", (token,));
         res.expect("set_token");
     }
 
     fn upload(&self, owner: Principal, chunks: &[&[u8]]) -> u64 {
         let size: usize = chunks.iter().map(|c| c.len()).sum();
-        let args = StartMediaUploadArgs { size: size as u64, chunk_count: chunks.len() as u32 };
+        let args = StartMediaUploadArgs {
+            size: size as u64,
+            chunk_count: chunks.len() as u32,
+        };
         let id: ChronoResult<u64> = self.update(self.backend, owner, "start_media_upload", (args,));
         let id = id.expect("start upload");
         for (i, c) in chunks.iter().enumerate() {
@@ -258,13 +306,17 @@ impl Env {
             );
             r.expect("upload chunk");
         }
-        let r: ChronoResult<MediaInfo> = self.update(self.backend, owner, "finish_media_upload", (id,));
+        let r: ChronoResult<MediaInfo> =
+            self.update(self.backend, owner, "finish_media_upload", (id,));
         r.expect("finish upload");
         id
     }
 
     fn page() -> Page {
-        Page { offset: 0, limit: 50 }
+        Page {
+            offset: 0,
+            limit: 50,
+        }
     }
 }
 
@@ -275,7 +327,10 @@ impl Env {
 #[test]
 fn anonymous_cannot_create() {
     let env = setup();
-    let res = env.create(Principal::anonymous(), env.lock_args(&[], PaymentMethod::ICP));
+    let res = env.create(
+        Principal::anonymous(),
+        env.lock_args(&[], PaymentMethod::ICP),
+    );
     assert_eq!(res.unwrap_err(), ChronoError::AnonymousCaller);
 }
 
@@ -302,8 +357,16 @@ fn icp_text_lock_costs_exactly_the_price_plus_fees() {
 
     let lock = env.paid_lock(env.alice, &[env.bob]);
 
-    assert_eq!(env.balance(env.icp, env.backend), price, "treasury receives the price");
-    assert_eq!(env.balance(env.icp, env.alice), before - price - 2 * FEE, "approve fee + transfer fee");
+    assert_eq!(
+        env.balance(env.icp, env.backend),
+        price,
+        "treasury receives the price"
+    );
+    assert_eq!(
+        env.balance(env.icp, env.alice),
+        before - price - 2 * FEE,
+        "approve fee + transfer fee"
+    );
     let receipt = lock.payment.expect("receipt");
     assert_eq!(receipt.method, PaymentMethod::ICP);
     assert_eq!(receipt.amount, Nat::from(price));
@@ -321,9 +384,16 @@ fn chrono_payments_need_the_token_connected_by_an_admin() {
     let env = setup();
     let media_price = 5_000 * E8;
     let res = env.create(env.alice, env.lock_args(&[], PaymentMethod::CHRONO));
-    assert_eq!(res.unwrap_err(), ChronoError::Payment(PaymentError::NotEnabled));
+    assert_eq!(
+        res.unwrap_err(),
+        ChronoError::Payment(PaymentError::NotEnabled)
+    );
 
-    let token = Some(TokenConfig { ledger: env.chrono, market: None, symbol: "CHRONO".into() });
+    let token = Some(TokenConfig {
+        ledger: env.chrono,
+        market: None,
+        symbol: "CHRONO".into(),
+    });
     let denied: ChronoResult<()> = env.update(env.backend, env.alice, "set_token", (token,));
     assert_eq!(denied.unwrap_err(), ChronoError::Unauthorized);
     env.connect_chrono();
@@ -356,7 +426,8 @@ fn insufficient_funds_fail_cleanly() {
         memo: None,
         amount: Nat::from(2 * FEE),
     };
-    let sent: Result<Nat, LedgerTransferError> = env.update(env.icp, env.alice, "icrc1_transfer", (arg,));
+    let sent: Result<Nat, LedgerTransferError> =
+        env.update(env.icp, env.alice, "icrc1_transfer", (arg,));
     sent.unwrap();
     env.approve(env.icp, env.carol, E8);
 
@@ -374,20 +445,34 @@ fn invalid_requests_are_rejected_before_any_payment() {
     let env = setup();
     env.approve(env.icp, env.alice, E8);
     let after_approve = env.balance(env.icp, env.alice);
-    let cases: Vec<(&str, Box<dyn Fn(&mut CreateChronolockArgs)>)> = vec![
+    type Mutation = Box<dyn Fn(&mut CreateChronolockArgs)>;
+    let cases: Vec<(&str, Mutation)> = vec![
         ("past unlock time", Box::new(|a| a.unlock_time = 1)),
         ("wrong scheme", Box::new(|a| a.scheme = 1)),
         ("no keys", Box::new(|a| a.user_keys.clear())),
         ("empty metadata", Box::new(|a| a.encrypted_metadata.clear())),
-        ("bad recipient", Box::new(|a| a.user_keys[0].user = "not-a-principal".into())),
+        (
+            "bad recipient",
+            Box::new(|a| a.user_keys[0].user = "not-a-principal".into()),
+        ),
         ("unknown media", Box::new(|a| a.media_id = Some(999))),
-        ("oversized metadata", Box::new(|a| a.encrypted_metadata = "x".repeat(70_000))),
+        (
+            "oversized metadata",
+            Box::new(|a| a.encrypted_metadata = "x".repeat(70_000)),
+        ),
     ];
     for (name, mutate) in cases {
         let mut args = env.lock_args(&[env.bob], PaymentMethod::ICP);
         mutate(&mut args);
-        assert!(env.create(env.alice, args).is_err(), "{name} should be rejected");
-        assert_eq!(env.balance(env.icp, env.alice), after_approve, "{name} must not charge");
+        assert!(
+            env.create(env.alice, args).is_err(),
+            "{name} should be rejected"
+        );
+        assert_eq!(
+            env.balance(env.icp, env.alice),
+            after_approve,
+            "{name} must not charge"
+        );
     }
     assert_eq!(env.stats().total_locks, 0);
 }
@@ -397,8 +482,14 @@ fn a_second_create_while_one_is_in_flight_is_refused() {
     let env = setup();
     env.approve(env.icp, env.alice, 2 * (E8 / 5 + FEE));
     let args = || encode_args((env.lock_args(&[], PaymentMethod::ICP),)).unwrap();
-    let first = env.pic.submit_call(env.backend, env.alice, "create_chronolock", args()).unwrap();
-    let second = env.pic.submit_call(env.backend, env.alice, "create_chronolock", args()).unwrap();
+    let first = env
+        .pic
+        .submit_call(env.backend, env.alice, "create_chronolock", args())
+        .unwrap();
+    let second = env
+        .pic
+        .submit_call(env.backend, env.alice, "create_chronolock", args())
+        .unwrap();
     let results: Vec<ChronoResult<Chronolock>> = [first, second]
         .into_iter()
         .map(|id| decode_one(&env.pic.await_call(id).unwrap()).unwrap())
@@ -409,10 +500,16 @@ fn a_second_create_while_one_is_in_flight_is_refused() {
         .iter()
         .filter(|r| matches!(r, Err(ChronoError::AlreadyProcessing)))
         .count();
-    assert_eq!((ok, busy), (1, 1), "exactly one succeeds, the other is refused: {results:?}");
+    assert_eq!(
+        (ok, busy),
+        (1, 1),
+        "exactly one succeeds, the other is refused: {results:?}"
+    );
     assert_eq!(env.balance(env.icp, env.backend), E8 / 5, "charged once");
     // The guard is released afterwards.
-    assert!(env.create(env.alice, env.lock_args(&[], PaymentMethod::ICP)).is_ok());
+    assert!(env
+        .create(env.alice, env.lock_args(&[], PaymentMethod::ICP))
+        .is_ok());
 }
 
 // ---------------------------------------------------------------------------
@@ -428,8 +525,14 @@ fn keys_are_released_only_after_the_unlock_time_and_only_to_the_caller() {
         env.update(env.backend, who, method, (lock.unlock_time, tpk()))
     };
 
-    assert_eq!(key(env.bob, "user_time_key").unwrap_err(), ChronoError::TimeLocked);
-    assert_eq!(key(env.bob, "public_time_key").unwrap_err(), ChronoError::TimeLocked);
+    assert_eq!(
+        key(env.bob, "user_time_key").unwrap_err(),
+        ChronoError::TimeLocked
+    );
+    assert_eq!(
+        key(env.bob, "public_time_key").unwrap_err(),
+        ChronoError::TimeLocked
+    );
 
     env.pic.advance_time(Duration::from_secs(3601));
     env.pic.tick();
@@ -446,8 +549,12 @@ fn keys_are_released_only_after_the_unlock_time_and_only_to_the_caller() {
     assert_ne!(bob_key, alice_key);
     assert_ne!(bob_key, public_key);
 
-    let short: ChronoResult<ByteBuf> =
-        env.update(env.backend, env.bob, "user_time_key", (lock.unlock_time, ByteBuf::from(vec![1u8; 10])));
+    let short: ChronoResult<ByteBuf> = env.update(
+        env.backend,
+        env.bob,
+        "user_time_key",
+        (lock.unlock_time, ByteBuf::from(vec![1u8; 10])),
+    );
     assert!(matches!(short.unwrap_err(), ChronoError::InvalidInput(_)));
 
     let pk: ChronoResult<ByteBuf> = env.update(env.backend, env.bob, "ibe_public_key", ());
@@ -461,18 +568,27 @@ fn key_requests_are_rate_limited_per_caller() {
         .query::<_, PublicConfig>(env.backend, env.alice, "get_config", ())
         .limits;
     limits.key_derivations_per_hour = 2;
-    let denied: ChronoResult<()> = env.update(env.backend, env.alice, "set_limits", (limits.clone(),));
+    let denied: ChronoResult<()> =
+        env.update(env.backend, env.alice, "set_limits", (limits.clone(),));
     assert_eq!(denied.unwrap_err(), ChronoError::Unauthorized);
     let set: ChronoResult<()> = env.update(env.backend, env.admin, "set_limits", (limits,));
     set.unwrap();
 
     let past = env.now_s() - 10;
     let ask = |who: Principal| -> ChronoResult<ByteBuf> {
-        env.update(env.backend, who, "public_time_key", (past, ByteBuf::from(TRANSPORT_KEY.to_vec())))
+        env.update(
+            env.backend,
+            who,
+            "public_time_key",
+            (past, ByteBuf::from(TRANSPORT_KEY.to_vec())),
+        )
     };
     assert!(ask(env.alice).is_ok());
     assert!(ask(env.alice).is_ok());
-    assert!(matches!(ask(env.alice).unwrap_err(), ChronoError::LimitExceeded(_)));
+    assert!(matches!(
+        ask(env.alice).unwrap_err(),
+        ChronoError::LimitExceeded(_)
+    ));
     assert!(ask(env.bob).is_ok(), "other callers are unaffected");
 
     env.pic.advance_time(Duration::from_secs(3601));
@@ -488,27 +604,64 @@ fn key_requests_are_rate_limited_per_caller() {
 fn media_uploads_are_owner_bound_and_limited() {
     let env = setup();
     let start = |who: Principal, size: u64, chunks: u32| -> ChronoResult<u64> {
-        env.update(env.backend, who, "start_media_upload", (StartMediaUploadArgs { size, chunk_count: chunks },))
+        env.update(
+            env.backend,
+            who,
+            "start_media_upload",
+            (StartMediaUploadArgs {
+                size,
+                chunk_count: chunks,
+            },),
+        )
     };
-    assert_eq!(start(Principal::anonymous(), 10, 1).unwrap_err(), ChronoError::AnonymousCaller);
-    assert!(matches!(start(env.alice, 0, 1).unwrap_err(), ChronoError::LimitExceeded(_)));
-    assert!(matches!(start(env.alice, 11 * 1024 * 1024, 6).unwrap_err(), ChronoError::LimitExceeded(_)));
-    assert!(matches!(start(env.alice, 4_000_000, 1).unwrap_err(), ChronoError::InvalidInput(_)));
+    assert_eq!(
+        start(Principal::anonymous(), 10, 1).unwrap_err(),
+        ChronoError::AnonymousCaller
+    );
+    assert!(matches!(
+        start(env.alice, 0, 1).unwrap_err(),
+        ChronoError::LimitExceeded(_)
+    ));
+    assert!(matches!(
+        start(env.alice, 11 * 1024 * 1024, 6).unwrap_err(),
+        ChronoError::LimitExceeded(_)
+    ));
+    assert!(matches!(
+        start(env.alice, 4_000_000, 1).unwrap_err(),
+        ChronoError::InvalidInput(_)
+    ));
 
     let id = start(env.alice, 8, 2).unwrap();
     let chunk = |who: Principal, index: u32, data: &[u8]| -> ChronoResult<()> {
-        env.update(env.backend, who, "upload_media_chunk", (id, index, ByteBuf::from(data.to_vec())))
+        env.update(
+            env.backend,
+            who,
+            "upload_media_chunk",
+            (id, index, ByteBuf::from(data.to_vec())),
+        )
     };
-    assert_eq!(chunk(env.bob, 0, b"evil").unwrap_err(), ChronoError::Unauthorized);
-    assert!(matches!(chunk(env.alice, 5, b"data").unwrap_err(), ChronoError::InvalidInput(_)));
+    assert_eq!(
+        chunk(env.bob, 0, b"evil").unwrap_err(),
+        ChronoError::Unauthorized
+    );
+    assert!(matches!(
+        chunk(env.alice, 5, b"data").unwrap_err(),
+        ChronoError::InvalidInput(_)
+    ));
     chunk(env.alice, 0, b"data").unwrap();
 
     let finish = |who: Principal| -> ChronoResult<MediaInfo> {
         env.update(env.backend, who, "finish_media_upload", (id,))
     };
-    assert!(matches!(finish(env.alice).unwrap_err(), ChronoError::InvalidInput(_)), "missing chunk");
+    assert!(
+        matches!(finish(env.alice).unwrap_err(), ChronoError::InvalidInput(_)),
+        "missing chunk"
+    );
     chunk(env.alice, 1, b"toolong").unwrap();
-    assert!(matches!(finish(env.alice).unwrap_err(), ChronoError::InvalidInput(_)), "size mismatch");
+    assert!(
+        matches!(finish(env.alice).unwrap_err(), ChronoError::InvalidInput(_)),
+        "size mismatch"
+    );
     chunk(env.alice, 1, b"more").unwrap();
     assert!(finish(env.alice).unwrap().finished);
 
@@ -523,11 +676,17 @@ fn media_uploads_are_owner_bound_and_limited() {
     env.approve(env.icp, env.bob, 2 * E8);
     let mut args = env.lock_args(&[], PaymentMethod::ICP);
     args.media_id = Some(id);
-    assert_eq!(env.create(env.bob, args).unwrap_err(), ChronoError::Unauthorized);
+    assert_eq!(
+        env.create(env.bob, args).unwrap_err(),
+        ChronoError::Unauthorized
+    );
 
     // At most two open uploads per user.
     start(env.alice, 8, 1).unwrap();
-    assert!(matches!(start(env.alice, 8, 1).unwrap_err(), ChronoError::LimitExceeded(_)));
+    assert!(matches!(
+        start(env.alice, 8, 1).unwrap_err(),
+        ChronoError::LimitExceeded(_)
+    ));
 }
 
 #[test]
@@ -547,11 +706,14 @@ fn unattached_uploads_expire_but_attached_media_stays() {
         env.pic.tick();
     }
 
-    let info = |id: u64| -> ChronoResult<MediaInfo> { env.query(env.backend, env.alice, "get_media_info", (id,)) };
+    let info = |id: u64| -> ChronoResult<MediaInfo> {
+        env.query(env.backend, env.alice, "get_media_info", (id,))
+    };
     assert_eq!(info(orphan).unwrap_err(), ChronoError::NotFound);
     assert!(info(kept).unwrap().lock_id.is_some());
     // Attached (encrypted) media is readable by anyone.
-    let chunk: ChronoResult<ByteBuf> = env.query(env.backend, env.bob, "get_media_chunk", (kept, 0u32));
+    let chunk: ChronoResult<ByteBuf> =
+        env.query(env.backend, env.bob, "get_media_chunk", (kept, 0u32));
     assert_eq!(chunk.unwrap().as_slice(), b"kept");
 }
 
@@ -566,26 +728,55 @@ fn lists_follow_ownership_recipients_and_unlock_time() {
     let public = env.paid_lock(env.alice, &[]);
     let ids = |page: LockPage| page.items.iter().map(|l| l.id).collect::<Vec<_>>();
     let owned = |who: Principal| -> LockPage {
-        env.query(env.backend, who, "list_owned_chronolocks", (who, Env::page()))
+        env.query(
+            env.backend,
+            who,
+            "list_owned_chronolocks",
+            (who, Env::page()),
+        )
     };
     let received = |who: Principal, unlocked: bool| -> LockPage {
-        env.query(env.backend, who, "list_received_chronolocks", (who, unlocked, Env::page()))
+        env.query(
+            env.backend,
+            who,
+            "list_received_chronolocks",
+            (who, unlocked, Env::page()),
+        )
     };
 
-    assert_eq!(ids(owned(env.alice)), vec![public.id, private.id], "newest first");
+    assert_eq!(
+        ids(owned(env.alice)),
+        vec![public.id, private.id],
+        "newest first"
+    );
     assert!(owned(env.bob).items.is_empty());
     assert_eq!(ids(received(env.bob, false)), vec![public.id, private.id]);
-    assert_eq!(ids(received(env.carol, false)), vec![public.id], "carol only sees the public one");
-    assert!(received(env.bob, true).items.is_empty(), "nothing unlocked yet");
+    assert_eq!(
+        ids(received(env.carol, false)),
+        vec![public.id],
+        "carol only sees the public one"
+    );
+    assert!(
+        received(env.bob, true).items.is_empty(),
+        "nothing unlocked yet"
+    );
 
     env.pic.advance_time(Duration::from_secs(3601));
     env.pic.tick();
     assert_eq!(ids(received(env.bob, true)), vec![public.id, private.id]);
 
-    let all: LockPage = env.query(env.backend, Principal::anonymous(), "list_chronolocks", (Env::page(),));
+    let all: LockPage = env.query(
+        env.backend,
+        Principal::anonymous(),
+        "list_chronolocks",
+        (Env::page(),),
+    );
     assert_eq!(all.total, 2);
     let stats = env.stats();
-    assert_eq!((stats.total_locks, stats.unique_creators, stats.public_locks), (2, 1, 1));
+    assert_eq!(
+        (stats.total_locks, stats.unique_creators, stats.public_locks),
+        (2, 1, 1)
+    );
 }
 
 #[test]
@@ -597,17 +788,31 @@ fn only_the_owner_or_an_admin_can_burn() {
     args.media_id = Some(media_id);
     let lock = env.create(env.alice, args).unwrap();
     let other = env.paid_lock(env.alice, &[]);
-    let burn = |who: Principal, id: u64| -> ChronoResult<()> { env.update(env.backend, who, "burn_chronolock", (id,)) };
+    let burn = |who: Principal, id: u64| -> ChronoResult<()> {
+        env.update(env.backend, who, "burn_chronolock", (id,))
+    };
 
-    assert_eq!(burn(env.bob, lock.id).unwrap_err(), ChronoError::Unauthorized);
+    assert_eq!(
+        burn(env.bob, lock.id).unwrap_err(),
+        ChronoError::Unauthorized
+    );
     burn(env.alice, lock.id).unwrap();
     assert_eq!(burn(env.alice, lock.id).unwrap_err(), ChronoError::NotFound);
     let gone: Option<Chronolock> = env.query(env.backend, env.alice, "get_chronolock", (lock.id,));
     assert!(gone.is_none());
-    let info: ChronoResult<MediaInfo> = env.query(env.backend, env.alice, "get_media_info", (media_id,));
-    assert_eq!(info.unwrap_err(), ChronoError::NotFound, "media is deleted with the lock");
-    let received: LockPage =
-        env.query(env.backend, env.bob, "list_received_chronolocks", (env.bob, false, Env::page()));
+    let info: ChronoResult<MediaInfo> =
+        env.query(env.backend, env.alice, "get_media_info", (media_id,));
+    assert_eq!(
+        info.unwrap_err(),
+        ChronoError::NotFound,
+        "media is deleted with the lock"
+    );
+    let received: LockPage = env.query(
+        env.backend,
+        env.bob,
+        "list_received_chronolocks",
+        (env.bob, false, Env::page()),
+    );
     assert_eq!(received.items.len(), 1, "only the public lock remains");
 
     burn(env.admin, other.id).expect("admins can burn");
@@ -629,11 +834,22 @@ fn icrc7_transfer_moves_ownership() {
         env.update(env.backend, from, "icrc7_transfer", (vec![arg],))
     };
     let owner = || -> Vec<Option<Account>> {
-        env.query(env.backend, Principal::anonymous(), "icrc7_owner_of", (vec![Nat::from(lock.id)],))
+        env.query(
+            env.backend,
+            Principal::anonymous(),
+            "icrc7_owner_of",
+            (vec![Nat::from(lock.id)],),
+        )
     };
 
-    assert!(matches!(transfer(env.bob, env.carol)[0], Some(Err(TransferError::Unauthorized))));
-    assert!(matches!(transfer(env.alice, env.alice)[0], Some(Err(TransferError::InvalidRecipient))));
+    assert!(matches!(
+        transfer(env.bob, env.carol)[0],
+        Some(Err(TransferError::Unauthorized))
+    ));
+    assert!(matches!(
+        transfer(env.alice, env.alice)[0],
+        Some(Err(TransferError::InvalidRecipient))
+    ));
     assert!(matches!(transfer(env.alice, env.carol)[0], Some(Ok(_))));
     assert_eq!(owner()[0].as_ref().unwrap().owner, env.carol);
 
@@ -651,7 +867,12 @@ fn icrc7_transfer_moves_ownership() {
         (account(env.carol), None::<Nat>, None::<Nat>),
     );
     assert_eq!(tokens, vec![Nat::from(lock.id)]);
-    let supply: Nat = env.query(env.backend, Principal::anonymous(), "icrc7_total_supply", ());
+    let supply: Nat = env.query(
+        env.backend,
+        Principal::anonymous(),
+        "icrc7_total_supply",
+        (),
+    );
     assert_eq!(supply, Nat::from(1u64));
 }
 
@@ -663,28 +884,54 @@ fn icrc7_transfer_moves_ownership() {
 fn only_admins_set_prices_and_withdraw() {
     let env = setup();
     env.paid_lock(env.alice, &[]);
-    let new_prices = Prices { icp_text: E8 / 2, icp_media: 2 * E8, chrono_text: 10 * E8, chrono_media: 20 * E8 };
-    let set = |who: Principal, p: Prices| -> ChronoResult<()> { env.update(env.backend, who, "set_prices", (p,)) };
+    let new_prices = Prices {
+        icp_text: E8 / 2,
+        icp_media: 2 * E8,
+        chrono_text: 10 * E8,
+        chrono_media: 20 * E8,
+    };
+    let set = |who: Principal, p: Prices| -> ChronoResult<()> {
+        env.update(env.backend, who, "set_prices", (p,))
+    };
 
-    assert_eq!(set(env.alice, new_prices.clone()).unwrap_err(), ChronoError::Unauthorized);
+    assert_eq!(
+        set(env.alice, new_prices.clone()).unwrap_err(),
+        ChronoError::Unauthorized
+    );
     let mut zero = new_prices.clone();
     zero.icp_text = 0;
-    assert!(matches!(set(env.admin, zero).unwrap_err(), ChronoError::InvalidInput(_)));
+    assert!(matches!(
+        set(env.admin, zero).unwrap_err(),
+        ChronoError::InvalidInput(_)
+    ));
     set(env.admin, new_prices.clone()).unwrap();
     assert_eq!(env.info().prices, new_prices);
 
     // The new price applies to the next lock.
     env.approve(env.icp, env.bob, E8 / 2 + FEE);
-    env.create(env.bob, env.lock_args(&[], PaymentMethod::ICP)).unwrap();
+    env.create(env.bob, env.lock_args(&[], PaymentMethod::ICP))
+        .unwrap();
     assert_eq!(env.balance(env.icp, env.backend), E8 / 5 + E8 / 2);
 
     let withdraw = |who: Principal, amount: u64| -> ChronoResult<Nat> {
-        env.update(env.backend, who, "withdraw", (PaymentMethod::ICP, account(env.carol), Nat::from(amount)))
+        env.update(
+            env.backend,
+            who,
+            "withdraw",
+            (PaymentMethod::ICP, account(env.carol), Nat::from(amount)),
+        )
     };
-    assert_eq!(withdraw(env.alice, 1).unwrap_err(), ChronoError::Unauthorized);
+    assert_eq!(
+        withdraw(env.alice, 1).unwrap_err(),
+        ChronoError::Unauthorized
+    );
     withdraw(env.admin, E8 / 2).unwrap();
     assert_eq!(env.balance(env.icp, env.carol), E8 / 2);
-    assert_eq!(env.balance(env.icp, env.backend), E8 / 5 - FEE, "fee paid on top from the treasury");
+    assert_eq!(
+        env.balance(env.icp, env.backend),
+        E8 / 5 - FEE,
+        "fee paid on top from the treasury"
+    );
     assert!(matches!(
         withdraw(env.admin, 10 * E8).unwrap_err(),
         ChronoError::Payment(PaymentError::InsufficientFunds { .. })
@@ -696,7 +943,10 @@ fn only_admins_set_prices_and_withdraw() {
     set(env.bob, Prices::default()).expect("bob is now an admin");
     let remove: ChronoResult<()> = env.update(env.backend, env.admin, "remove_admin", (env.bob,));
     remove.unwrap();
-    assert_eq!(set(env.bob, Prices::default()).unwrap_err(), ChronoError::Unauthorized);
+    assert_eq!(
+        set(env.bob, Prices::default()).unwrap_err(),
+        ChronoError::Unauthorized
+    );
 }
 
 #[test]
@@ -711,7 +961,12 @@ fn state_survives_an_upgrade() {
     let before = env.info();
 
     env.pic
-        .upgrade_canister(env.backend, backend_wasm(), candid::encode_one(None::<InitArgs>).unwrap(), Some(env.admin))
+        .upgrade_canister(
+            env.backend,
+            backend_wasm(),
+            candid::encode_one(None::<InitArgs>).unwrap(),
+            Some(env.admin),
+        )
         .expect("upgrade");
 
     let after: Option<Chronolock> = env.query(env.backend, env.alice, "get_chronolock", (lock.id,));
@@ -720,7 +975,8 @@ fn state_survives_an_upgrade() {
     assert_eq!(after.payment, lock.payment);
     assert_eq!(env.info().collected, before.collected);
     assert_eq!(env.info().chrono_ledger, Some(env.chrono));
-    let chunk: ChronoResult<ByteBuf> = env.query(env.backend, env.bob, "get_media_chunk", (media_id, 0u32));
+    let chunk: ChronoResult<ByteBuf> =
+        env.query(env.backend, env.bob, "get_media_chunk", (media_id, 0u32));
     assert_eq!(chunk.unwrap().as_slice(), b"persisted");
     let config: PublicConfig = env.query(env.backend, env.alice, "get_config", ());
     assert_eq!(config.vetkd_key_name, "test_key_1");

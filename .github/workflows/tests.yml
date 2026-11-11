@@ -28,8 +28,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install icp-cli
         run: npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm
-      - name: Backend unit tests
-        run: cargo test -p backend --lib
+      - name: Backend unit and PocketIC integration tests
+        run: scripts/test-backend.sh
       - name: Build all canisters
         run: icp build
       - name: Frontend tests

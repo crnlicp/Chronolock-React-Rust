@@ -75,7 +75,10 @@ pub fn collection_metadata() -> Vec<(String, Value)> {
         ("icrc7:name".into(), Value::Text(NAME.into())),
         ("icrc7:symbol".into(), Value::Text(SYMBOL.into())),
         ("icrc7:description".into(), Value::Text(DESCRIPTION.into())),
-        ("icrc7:total_supply".into(), Value::Nat(Nat::from(total_supply()))),
+        (
+            "icrc7:total_supply".into(),
+            Value::Nat(Nat::from(total_supply())),
+        ),
     ]
 }
 
@@ -85,17 +88,32 @@ pub fn total_supply() -> u64 {
 
 fn lock_metadata(l: &Chronolock) -> Vec<(String, Value)> {
     let mut m = vec![
-        ("icrc7:name".to_string(), Value::Text(format!("Chronolock #{}", l.id))),
-        ("chronolock:unlock_time".to_string(), Value::Nat(Nat::from(l.unlock_time))),
-        ("chronolock:created_at".to_string(), Value::Nat(Nat::from(l.created_at))),
-        ("chronolock:creator".to_string(), Value::Text(l.creator.to_text())),
+        (
+            "icrc7:name".to_string(),
+            Value::Text(format!("Chronolock #{}", l.id)),
+        ),
+        (
+            "chronolock:unlock_time".to_string(),
+            Value::Nat(Nat::from(l.unlock_time)),
+        ),
+        (
+            "chronolock:created_at".to_string(),
+            Value::Nat(Nat::from(l.created_at)),
+        ),
+        (
+            "chronolock:creator".to_string(),
+            Value::Text(l.creator.to_text()),
+        ),
         (
             "chronolock:recipients".to_string(),
             Value::Nat(Nat::from(l.user_keys.len() as u64)),
         ),
     ];
     if let Some(media) = &l.media {
-        m.push(("chronolock:media_size".to_string(), Value::Nat(Nat::from(media.size))));
+        m.push((
+            "chronolock:media_size".to_string(),
+            Value::Nat(Nat::from(media.size)),
+        ));
     }
     m
 }
@@ -196,9 +214,7 @@ fn transfer_one(caller: Principal, a: TransferArg, now: u64) -> TransferResult {
     if from_sub.is_some_and(|s| s.iter().any(|b| *b != 0)) {
         return Err(TransferError::Unauthorized);
     }
-    if !is_default(&a.to.subaccount)
-        || a.to.owner == Principal::anonymous()
-        || a.to.owner == caller
+    if !is_default(&a.to.subaccount) || a.to.owner == Principal::anonymous() || a.to.owner == caller
     {
         return Err(TransferError::InvalidRecipient);
     }

@@ -109,12 +109,18 @@ async fn derive(
 
 /// Key for public locks. Requires sign-in so key derivations (which cost
 /// cycles) can be rate-limited per caller.
-pub async fn public_time_key(unlock_time: u64, transport_public_key: Vec<u8>) -> ChronoResult<Vec<u8>> {
+pub async fn public_time_key(
+    unlock_time: u64,
+    transport_public_key: Vec<u8>,
+) -> ChronoResult<Vec<u8>> {
     derive(unlock_time, None, transport_public_key).await
 }
 
 /// Key for locks addressed to the caller.
-pub async fn user_time_key(unlock_time: u64, transport_public_key: Vec<u8>) -> ChronoResult<Vec<u8>> {
+pub async fn user_time_key(
+    unlock_time: u64,
+    transport_public_key: Vec<u8>,
+) -> ChronoResult<Vec<u8>> {
     let caller = ic_cdk::api::msg_caller();
     derive(unlock_time, Some(caller), transport_public_key).await
 }
@@ -125,7 +131,10 @@ mod tests {
 
     #[test]
     fn identity_layout() {
-        assert_eq!(identity(1, None), vec![b'C', b'L', 2, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+        assert_eq!(
+            identity(1, None),
+            vec![b'C', b'L', 2, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        );
         let p = Principal::from_slice(&[7, 8, 9]);
         assert_eq!(
             identity(256, Some(p)),

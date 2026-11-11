@@ -33,7 +33,10 @@ pub fn start(args: StartMediaUploadArgs) -> ChronoResult<u64> {
         )));
     }
     let min_chunks = args.size.div_ceil(limits.max_chunk_bytes);
-    if args.chunk_count == 0 || (args.chunk_count as u64) < min_chunks || (args.chunk_count as u64) > args.size {
+    if args.chunk_count == 0
+        || (args.chunk_count as u64) < min_chunks
+        || (args.chunk_count as u64) > args.size
+    {
         return Err(ChronoError::InvalidInput("invalid chunk_count".to_string()));
     }
     if open_sessions_of(caller) >= limits.max_open_uploads_per_user {
@@ -67,7 +70,9 @@ fn owned_open_session(media_id: u64, caller: Principal) -> ChronoResult<MediaSes
         return Err(ChronoError::Unauthorized);
     }
     if session.lock_id.is_some() {
-        return Err(ChronoError::InvalidInput("media is already attached".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "media is already attached".to_string(),
+        ));
     }
     Ok(session)
 }
@@ -85,13 +90,19 @@ pub fn upload_chunk(media_id: u64, index: u32, chunk: Vec<u8>) -> ChronoResult<(
     not_in_flight(caller)?;
     let mut session = owned_open_session(media_id, caller)?;
     if session.finished {
-        return Err(ChronoError::InvalidInput("upload already finished".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "upload already finished".to_string(),
+        ));
     }
     if index >= session.chunk_count {
-        return Err(ChronoError::InvalidInput("chunk index out of range".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "chunk index out of range".to_string(),
+        ));
     }
     if chunk.is_empty() || chunk.len() as u64 > config().limits.max_chunk_bytes {
-        return Err(ChronoError::LimitExceeded("chunk too large or empty".to_string()));
+        return Err(ChronoError::LimitExceeded(
+            "chunk too large or empty".to_string(),
+        ));
     }
     // Overwriting a chunk is allowed (retries); total size is checked on finish.
     MEDIA_CHUNKS.with(|c| c.borrow_mut().insert((media_id, index), chunk));
@@ -115,10 +126,14 @@ pub fn finish(media_id: u64) -> ChronoResult<MediaInfo> {
     not_in_flight(caller)?;
     let mut session = owned_open_session(media_id, caller)?;
     if session.received.iter().any(|r| !r) {
-        return Err(ChronoError::InvalidInput("not all chunks were uploaded".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "not all chunks were uploaded".to_string(),
+        ));
     }
     if stored_size(media_id, session.chunk_count) != session.size {
-        return Err(ChronoError::InvalidInput("uploaded size does not match".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "uploaded size does not match".to_string(),
+        ));
     }
     session.finished = true;
     MEDIA_SESSIONS.with(|s| s.borrow_mut().insert(media_id, session.clone()));
@@ -137,7 +152,9 @@ pub fn cancel(media_id: u64) -> ChronoResult<()> {
 pub fn check_attachable(media_id: u64, caller: Principal) -> ChronoResult<MediaRef> {
     let session = owned_open_session(media_id, caller)?;
     if !session.finished {
-        return Err(ChronoError::InvalidInput("media upload is not finished".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "media upload is not finished".to_string(),
+        ));
     }
     Ok(MediaRef {
         media_id,

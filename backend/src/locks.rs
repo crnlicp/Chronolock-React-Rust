@@ -6,8 +6,8 @@ use crate::state::{
     config, next_lock_id, CREATORS, LOCKS, OWNER_INDEX, PUBLIC_INDEX, RECIPIENT_INDEX,
 };
 use crate::types::{
-    ChronoError, ChronoResult, Chronolock, CreateChronolockArgs, LockPage, MediaRef, Page,
-    Stats, PUBLIC_RECIPIENT,
+    ChronoError, ChronoResult, Chronolock, CreateChronolockArgs, LockPage, MediaRef, Page, Stats,
+    PUBLIC_RECIPIENT,
 };
 use candid::Principal;
 use std::collections::BTreeSet;
@@ -34,14 +34,20 @@ pub fn validate(caller: Principal, args: CreateChronolockArgs) -> ChronoResult<V
         )));
     }
     if args.encrypted_metadata.is_empty() {
-        return Err(ChronoError::InvalidInput("encrypted metadata is required".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "encrypted metadata is required".to_string(),
+        ));
     }
     let now_s = ic_cdk::api::time() / 1_000_000_000;
     if args.unlock_time <= now_s {
-        return Err(ChronoError::InvalidInput("unlock time must be in the future".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "unlock time must be in the future".to_string(),
+        ));
     }
     if args.user_keys.is_empty() {
-        return Err(ChronoError::InvalidInput("at least one key is required".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "at least one key is required".to_string(),
+        ));
     }
     if args.user_keys.len() > limits.max_recipients as usize {
         return Err(ChronoError::LimitExceeded(format!(
@@ -71,7 +77,10 @@ pub fn validate(caller: Principal, args: CreateChronolockArgs) -> ChronoResult<V
                 return Err(ChronoError::InvalidInput("anonymous recipient".to_string()));
             }
             if !recipients.insert(p) {
-                return Err(ChronoError::InvalidInput(format!("duplicate recipient {}", k.user)));
+                return Err(ChronoError::InvalidInput(format!(
+                    "duplicate recipient {}",
+                    k.user
+                )));
             }
         }
     }
@@ -185,12 +194,25 @@ pub fn list_all(page: Page) -> LockPage {
         let l = l.borrow();
         LockPage {
             total: l.len(),
-            items: l.iter().rev().skip(skip).take(take).map(|e| e.value()).collect(),
+            items: l
+                .iter()
+                .rev()
+                .skip(skip)
+                .take(take)
+                .map(|e| e.value())
+                .collect(),
         }
     })
 }
 
-fn ids_for(principal: Principal, index: &'static std::thread::LocalKey<std::cell::RefCell<ic_stable_structures::StableBTreeMap<(Principal, u64), (), crate::state::Memory>>>) -> Vec<u64> {
+type PrincipalIndex = std::cell::RefCell<
+    ic_stable_structures::StableBTreeMap<(Principal, u64), (), crate::state::Memory>,
+>;
+
+fn ids_for(
+    principal: Principal,
+    index: &'static std::thread::LocalKey<PrincipalIndex>,
+) -> Vec<u64> {
     index.with(|i| {
         i.borrow()
             .range((principal, 0)..=(principal, u64::MAX))
@@ -204,7 +226,12 @@ fn page_of(mut ids: Vec<u64>, page: Page) -> LockPage {
     let (skip, take) = clamp(&page);
     LockPage {
         total: ids.len() as u64,
-        items: ids.into_iter().skip(skip).take(take).filter_map(get).collect(),
+        items: ids
+            .into_iter()
+            .skip(skip)
+            .take(take)
+            .filter_map(get)
+            .collect(),
     }
 }
 
@@ -230,8 +257,12 @@ pub fn count_owned(owner: Principal) -> u64 {
 }
 
 pub fn stats() -> Stats {
-    let media = crate::state::MEDIA_SESSIONS
-        .with(|s| s.borrow().iter().filter(|e| e.value().lock_id.is_some()).count() as u64);
+    let media = crate::state::MEDIA_SESSIONS.with(|s| {
+        s.borrow()
+            .iter()
+            .filter(|e| e.value().lock_id.is_some())
+            .count() as u64
+    });
     Stats {
         total_locks: LOCKS.with(|l| l.borrow().len()),
         unique_creators: CREATORS.with(|c| c.borrow().len()),

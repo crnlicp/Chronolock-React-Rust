@@ -153,14 +153,20 @@ async fn ibe_public_key() -> ChronoResult<serde_bytes::ByteBuf> {
 }
 
 #[update]
-async fn public_time_key(unlock_time: u64, transport_public_key: serde_bytes::ByteBuf) -> ChronoResult<serde_bytes::ByteBuf> {
+async fn public_time_key(
+    unlock_time: u64,
+    transport_public_key: serde_bytes::ByteBuf,
+) -> ChronoResult<serde_bytes::ByteBuf> {
     vetkd::public_time_key(unlock_time, transport_public_key.into_vec())
         .await
         .map(serde_bytes::ByteBuf::from)
 }
 
 #[update]
-async fn user_time_key(unlock_time: u64, transport_public_key: serde_bytes::ByteBuf) -> ChronoResult<serde_bytes::ByteBuf> {
+async fn user_time_key(
+    unlock_time: u64,
+    transport_public_key: serde_bytes::ByteBuf,
+) -> ChronoResult<serde_bytes::ByteBuf> {
     vetkd::user_time_key(unlock_time, transport_public_key.into_vec())
         .await
         .map(serde_bytes::ByteBuf::from)
@@ -217,7 +223,9 @@ fn set_token(token: Option<TokenConfig>) -> ChronoResult<()> {
     let admin = admin_caller()?;
     if let Some(t) = &token {
         if t.ledger == Principal::anonymous() || t.symbol.trim().is_empty() || t.symbol.len() > 16 {
-            return Err(ChronoError::InvalidInput("invalid token config".to_string()));
+            return Err(ChronoError::InvalidInput(
+                "invalid token config".to_string(),
+            ));
         }
     }
     update_config(|c| c.token = token.clone());
@@ -235,7 +243,9 @@ fn whoami() -> (Principal, bool) {
 fn set_limits(limits: Limits) -> ChronoResult<()> {
     let admin = admin_caller()?;
     if limits.max_chunk_bytes == 0 || limits.max_chunk_bytes > 1_950_000 {
-        return Err(ChronoError::InvalidInput("max_chunk_bytes must be 1..=1950000".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "max_chunk_bytes must be 1..=1950000".to_string(),
+        ));
     }
     update_config(|c| c.limits = limits);
     ic_cdk::println!("limits updated by {admin}");
@@ -246,7 +256,9 @@ fn set_limits(limits: Limits) -> ChronoResult<()> {
 fn add_admin(p: Principal) -> ChronoResult<()> {
     admin_caller()?;
     if p == Principal::anonymous() {
-        return Err(ChronoError::InvalidInput("anonymous cannot be admin".to_string()));
+        return Err(ChronoError::InvalidInput(
+            "anonymous cannot be admin".to_string(),
+        ));
     }
     ADMINS.with(|a| a.borrow_mut().insert(p, ()));
     Ok(())
@@ -368,7 +380,10 @@ fn icrc7_tokens_of(account: Account, prev: Option<Nat>, take: Option<Nat>) -> Ve
 fn icrc7_transfer(args: Vec<TransferArg>) -> Vec<Option<TransferResult>> {
     match authenticated_caller() {
         Ok(caller) => icrc7::transfer(caller, args),
-        Err(_) => args.iter().map(|_| Some(Err(icrc7::TransferError::Unauthorized))).collect(),
+        Err(_) => args
+            .iter()
+            .map(|_| Some(Err(icrc7::TransferError::Unauthorized)))
+            .collect(),
     }
 }
 
