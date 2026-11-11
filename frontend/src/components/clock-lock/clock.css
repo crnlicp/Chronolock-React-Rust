@@ -145,7 +145,7 @@
 
 .clock-container .clock-analog .second:after {
   content: "";
-  background: #fff;
+  background: #a6a6a6;
   position: absolute;
   left: 50%;
   top: 50%;
@@ -171,7 +171,7 @@
 
 .clock-container .clock-analog .hour:after {
   content: "";
-  background: #fff;
+  background: #a6a6a6;
   position: absolute;
   left: 50%;
   top: 50%;
@@ -289,10 +289,10 @@
 }
 .clock-lock .clock-window {
   position: absolute;
-  left: 28.26%;
-  top: 45.22%;
-  width: 47.5%;
-  height: 47.5%;
+  left: 31%;
+  top: 47.5%;
+  width: 41.5%;
+  height: 41.5%;
   border-radius: 50%;
   overflow: hidden;
 }

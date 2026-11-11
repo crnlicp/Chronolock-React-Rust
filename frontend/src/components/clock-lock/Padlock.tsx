@@ -12,7 +12,7 @@ import { useId } from 'react';
 
 const CX = 311;
 const BODY_CY = 410;
-const BODY_R = 181;
+const BODY_R = 185;
 const DIAL_CY = 410;
 const ARC_CY = 188; // centre of the shackle arc
 const ARC_R = 114; // centre line of the shackle (outer 139, inner 89)
@@ -185,24 +185,28 @@ export const Padlock = ({ open = false }: { open?: boolean }) => {
 
       {/* top tab with status light */}
       <path
-        d={`M${CX - 46} 229 H${CX + 46} L${CX + 74} 270 Q${CX} 258 ${CX - 74} 270 Z`}
-        fill={url('tab')}
-        stroke="#b9bbba"
-        strokeWidth="1.2"
-      />
+      d={`M${CX - 70} 250
+          Q${CX} 222 ${CX + 70} 250
+          Q${CX + 65} 255 ${CX + 55} 270
+          M${CX - 55} 270
+          Q${CX - 65} 255 ${CX - 70} 250`}
+      fill={url('tab')}
+      stroke="#b9bbba"
+      strokeWidth="1.2"
+/>
       <rect
         x={CX - 3}
-        y="248"
-        width="6"
-        height="17"
+        y="240"
+        width="7"
+        height="19"
         rx="3"
         fill={open ? '#34d399' : '#63ccfe'}
         filter={url('glow')}
       />
 
       {/* recessed bezel and dial edge */}
-      <circle cx={CX} cy={DIAL_CY} r="138" fill={url('bezel')} />
-      <circle cx={CX} cy={DIAL_CY} r="138.5" fill="none" stroke="#2a2d2a" strokeOpacity="0.7" strokeWidth="2" />
+      <circle cx={CX} cy={DIAL_CY} r="147" fill={url('bezel')} />
+      <circle cx={CX} cy={DIAL_CY} r="147" fill="none" stroke="#626962" strokeOpacity="0.7" strokeWidth="1.5" />
       <circle cx={CX} cy={DIAL_CY} r="124" fill={open ? '#053d2e' : '#0f2458'} />
 
       {open ? (

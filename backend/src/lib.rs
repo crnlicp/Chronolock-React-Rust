@@ -1,13 +1,13 @@
 //! Chronolock backend: time-locked, encrypted messages and media.
 
-mod auth;
-mod icrc7;
-mod locks;
-mod media;
-mod payments;
-mod state;
-mod types;
-mod vetkd;
+pub mod auth;
+pub mod icrc7;
+pub mod locks;
+pub mod media;
+pub mod payments;
+pub mod state;
+pub mod types;
+pub mod vetkd;
 
 use auth::{admin_caller, authenticated_caller, is_admin, CallerGuard};
 use candid::{Nat, Principal};
@@ -55,7 +55,8 @@ fn add_admins(admins: Option<Vec<Principal>>) {
 }
 
 fn start_timers() {
-    ic_cdk_timers::set_timer_interval(CLEANUP_INTERVAL, || async { media::cleanup_expired() });
+    // Serial: a run never overlaps the next one, even after a long time jump.
+    ic_cdk_timers::set_timer_interval_serial(CLEANUP_INTERVAL, async || media::cleanup_expired());
 }
 
 // ---------------------------------------------------------------------------
